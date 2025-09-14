@@ -5,12 +5,14 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import session from "express-session";
 import passport from "passport";
+import modelUploadRouter from "./routes/compression.js";
 import "./passportConfig.js"; // Import Passport Config
 import authRoutes from "./routes/auth.js"; // Ensure the file extension is correct
 import postRoutes from "./routes/postRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import feedBackRoutes from "./routes/feedback.js"
 import gameRoutes from "./routes/gameRoutes.js"
+import gameZip from "./routes/game.js"
 
 dotenv.config();
 
@@ -54,6 +56,8 @@ app.use("/uploads", express.static("uploads"));
 app.use("/api/upload", uploadRoutes);
 app.use("/api/gameRoutes",gameRoutes);
 app.use("/api/feedback",feedBackRoutes);
+app.use("/api/compression", modelUploadRouter);
+app.use("/api/gameupload", gameZip);
 // Connect to MongoDB
 
 mongoose
