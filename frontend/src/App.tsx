@@ -3,6 +3,8 @@ import { GoogleOAuthProvider } from '@react-oauth/google';
 import { Suspense, lazy } from 'react';
 import CreatePostPage from './Pages/CreatePostPage';
 import GameShowcase from './Pages/GameShowcase';
+import TestModelUpload from './Pages/ModelUploads';
+import UploadGame from './Pages/UploadGame';
 
 // Lazy-loaded pages
 const Home = lazy(() => import('./Pages/Home'));
@@ -41,6 +43,7 @@ function App() {
             <Route path="/devlogs" element={<DevLogs />} />
             <Route path="/devlogs/view" element={<DevLogsView />} />
             <Route path="/gameshow" element={<GameShowcase />} />
+            <Route path="/gameupload" element={<UploadGame />} />
             {/*<Route path="/game" element={<Game />} />
             <Route path="/profile" element={<Profile />} />*/}
             <Route path="/editprofile" element={<EditProfilePage />} /> 
