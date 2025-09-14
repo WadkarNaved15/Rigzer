@@ -1,6 +1,6 @@
-export interface FileItem { id:number; title:string; size:string; }
+export interface FileItem { id:number;file:File; title:string; size:string; }
 export interface GameDetails { status:string; author:string; genre:string; tags:string; }
-export interface GameTitleImage { url:string; type:string; }
+export interface Media {file:File; url:string; type:string; }
 
 
 export interface PageData {
@@ -21,8 +21,8 @@ export interface PageData {
   gameInfoTitle:string;
   gameInfoDescription:string;
   gameDetails:GameDetails;
-  screenshots:string[];
-  videos:string[];
-  bgImage:string;
-  gameTitleImage:GameTitleImage|null;
+  screenshots:Media[];
+  videos:Media[];
+  bgImage:Media|null;
+  gameTitleImage:Media|null;
 }

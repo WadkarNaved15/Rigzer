@@ -6,6 +6,7 @@ interface GameLogoCardProps {
   pageData: any;
   setPageData: React.Dispatch<React.SetStateAction<any>>;
   handleChange: (field: string, e: React.ChangeEvent<HTMLInputElement>) => void;
+  readonly?: boolean;
 }
 
 const GameLogoCard: React.FC<GameLogoCardProps> = ({
@@ -28,6 +29,7 @@ const GameLogoCard: React.FC<GameLogoCardProps> = ({
                   alt="Game Title"
                   className="mx-auto w-full max-h-72 object-cover"
                 />
+                {!readonly && (
                 <button
                   type="button"
                   className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded"
@@ -40,6 +42,7 @@ const GameLogoCard: React.FC<GameLogoCardProps> = ({
                 >
                   ✕
                 </button>
+                )}
               </div>
             ) : (
               <>
