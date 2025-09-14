@@ -13,6 +13,7 @@ import uploadRoutes from "./routes/uploadRoutes.js";
 import feedBackRoutes from "./routes/feedback.js"
 import gameRoutes from "./routes/gameRoutes.js"
 import gameZip from "./routes/game.js"
+import gameFetch from "./routes/gameFetch.js"
 
 dotenv.config();
 
@@ -58,6 +59,7 @@ app.use("/api/gameRoutes",gameRoutes);
 app.use("/api/feedback",feedBackRoutes);
 app.use("/api/compression", modelUploadRouter);
 app.use("/api/gameupload", gameZip);
+app.use("/api/games", gameFetch);
 // Connect to MongoDB
 
 mongoose

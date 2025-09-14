@@ -5,6 +5,7 @@ import CreatePostPage from './Pages/CreatePostPage';
 import GameShowcase from './Pages/GameShowcase';
 import TestModelUpload from './Pages/ModelUploads';
 import UploadGame from './Pages/UploadGame';
+import GamePost from './components/Home/GamePost'
 
 // Lazy-loaded pages
 const Home = lazy(() => import('./Pages/Home'));
@@ -43,6 +44,7 @@ function App() {
             <Route path="/modelupload" element={<TestModelUpload />} />
             <Route path="/gameshow" element={<GameShowcase />} />
             <Route path="/gameupload" element={<UploadGame />} />
+            <Route path="/games" element={<GamePost/>} />
             {/*<Route path="/game" element={<Game />} />
             <Route path="/profile" element={<Profile />} />*/}
             <Route path="/editprofile" element={<EditProfilePage />} /> 
