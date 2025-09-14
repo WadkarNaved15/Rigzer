@@ -1,16 +1,19 @@
 import React from "react";
 import type { PageData } from "../../types/Devlogs";
 import AutoResizeTextarea from "../Devlogs/AutoResizeTextarea";
+import SortableCard from "../Home/SortableCard";
 
 interface PurchaseProps {
+    id: string;
   pageData: PageData;
   handleChange: (key: keyof PageData, e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-const GameInfo: React.FC<PurchaseProps> = ({ pageData, handleChange }) => {
+const GameInfo: React.FC<PurchaseProps> = ({ id,pageData, handleChange }) => {
 
   return (
-     <div className="space-y-6">
+    <SortableCard id={id}>
+     <div className="col-span-1 space-y-6">
               <div className="bg-slate-700 rounded-lg p-6">
                 <input
                   type="text"
@@ -25,7 +28,7 @@ const GameInfo: React.FC<PurchaseProps> = ({ pageData, handleChange }) => {
                 />
               </div>
             </div>
-          
+    </SortableCard>
   );
 };
 

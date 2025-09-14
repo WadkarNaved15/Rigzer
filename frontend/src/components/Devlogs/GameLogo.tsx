@@ -44,7 +44,7 @@ const GameLogoCard: React.FC<GameLogoCardProps> = ({ id,pageData, setPageData,ha
 
   return (
     <SortableCard id={id}>
-    <div className="text-center mt-12">
+    <div className="col-span-2 text-center mt-12">
                 <div className="inline-block relative w-full">
                   {pageData?.gameTitleImage ? (
                     <div className="relative">

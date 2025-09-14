@@ -1,16 +1,19 @@
 import React, { useRef } from "react";
 import type { PageData } from "../../types/Devlogs";
+import SortableCard from "../Home/SortableCard";
 
 interface VideoDemosProps {
+  id: string;
   pageData: PageData;
   setPageData: React.Dispatch<React.SetStateAction<PageData>>;
 }
 
-const VideoDemos: React.FC<VideoDemosProps> = ({ pageData, setPageData }) => {
+const VideoDemos: React.FC<VideoDemosProps> = ({ id,pageData, setPageData }) => {
   const videoInputRef = useRef<HTMLInputElement | null>(null);
 
   return (
-    <div className="mt-8">
+    <SortableCard id={id}>
+    <div className="col-span-2 mt-8">
       <h3 className="text-2xl font-bold text-white mb-4">Video Demos</h3>
 
       <div className="grid grid-cols-1 gap-6">
@@ -64,6 +67,7 @@ const VideoDemos: React.FC<VideoDemosProps> = ({ pageData, setPageData }) => {
         />
       </div>
     </div>
+    </SortableCard>
   );
 };
 

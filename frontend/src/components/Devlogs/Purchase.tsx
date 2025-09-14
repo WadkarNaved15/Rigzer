@@ -1,15 +1,18 @@
 import React from "react";
 import type { PageData } from "../../types/Devlogs";
+import SortableCard from "../Home/SortableCard";
 
 interface PurchaseProps {
+  id: string;
   pageData: PageData;
   handleChange: (key: keyof PageData, e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-const Purchase: React.FC<PurchaseProps> = ({ pageData, handleChange }) => {
+const Purchase: React.FC<PurchaseProps> = ({id, pageData, handleChange }) => {
 
   return (
-     <div className="bg-slate-700 rounded-lg p-6">
+      <SortableCard id={id}>
+     <div className="col-span-2 bg-slate-700 rounded-lg p-6">
                 <h3 className="text-2xl font-bold text-white mb-4">
                   Get {pageData.gameInfoTitle}
                 </h3>
@@ -28,6 +31,7 @@ const Purchase: React.FC<PurchaseProps> = ({ pageData, handleChange }) => {
                   </div>
                 </div>
               </div>
+      </SortableCard>
           
   );
 };

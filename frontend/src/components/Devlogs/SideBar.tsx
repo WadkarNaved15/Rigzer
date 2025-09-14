@@ -1,16 +1,16 @@
 import React from "react";
 import type { PageData } from "../../types/Devlogs";
-import AutoResizeTextarea from "../Devlogs/AutoResizeTextarea";
+import SortableCard from "../Home/SortableCard";
 
 interface PurchaseProps {
+    id: string;
     pageData: PageData;
     setPageData: React.Dispatch<React.SetStateAction<PageData>>;
-    handleChange: (key: keyof PageData, e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 
 
-const SideBar: React.FC<PurchaseProps> = ({ pageData, setPageData,handleChange }) => {
+const SideBar: React.FC<PurchaseProps> = ({id, pageData, setPageData }) => {
       const handleNestedChange = (
         parentKey: keyof PageData,
         childKey: keyof PageData["gameDetails"],
@@ -27,7 +27,7 @@ const SideBar: React.FC<PurchaseProps> = ({ pageData, setPageData,handleChange }
       
 
   return (
-     
+        <SortableCard id={id}>
               <div className="bg-slate-700 rounded-lg p-6 text-sm space-y-3">
                 <div className="flex justify-between">
                   <span className="text-slate-400">Status</span>
@@ -66,7 +66,7 @@ const SideBar: React.FC<PurchaseProps> = ({ pageData, setPageData,handleChange }
                   />
                 </div>
               </div>
-          
+          </SortableCard>
   );
 };
 

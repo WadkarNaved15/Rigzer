@@ -1,12 +1,14 @@
 import React from "react";
 import type { PageData } from "../../types/Devlogs";
+import SortableCard from "../Home/SortableCard";
 
 interface FilesUploadProps {
+  id: string;
   pageData: PageData;
   setPageData: React.Dispatch<React.SetStateAction<PageData>>;
 }
 
-const FilesUpload: React.FC<FilesUploadProps> = ({ pageData, setPageData }) => {
+const FilesUpload: React.FC<FilesUploadProps> = ({ id,pageData, setPageData }) => {
   const handleFilesUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
 
@@ -23,7 +25,8 @@ const FilesUpload: React.FC<FilesUploadProps> = ({ pageData, setPageData }) => {
   };
 
   return (
-    <div className="mb-8">
+    <SortableCard id={id}>
+    <div className="col-span-2 mb-8">
       <h3 className="text-2xl font-bold text-white mb-6">Files</h3>
 
       {/* Upload Files */}
@@ -56,6 +59,7 @@ const FilesUpload: React.FC<FilesUploadProps> = ({ pageData, setPageData }) => {
         ))}
       </div>
     </div>
+    </SortableCard>
   );
 };
 

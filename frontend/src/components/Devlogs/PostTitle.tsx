@@ -14,7 +14,7 @@ const PostTitle: React.FC<PostTitleProps> = ({id, pageData,handleChange }) => {
 
     return (
       <SortableCard id={id}>
-        <div className="mt-2 mb-6">
+        <div className="col-span-2 mt-2 mb-6">
                 <input
                   type="text"
                   className="text-3xl font-bold text-white mb-4 bg-transparent outline-none w-full"

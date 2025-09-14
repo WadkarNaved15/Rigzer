@@ -1,15 +1,18 @@
 import React from "react";
 import type { PageData } from "../../types/Devlogs";
 import AutoResizeTextarea from "./AutoResizeTextarea";
+import SortableCard from "../Home/SortableCard";
 
 interface BlogProps {
+    id: string;
     pageData: PageData;
     handleChange: (key: keyof PageData, e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
 }
 
-const Blog: React.FC<BlogProps> = ({ pageData, handleChange }) => {
+const Blog: React.FC<BlogProps> = ({ id,pageData, handleChange }) => {
     return (
-        <div className="prose prose-invert max-w-none mt-4 mb-8 space-y-4">
+      <SortableCard id={id}>
+        <div className="col-span-2 prose prose-invert max-w-none mt-4 mb-8 space-y-4">
                 <AutoResizeTextarea
                   value={pageData.italicQuote}
                   className="text-xl italic text-slate-300 bg-transparent outline-none w-full"
@@ -50,6 +53,7 @@ const Blog: React.FC<BlogProps> = ({ pageData, handleChange }) => {
                   onChange={(e) => handleChange("signature", e)}
                 />*/}
               </div>  
+      </SortableCard>
             )
             }
 

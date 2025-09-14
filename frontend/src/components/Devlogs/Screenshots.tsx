@@ -1,12 +1,14 @@
 import React, { useRef } from "react";
 import type { PageData } from "../../types/Devlogs";
+import SortableCard from "../Home/SortableCard";
 
 interface ScreenshotProps {
+  id: string;
   pageData: PageData;
   setPageData: React.Dispatch<React.SetStateAction<PageData>>;
 }
 
-const Screenshots: React.FC<ScreenshotProps> = ({ pageData, setPageData }) => {
+const Screenshots: React.FC<ScreenshotProps> = ({ id,pageData, setPageData }) => {
   const screenshot1Ref = useRef<HTMLInputElement | null>(null);
 
   const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -36,7 +38,8 @@ const Screenshots: React.FC<ScreenshotProps> = ({ pageData, setPageData }) => {
   };
 
   return (
-    <div className="mt-8">
+    <SortableCard id={id}>
+    <div className="col-span-2 mt-8">
       <h3 className="text-2xl font-bold text-white mb-4">Screenshots</h3>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -76,6 +79,7 @@ const Screenshots: React.FC<ScreenshotProps> = ({ pageData, setPageData }) => {
         />
       </div>
     </div>
+    </SortableCard>
   );
 };
 

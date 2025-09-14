@@ -48,7 +48,7 @@ function App() {
     gameTitleImage: null,
   });
 
-  const [cards, setCards] = useState([
+  const [leftColumnCards, setLeftColumnCards] = useState([
     "GameLogo",
     "PostTitle",
     "screenshots",
@@ -56,6 +56,9 @@ function App() {
     "blog",
     "files",
     "Purchase",
+  ]);
+
+  const [rightColumnCards, setRightColumnCards] = useState([
     "GameInfo",
     "SideBar",
   ]);
@@ -93,7 +96,119 @@ function App() {
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    setCards((items) => arrayMove(items, items.indexOf(active.id), items.indexOf(over.id)));
+
+    // Determine the source and destination lists
+    const isSourceLeft = leftColumnCards.includes(active.id);
+    const isDestinationLeft = leftColumnCards.includes(over.id);
+
+    // If both source and destination are in the same column
+    if (isSourceLeft && isDestinationLeft) {
+      setLeftColumnCards((items) => arrayMove(items, items.indexOf(active.id), items.indexOf(over.id)));
+    } else if (!isSourceLeft && !isDestinationLeft) {
+      setRightColumnCards((items) => arrayMove(items, items.indexOf(active.id), items.indexOf(over.id)));
+    } else {
+      // Dragging between columns
+      if (isSourceLeft) {
+        const newLeft = leftColumnCards.filter(item => item !== active.id);
+        const newRight = [...rightColumnCards.slice(0, rightColumnCards.indexOf(over.id)), active.id, ...rightColumnCards.slice(rightColumnCards.indexOf(over.id))];
+        setLeftColumnCards(newLeft);
+        setRightColumnCards(newRight);
+      } else {
+        const newRight = rightColumnCards.filter(item => item !== active.id);
+        const newLeft = [...leftColumnCards.slice(0, leftColumnCards.indexOf(over.id)), active.id, ...leftColumnCards.slice(leftColumnCards.indexOf(over.id))];
+        setRightColumnCards(newRight);
+        setLeftColumnCards(newLeft);
+      }
+    }
+  };
+
+  const renderCard = (card: string) => {
+    switch (card) {
+      case "GameLogo":
+        return (
+          <GameLogo
+            key={card}
+            id={card}
+            pageData={pageData}
+            setPageData={setPageData}
+            handleChange={handleChange}
+          />
+        );
+      case "PostTitle":
+        return (
+          <PostTitle
+            key={card}
+            id={card}
+            pageData={pageData}
+            handleChange={handleChange}
+          />
+        );
+      case "screenshots":
+        return (
+          <Screenshots
+            key={card}
+            id={card}
+            pageData={pageData}
+            setPageData={setPageData}
+          />
+        );
+      case "videos":
+        return (
+          <VideoDemo
+            key={card}
+            id={card}
+            pageData={pageData}
+            setPageData={setPageData}
+          />
+        );
+      case "blog":
+        return (
+          <Blog
+            key={card}
+            id={card}
+            pageData={pageData}
+            handleChange={handleChange}
+          />
+        );
+      case "files":
+        return (
+          <Files
+            key={card}
+            id={card}
+            pageData={pageData}
+            setPageData={setPageData}
+          />
+        );
+      case "Purchase":
+        return (
+          <Purchase
+            key={card}
+            id={card}
+            pageData={pageData}
+            handleChange={handleChange}
+          />
+        );
+      case "GameInfo":
+        return (
+          <GameInfo
+            key={card}
+            id={card}
+            pageData={pageData}
+            handleChange={handleChange}
+          />
+        );
+      case "SideBar":
+        return (
+          <SideBar
+            key={card}
+            id={card}
+            pageData={pageData}
+            setPageData={setPageData}
+          />
+        );
+      default:
+        return null;
+    }
   };
 
   return (
@@ -137,62 +252,21 @@ function App() {
 
         {/* Main Form */}
         <form className="relative z-10 min-h-screen p-4 text-[#ffb347] font-mono">
-          <SortableContext items={cards} strategy={rectSortingStrategy}>
-            <div className="grid lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-6">
-                {cards.map((card) => {
-                  switch (card) {
-                    case "GameLogo":
-                      return (
-                        <GameLogo
-                          id="GameLogo"
-                          pageData={pageData}
-                          setPageData={setPageData}
-                          handleChange={handleChange}
-                        />
-                      );
-                    case "PostTitle":
-                      return (
-                        <PostTitle
-                          id="PostTitle"
-                          pageData={pageData}
-                          handleChange={handleChange}
-                        />
-                      );
-                    case "screenshots":
-                      return (
-                        <Screenshots key={card} pageData={pageData} setPageData={setPageData} />
-                      );
-                    case "videos":
-                      return <VideoDemo key={card} pageData={pageData} setPageData={setPageData} />;
-                    case "blog":
-                      return <Blog key={card} pageData={pageData} handleChange={handleChange} />;
-                    case "files":
-                      return <Files key={card} pageData={pageData} setPageData={setPageData} />;
-                    case "Purchase":
-                      return <Purchase key={card} pageData={pageData} handleChange={handleChange} />;
-                    default:
-                      return null;
-                  }
-                })}
-              </div>
-
-              {/* Sidebar */}
-              <div className="space-y-6">
-                {cards.includes("GameInfo") && (
-                  <GameInfo pageData={pageData} handleChange={handleChange} key="GameInfo" />
-                )}
-                {cards.includes("SideBar") && (
-                  <SideBar
-                    key="SideBar"
-                    pageData={pageData}
-                    setPageData={setPageData}
-                    handleChange={handleChange}
-                  />
-                )}
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
+            {/* LEFT COLUMN */}
+            <div className="lg:col-span-2 space-y-6">
+              <SortableContext items={leftColumnCards} strategy={rectSortingStrategy}>
+                {leftColumnCards.map(renderCard)}
+              </SortableContext>
             </div>
-          </SortableContext>
+
+            {/* RIGHT COLUMN (Sidebar and GameInfo) */}
+            <div className="lg:col-span-1 space-y-6">
+              <SortableContext items={rightColumnCards} strategy={rectSortingStrategy}>
+                {rightColumnCards.map(renderCard)}
+              </SortableContext>
+            </div>
+          </div>
         </form>
       </div>
     </DndContext>
