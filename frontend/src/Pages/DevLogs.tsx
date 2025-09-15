@@ -11,8 +11,10 @@ import Files from "../components/Devlogs/Files";
 import Purchase from "../components/Devlogs/Purchase";
 import SideBar from "../components/Devlogs/SideBar";
 import GameInfo from "../components/Devlogs/GameInfo";
+import axios from "axios";
 
 function DevLogs() {
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const [pageData, setPageData] = useState<PageData>({
     gameTitle: "GAME TITLE",
     postTitle: "Post Title",
@@ -182,63 +184,107 @@ function DevLogs() {
     }
   };
 
-  const uploadFileToS3 = async (file: File): Promise<string> => {
-    return `https://your-bucket.s3.amazonaws.com/${file.name}`;
-  };
+const uploadFileToS3 = async (file: File): Promise<string> => {
+  // Request signed URL
+  const res = await axios.get(`${BACKEND_URL}/api/devlogs/getUploadUrl`, {
+    params: { fileName: file.name, fileType: file.type },
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const { uploadUrl, key } = res.data;
 
-    try {
-      const finalData: PageData = { ...pageData };
+  // Upload the file
+      const putRes = await axios.put(uploadUrl, file, {
+      headers: {
+        "Content-Type": file.type,
+      },
+    });
+    console.log("putRes", putRes);
 
-      if (pageData.bgImage) {
-        finalData.bgImage = {
-          ...pageData.bgImage,
-          url: await uploadFileToS3(pageData.bgImage.file),
-        };
-      }
+  if (putRes.status!=200) throw new Error("Upload failed");
 
-      if (pageData.screenshots.length) {
-        finalData.screenshots = await Promise.all(
-          pageData.screenshots.map(async (m) => ({
-            ...m,
-            url: await uploadFileToS3(m.file),
-          }))
-        );
-      }
+  // Return the public URL (replace with CloudFront if available)
+  const bucket = import.meta.env.VITE_S3_DEVLOGS_BUCKET || "gamesocial-devlogs";
+  return `https://${bucket}.s3.amazonaws.com/${key}`;
+};
 
-      if (pageData.videos.length) {
-        finalData.videos = await Promise.all(
-          pageData.videos.map(async (m) => ({
-            ...m,
-            url: await uploadFileToS3(m.file),
-          }))
-        );
-      }
 
-      if (pageData.files.length) {
-        finalData.files = await Promise.all(
-          pageData.files.map(async (f) => ({
-            ...f,
-            file: f.file,
-          }))
-        );
-      }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-      const res = await fetch("/api/devlogs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pageData: finalData, leftColumnCards, rightColumnCards, gradientColor }),
-      });
+  try {
+    const finalData: PageData = { ...pageData };
 
-      if (!res.ok) throw new Error("Failed to save devlog");
-      alert("Devlog saved successfully!");
-    } catch (err) {
-      console.error(err);
-      alert("Error saving devlog.");
+    // 1️⃣ Upload bgImage
+    if (pageData.bgImage?.file) {
+      finalData.bgImage = {
+        ...pageData.bgImage,
+        url: await uploadFileToS3(pageData.bgImage.file),
+      };
     }
-  };
+
+    // 2️⃣ Upload gameTitleImage
+    if (pageData.gameTitleImage?.file) {
+      finalData.gameTitleImage = {
+        ...pageData.gameTitleImage,
+        url: await uploadFileToS3(pageData.gameTitleImage.file),
+      };
+    }
+
+    // 3️⃣ Upload screenshots
+    if (pageData.screenshots.length) {
+      finalData.screenshots = await Promise.all(
+        pageData.screenshots.map(async (s) => {
+          if (s.file) {
+            return { ...s, url: await uploadFileToS3(s.file) };
+          }
+          return s;
+        })
+      );
+    }
+
+    // 4️⃣ Upload videos
+    if (pageData.videos.length) {
+      finalData.videos = await Promise.all(
+        pageData.videos.map(async (v) => {
+          if (v.file) {
+            return { ...v, url: await uploadFileToS3(v.file) };
+          }
+          return v;
+        })
+      );
+    }
+
+    // 5️⃣ Upload files (PDFs, zips, etc.)
+    if (pageData.files.length) {
+      finalData.files = await Promise.all(
+        pageData.files.map(async (f) => {
+          if (f.file) {
+            return { ...f, url: await uploadFileToS3(f.file) };
+          }
+          return f;
+        })
+      );
+    }
+
+    // 6️⃣ Save devlog
+    const res = await axios.post(
+      `${BACKEND_URL}/api/devlogs`,
+      {
+        pageData: finalData,
+        leftColumnCards,
+        rightColumnCards,
+        gradientColor,
+      },
+      { headers: { "Content-Type": "application/json" } }
+    );
+
+    console.log("Devlog saved successfully!", res.data);
+  } catch (err) {
+    console.error(err);
+    alert("Error saving devlog.");
+  }
+};
+
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

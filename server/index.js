@@ -13,6 +13,7 @@ import uploadRoutes from "./routes/uploadRoutes.js";
 import feedBackRoutes from "./routes/feedback.js"
 import gameRoutes from "./routes/gameRoutes.js"
 import gameZip from "./routes/game.js"
+import devlogsRoutes from "./routes/devlogs.js";
 
 dotenv.config();
 
@@ -48,6 +49,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 app.use("/api/auth", authRoutes);
 app.use("/api/posts", postRoutes);
+app.use("/api/devlogs", devlogsRoutes);
 
 // Serve uploaded games statically
 app.use("/uploads", express.static("uploads"));

@@ -14,7 +14,7 @@ const ProfilePage = lazy(() => import('./Pages/ProfilePage'));
 const EditProfilePage = lazy(() => import('./Pages/EditProfile'));
 const GameStream = lazy(() => import('./Pages/GameStream'));
 const DevLogs = lazy(() => import('./Pages/DevLogs'));
-const DevLogsView = lazy(() => import('./Pages/DevLogsView'));
+const DevLogsView = lazy(() => import('./Pages/DevLogViewPage'));
 
 // const Game = lazy(() => import('./Pages/Game'));
 
@@ -41,7 +41,7 @@ function App() {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/createpost" element={<CreatePostPage />} />
             <Route path="/devlogs" element={<DevLogs />} />
-            <Route path="/devlogs/view" element={<DevLogsView />} />
+            <Route path="/devlogs/view/:id" element={<DevLogsView />} />
             <Route path="/gameshow" element={<GameShowcase />} />
             <Route path="/gameupload" element={<UploadGame />} />
             {/*<Route path="/game" element={<Game />} />

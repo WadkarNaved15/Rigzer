@@ -1,14 +1,14 @@
 import React from "react";
-import type { PageData } from "../types/Devlogs";
-import GameLogo from "../components/Devlogs/GameLogo";
-import PostTitle from "../components/Devlogs/PostTitle";
-import Screenshots from "../components/Devlogs/Screenshots";
-import VideoDemo from "../components/Devlogs/VideoDemos";
-import Blog from "../components/Devlogs/Blog";
-import Files from "../components/Devlogs/Files";
-import Purchase from "../components/Devlogs/Purchase";
-import SideBar from "../components/Devlogs/SideBar";
-import GameInfo from "../components/Devlogs/GameInfo";
+import type { PageData } from "../../types/Devlogs";
+import GameLogo from "./GameLogo";
+import PostTitle from "./PostTitle";
+import Screenshots from "./Screenshots";
+import VideoDemo from "./VideoDemos";
+import Blog from "./Blog";
+import Files from "./Files";
+import Purchase from "./Purchase";
+import SideBar from "./SideBar";
+import GameInfo from "./GameInfo";
 
 interface DevLogViewProps {
   pageData: PageData;

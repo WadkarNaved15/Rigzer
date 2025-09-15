@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from "react";
-import type { PageData ,Media} from "../../types/Devlogs";
+import type { PageData, Media } from "../../types/Devlogs";
 import SortableCard from "../Home/SortableCard";
 
 interface VideoDemosProps {
@@ -21,16 +21,16 @@ const VideoDemos: React.FC<VideoDemosProps> = ({
   useEffect(() => {
     return () => {
       pageData.videos.forEach((v) => {
-        if (v.startsWith("blob:")) URL.revokeObjectURL(v);
+        if (v.url.startsWith("blob:")) URL.revokeObjectURL(v.url);
       });
     };
   }, [pageData.videos]);
 
   const handleRemove = (index: number) => {
-    const url = pageData.videos[index];
+    const url = pageData.videos[index].url;
     if (url.startsWith("blob:")) URL.revokeObjectURL(url);
-    
-    setPageData((prev) => ({
+
+    setPageData?.((prev) => ({
       ...prev,
       videos: prev.videos.filter((_, i) => i !== index),
     }));
