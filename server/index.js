@@ -60,6 +60,7 @@ app.use("/api/gameRoutes",gameRoutes);
 app.use("/api/feedback",feedBackRoutes);
 app.use("/api/compression", modelUploadRouter);
 app.use("/api/gameupload", gameZip);
+app.use("/api/games", gameFetch);
 // Connect to MongoDB
 
 mongoose
