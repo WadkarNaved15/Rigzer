@@ -76,6 +76,8 @@ router.get("/fetch_posts", async (req, res) => {
       .sort({ _id: -1 }) // Sort newest first
       .limit(parseInt(limit));
 
+      console.log("post length ",posts.length)
+
     const nextCursor = posts.length > 0 ? posts[posts.length - 1]._id : null;
 
     res.status(200).json({ posts, nextCursor });

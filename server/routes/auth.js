@@ -12,10 +12,10 @@ router.get("/google", passport.authenticate("google", { scope: ["profile", "emai
 // Handle Google OAuth callback
 router.get(
   "/google/callback",
-  passport.authenticate("google", { failureRedirect: "https://localhost:5173/login" }),
+  passport.authenticate("google", { failureRedirect: "http://localhost:5173/login" }),
   (req, res) => {
     res.cookie("token", req.user.token, { httpOnly: true, secure: false });
-    res.redirect("https://localhost:5173/"); // Redirect to frontend
+    res.redirect("http://localhost:5173/"); // Redirect to frontend
   }
 );
 

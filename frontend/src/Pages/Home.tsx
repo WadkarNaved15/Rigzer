@@ -16,6 +16,7 @@ import TickerBar from '../components/Home/TickerBar';
 import UploadBox from '../components/Home/Upload';
 import FeedbackModal from '../components/Home/Feedback';
 
+
 // Lazy-loaded components
 const Profile = lazy(() => import('../components/Home/Profile'));
 const Billboard = lazy(() => import('../components/Home/Billboard'));
@@ -23,6 +24,8 @@ const Right = lazy(() => import('../components/Home/Right'));
 const AddPost = lazy(() => import('../components/Home/AddPost'));
 const Music = lazy(() => import('../components/Music'));
 const PostModal = lazy(() => import('../components/Home/NewPost'));
+const MessagingComponent = lazy(() => import('../components/Home/Message'));
+
 
 function Home() {
   const { user } = useUser();
@@ -163,11 +166,11 @@ function Home() {
   <>
           {/* Center Feed */}
           <div className="lg:col-span-6 flex flex-col items-center justify-start min-h-[80vh] w-full">
-            {user && (
+            {/* {user && (
               <Suspense fallback={null}>
                 <AddPost />
               </Suspense>
-            )}
+            )} */}
 
             {posts.length > 0 && (
               <div className="w-full mt-4 flex flex-col">
@@ -204,6 +207,9 @@ function Home() {
 )}
         </div>
       </main>
+      <Suspense fallback={null}>
+        <MessagingComponent />
+      </Suspense>
 
       <Suspense fallback={null}>
         <Music />

@@ -1,30 +1,31 @@
 import { SSMClient, SendCommandCommand } from "@aws-sdk/client-ssm";
 
-const REGION = process.env.AWS_REGION || "ap-south-1"; 
-const INSTANCE_ID = "i-01a193d0790f6d318"; // replace with your Linux instance ID
+const REGION = process.env.AWS_REGION || "ap-south-1";
+const INSTANCE_ID = "i-09c3569c7f9a09586";
 
 const ssmClient = new SSMClient({ region: REGION });
 
-export async function startGameSession(gameFolderPath = "/home/ubuntu/Documents") {
+export async function startGameSession(
+  gameFolderPath = "C:/Users/Administrator/Desktop"
+) {
   try {
     const params = {
       InstanceIds: [INSTANCE_ID],
-      DocumentName: "AWS-RunShellScript",
+      DocumentName: "AWS-RunPowerShellScript",   // ✅ Windows
       Comment: "Start game session",
       Parameters: {
         commands: [
-          `bash ${gameFolderPath}/start_services.sh`
+          `& "${gameFolderPath}\\start_services.bat"`
         ]
-      },
+      }
     };
 
     const command = new SendCommandCommand(params);
     const response = await ssmClient.send(command);
-
     console.log("SSM Command sent. Command ID:", response.Command.CommandId);
     return response.Command.CommandId;
-  } catch (error) {
-    console.error("Error sending SSM command:", error);
-    throw error;
+  } catch (err) {
+    console.error("Error sending SSM command:", err);
+    throw err;
   }
 }

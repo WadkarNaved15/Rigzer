@@ -14,7 +14,7 @@ import feedBackRoutes from "./routes/feedback.js"
 import gameRoutes from "./routes/gameRoutes.js"
 import gameZip from "./routes/game.js"
 import devlogsRoutes from "./routes/devlogs.js";
-import gameFetch from "./routes/gameFetch.js"
+import gameFetch from "./routes/gameFetch.js";
 
 dotenv.config();
 
