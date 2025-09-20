@@ -6,6 +6,8 @@ import GameShowcase from './Pages/GameShowcase';
 import TestModelUpload from './Pages/ModelUploads';
 import UploadGame from './Pages/UploadGame';
 import GamePost from './components/Home/GamePost'
+import { SearchProvider } from './components/Home/SearchContext';  // ✅ FIX
+
 
 // Lazy-loaded pages
 const Home = lazy(() => import('./Pages/Home'));
@@ -28,6 +30,7 @@ const DevLogsView = lazy(() => import('./Pages/DevLogsView'));
 
 function App() {
   return (
+    <SearchProvider>
     <GoogleOAuthProvider clientId="970893892840-8ecshtmle4kip6ps0bl7vbkg3nogl5od.apps.googleusercontent.com">
       <Router>
         {/* You can lazily load navbar too */}
@@ -56,6 +59,7 @@ function App() {
         </Suspense>
       </Router>
     </GoogleOAuthProvider>
+    </SearchProvider>
   );
 }
 

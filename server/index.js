@@ -14,6 +14,7 @@ import feedBackRoutes from "./routes/feedback.js"
 import gameRoutes from "./routes/gameRoutes.js"
 import gameZip from "./routes/game.js"
 import gameFetch from "./routes/gameFetch.js"
+import searchRoutes from "./routes/searchRoutes.js"
 
 dotenv.config();
 
@@ -49,6 +50,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 app.use("/api/auth", authRoutes);
 app.use("/api/posts", postRoutes);
+app.use("/api/posts", postRoutes);
 
 // Serve uploaded games statically
 app.use("/uploads", express.static("uploads"));
@@ -60,6 +62,7 @@ app.use("/api/feedback",feedBackRoutes);
 app.use("/api/compression", modelUploadRouter);
 app.use("/api/gameupload", gameZip);
 app.use("/api/games", gameFetch);
+app.use("/api/search", searchRoutes);
 // Connect to MongoDB
 
 mongoose
