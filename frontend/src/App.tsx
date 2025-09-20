@@ -7,6 +7,8 @@ import TestModelUpload from './Pages/ModelUploads';
 import UploadGame from './Pages/UploadGame';
 import GamePost from './components/Home/GamePost'
 import FeedbackProvider from './context/FeedbackProvider';
+import { SearchProvider } from './components/Home/SearchContext';  // ✅ FIX
+
 
 // Lazy-loaded pages
 const Home = lazy(() => import('./Pages/Home'));
@@ -29,6 +31,7 @@ const DevLogsView = lazy(() => import('./Pages/DevLogViewPage'));
 
 function App() {
   return (
+    <SearchProvider>
     <GoogleOAuthProvider clientId="970893892840-8ecshtmle4kip6ps0bl7vbkg3nogl5od.apps.googleusercontent.com">
       <FeedbackProvider>
       <Router>
@@ -59,6 +62,7 @@ function App() {
       </Router>
       </FeedbackProvider>
     </GoogleOAuthProvider>
+    </SearchProvider>
   );
 }
 

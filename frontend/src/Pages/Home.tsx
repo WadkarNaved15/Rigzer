@@ -5,17 +5,18 @@ import {
   Suspense,
   lazy,
   useRef,
-} from 'react';
-import { Header } from '../components/Header';
-import Post from '../components/Post';
-import { useUser } from '../context/user';
-import axios from 'axios';
-import type { PostProps } from '../types/Post'; 
-import CircleLoader from '../components/Loader/CircleLoader';
-import TickerBar from '../components/Home/TickerBar';
-import UploadBox from '../components/Home/Upload';
-import { useFeedback } from "../context/FeedbackProvider";
-
+} from "react";
+import { Header } from "../components/Header";
+import Post from "../components/Post";
+import { useUser } from "../context/user";
+import axios from "axios";
+import type { PostProps } from "../types/Post";
+import CircleLoader from "../components/Loader/CircleLoader";
+import TickerBar from "../components/Home/TickerBar";
+import UploadBox from "../components/Home/Upload";
+import FeedbackModal from "../components/Home/Feedback";
+import { useSearch } from "../components/Home/SearchContext";
+import { ArrowLeft } from "lucide-react";
 
 // Lazy-loaded components
 const Profile = lazy(() => import('../components/Home/Profile'));
@@ -32,60 +33,110 @@ function Home() {
   const { open } = useFeedback();
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
-  // const [isModalOpen, setIsModalOpen] = useState(user === null);
-  const [posts, setPosts] = useState<PostProps[]>([]);
-  const [nextCursor, setNextCursor] = useState(null);
+  // 🔹 Main feed state
+  const [mainPosts, setMainPosts] = useState<PostProps[]>([]);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
+
+  // 🔹 Search feed state
+  const [filteredPosts, setFilteredPosts] = useState<PostProps[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+
+  const {
+    submittedQuery,
+    showFilteredFeed,
+    setShowFilteredFeed,
+    setSubmittedQuery,
+  } = useSearch();
 
   const [isUploading, setIsUploading] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
 
-
   const loaderRef = useRef<HTMLDivElement | null>(null);
 
-  // useEffect(() => {
-  //   setIsModalOpen(user === null);
-  // }, [user]);
-
-  const fetchPosts = useCallback(async () => {
-    if (loading || !hasMore) return;
-
+  // 🔹 Fetch main feed posts
+  const fetchMainPosts = useCallback(
+  async (reset = false) => {
+    if (loading || (!hasMore && !reset)) return;
     setLoading(true);
+
     try {
       const res = await axios.get(`${BACKEND_URL}/api/posts/fetch_posts`, {
-        params: { cursor: nextCursor, limit: 3 },
+        params: {
+          cursor: reset ? null : nextCursor,
+          limit: 3,
+        },
       });
 
       const newPosts = res.data.posts;
       const newCursor = res.data.nextCursor;
 
-      setPosts((prev) => {
-        const allPosts = [...prev, ...newPosts];
-        const uniquePosts = Array.from(new Map(allPosts.map(p => [p._id, p])).values());
-        return uniquePosts;
+      setMainPosts((prev) => {
+        const allPosts = reset ? newPosts : [...prev, ...newPosts];
+        // ✅ Deduplicate by _id
+        return Array.from(new Map(allPosts.map((p) => [p._id, p])).values());
       });
+
       setNextCursor(newCursor);
       if (!newCursor || newPosts.length === 0) setHasMore(false);
     } catch (err) {
-      console.error('Failed to fetch posts:', err);
+      console.error("Failed to fetch posts:", err);
       setHasMore(false);
     } finally {
       setLoading(false);
     }
-  }, [nextCursor, loading, hasMore]);
+  },
+  [nextCursor, loading, hasMore, BACKEND_URL]
+);
 
+const fetchFilteredPosts = useCallback(
+  async (query: string) => {
+    if (!query.trim()) return;
+    setSearchLoading(true);
+    try {
+      const res = await axios.get(`${BACKEND_URL}/api/posts/filter_posts`, {
+        params: { query },
+      });
+
+      const newPosts = res.data.posts;
+
+      setFilteredPosts((prev) => {
+        const allPosts = [...prev, ...newPosts];
+        // ✅ Deduplicate by _id
+        return Array.from(new Map(allPosts.map((p) => [p._id, p])).values());
+      });
+    } catch (err) {
+      console.error("Failed to fetch filtered posts:", err);
+    } finally {
+      setSearchLoading(false);
+    }
+  },
+  [BACKEND_URL]
+);
+
+
+  // 🔹 Load main feed on mount
   useEffect(() => {
-    fetchPosts();
+    fetchMainPosts(true);
   }, []);
 
+  // 🔹 Load search feed when submittedQuery changes
   useEffect(() => {
-    if (!hasMore || loading) return;
+    if (submittedQuery.trim()) {
+      setShowFilteredFeed(true);
+      fetchFilteredPosts(submittedQuery);
+    }
+  }, [submittedQuery]);
+
+  // 🔹 Infinite scroll for main feed only
+  useEffect(() => {
+    if (!hasMore || loading || showFilteredFeed) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          fetchPosts();
+          fetchMainPosts();
         }
       },
       { threshold: 1.0 }
@@ -98,7 +149,7 @@ function Home() {
       if (loader) observer.unobserve(loader);
       observer.disconnect();
     };
-  }, [fetchPosts, hasMore, loading]);
+  }, [fetchMainPosts, hasMore, loading, showFilteredFeed]);
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-black">
@@ -123,37 +174,27 @@ function Home() {
         onClose={() => setIsFeedbackOpen(false)}
         onSubmit={(category, feedback) => {
           console.log("Feedback submitted:", category, feedback);
-          // ✅ send to backend API here
         }}
       /> */}
 
-      {/* <Suspense fallback={null}>
-        {isModalOpen && <HomeModal onClose={() => setIsModalOpen(false)} />}
-      </Suspense> */}
-
-  <main className="max-w-7xl mx-auto pl-2 sm:pl-4 lg:pl-6 pr-4 sm:pr-6 lg:pr-8 py-8">
+      <main className="max-w-7xl mx-auto pl-2 sm:pl-4 lg:pl-6 pr-4 sm:pr-6 lg:pr-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-
-        <div className="lg:col-span-2">
           {/* Profile Sidebar */}
-        <div
-            className="sticky top-24 shadow-2xl h-54 
-            dark:bg-black bg-white rounded-t-xl 
-            border-t border-r border-gray-200 dark:border-[#3D7A6E]"
-          >
-            <Suspense fallback={null}>
-              <Profile />
-            </Suspense>
-          </div>
+          <div className="lg:col-span-2">
+            <div
+              className="sticky top-24 shadow-2xl h-54 
+              dark:bg-black bg-white rounded-t-xl 
+              border-t border-r border-gray-200 dark:border-[#3D7A6E]"
+            >
+              <Suspense fallback={null}>
+                <Profile />
+              </Suspense>
+            </div>
 
-          {/* <div className="lg:col-span-2 sticky shadow-2xl top-24 h-60 
-        dark:bg-black bg-white rounded-t-xl 
-        border-t border-r border-gray-200 dark:border-[#3D7A6E] 
-        hidden lg:block"> */}
-        <div className="sticky top-80">
-            <UploadBox onUploadClick={() => setIsUploading(true)} />
-        </div>
-        </div>
+            <div className="sticky top-80">
+              <UploadBox onUploadClick={() => setIsUploading(true)} />
+            </div>
+          </div>
 
 
             {/* Center Feed + Billboard */}
@@ -172,40 +213,82 @@ function Home() {
                 <AddPost />
               </Suspense>
             )} */}
-
-            {posts.length > 0 && (
-              <div className="w-full mt-4 flex flex-col">
-                {posts.map((post) => (
-                  <Post key={post._id } {...post} />
-                ))}
-              </div>
-            ) }
-
-            {(loading|| posts.length === 0)  && (
-              <div className="w-full flex justify-center mt-4">
-                <CircleLoader />
-              </div>
-            )}
-
-            {!hasMore && posts.length > 0 && (
-              <div className="text-gray-400 dark:text-gray-500 mt-4">
-                You've reached the end.
-              </div>
-            )}
-
-            <div ref={loaderRef} className="h-10 w-full" />
-          </div>
-
-          {/* Billboard */}
-          <div className="lg:col-span-4 hidden lg:block h-full">
-            <div className="sticky top-24 h-[300px]">
+          {/* Center Feed */}
+          {isUploading ? (
+            <div className="lg:col-span-10 flex flex-col items-center justify-start min-h-[80vh] w-full">
               <Suspense fallback={null}>
-                <Right />
+                <PostModal onCancel={() => setIsUploading(false)} />
               </Suspense>
             </div>
-          </div>
-          </>
-)}
+          ) : (
+            <>
+              <div className="lg:col-span-6 flex flex-col items-center justify-start min-h-[80vh] w-full">
+                {user && !showFilteredFeed && (
+                  <Suspense fallback={null}>
+                    <AddPost />
+                  </Suspense>
+                )}
+
+                {/* ✅ Filtered feed (like X search results) */}
+                {showFilteredFeed ? (
+                  <div className="w-full mt-4 flex flex-col">
+                    {/* Back button */}
+                    <button
+                      onClick={() => {
+                        setShowFilteredFeed(false);
+                        setSubmittedQuery("");
+                        setFilteredPosts([]);
+                      }}
+                      className="flex items-center gap-2 text-blue-500 hover:text-blue-600 mb-4"
+                    >
+                      <ArrowLeft size={20} /> Back to Feed
+                    </button>
+
+                    {searchLoading && <CircleLoader />}
+                    {!searchLoading && filteredPosts.length === 0 && (
+                      <div className="text-gray-400 dark:text-gray-500 mt-4">
+                        No posts found for "{submittedQuery}"
+                      </div>
+                    )}
+                    {filteredPosts.map((post) => (
+                      <Post key={post._id} {...post} />
+                    ))}
+                  </div>
+                ) : (
+                  /* ✅ Main feed */
+                  <>
+                    {mainPosts.length > 0 && (
+                      <div className="w-full mt-4 flex flex-col">
+                        {mainPosts.map((post) => (
+                          <Post key={post._id} {...post} />
+                        ))}
+                      </div>
+                    )}
+                    {loading && mainPosts.length === 0 && (
+                      <div className="w-full flex justify-center mt-4">
+                        <CircleLoader />
+                      </div>
+                    )}
+                    {!hasMore && mainPosts.length > 0 && (
+                      <div className="text-gray-400 dark:text-gray-500 mt-4">
+                        You've reached the end.
+                      </div>
+                    )}
+                    <div ref={loaderRef} className="h-10 w-full" />
+                  </>
+                )}
+              </div>
+
+              {/* Billboard */}
+              <div className="lg:col-span-4 hidden lg:block h-full">
+                <div className="sticky top-24 h-[300px]">
+                  <Suspense fallback={null}>
+                    <Right />
+                  </Suspense>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </main>
       <Suspense fallback={null}>

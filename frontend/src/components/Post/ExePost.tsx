@@ -65,11 +65,25 @@ const ExePost: React.FC<ExePostProps> = ({
       <span className="absolute top-0 left-0 h-[2px] w-3 
         bg-gradient-to-r from-[#3D7A6E] via-teal-400 to-transparent animate-shine"></span> */}
 
+
+      {/* 🔗 Connector for top-left (joins top + left bolts) */}
+      {/* <span className="absolute top-0 left-0 w-[2px] h-3 
+        bg-gradient-to-b from-[#3D7A6E] via-teal-400 to-transparent animate-shine-vertical"></span>
+      <span className="absolute top-0 left-0 h-[2px] w-3 
+        bg-gradient-to-r from-[#3D7A6E] via-teal-400 to-transparent animate-shine"></span> */}
+
       {/* ⚪ Bottom-right bolts */}
+      <span className="absolute bottom-0 right-0 h-[0.75px] w-[40px] 
       <span className="absolute bottom-0 right-0 h-[0.75px] w-[40px] 
         bg-gradient-to-l from-gray-400 via-gray-600 to-transparent animate-shine" />
       <span className="absolute bottom-0 right-0 w-[0.75px] h-[40px] 
         bg-gradient-to-t from-gray-400 via-gray-600 to-transparent animate-shine-vertical" />
+
+      {/* 🔗 Connector for bottom-right (joins bottom + right bolts) */}
+      {/* <span className="absolute bottom-0 right-0 w-[2px] h-4 
+        bg-gradient-to-t from-gray-400 via-gray-600 to-transparent animate-shine-vertical"></span>
+      <span className="absolute bottom-0 right-0 h-[2px] w-4 
+        bg-gradient-to-l from-gray-400 via-gray-600 to-transparent animate-shine"></span> */}
 
       {/* 🔗 Connector for bottom-right (joins bottom + right bolts) */}
       {/* <span className="absolute bottom-0 right-0 w-[2px] h-4 
@@ -95,6 +109,13 @@ const ExePost: React.FC<ExePostProps> = ({
             >
               {loading ? 'Loading...' : 'Play Game'}
             </button>
+              <button
+              onClick={handleGameStream}
+              disabled={loading}
+              className="px-6 py-3 bg-black text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-all"
+            >
+              {loading ? 'Loading...' : 'Play Game'}
+            </button>
               {error && <p className="text-red-500 mt-2">{error}</p>}
             </div>
           {/* </div> */}
@@ -105,6 +126,8 @@ const ExePost: React.FC<ExePostProps> = ({
             </p>
           </div> */}
         </div>
+
+        <PostInteractions likes={likes} comments={comments} />
 
         <PostInteractions likes={likes} comments={comments} />
       </div>

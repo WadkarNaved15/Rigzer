@@ -1,8 +1,10 @@
 import express from "express";
 import multer from "multer";
 import dotenv from "dotenv";
+import mongoose from "mongoose";
 import cloudinary from "../cloudinaryConfig.js";
 import Post from "../models/Post.js";
+import User from "../models/User.js";  // adjust path
 import authMiddleware from "../middlewares/authMiddleware.js";
 
 dotenv.config();
@@ -10,6 +12,8 @@ dotenv.config();
 const router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
+
+
 
 // POST /api/posts - Create a new post
 router.post("/create_posts", authMiddleware, upload.array("media", 5), async (req, res) => {
@@ -63,6 +67,7 @@ router.post("/create_posts", authMiddleware, upload.array("media", 5), async (re
   }
 });
 // GET /api/posts - Fetch all posts with user details
+// GET /api/posts - Fetch all posts with user details
 router.get("/fetch_posts", async (req, res) => {
   try {
     const { cursor, limit = 10 } = req.query;
@@ -84,6 +89,38 @@ router.get("/fetch_posts", async (req, res) => {
   } catch (error) {
     console.error("Error fetching posts:", error);
     res.status(500).json({ error: "Failed to fetch posts" });
+  }
+});
+router.get("/filter_posts", async (req, res) => {
+  try {
+    const { query } = req.query;
+
+    if (!query || query.trim() === "") {
+      return res.status(400).json({ message: "Search query is required" });
+    }
+
+    // Find matching users first (case-insensitive match on username)
+    const matchingUsers = await User.find({
+      username: { $regex: query, $options: "i" },
+    }).select("_id");
+
+    const userIds = matchingUsers.map((u) => u._id);
+
+    // Find posts by either description match OR user match
+    const posts = await Post.find({
+      $or: [
+        { description: { $regex: query, $options: "i" } },
+        { user: { $in: userIds } },
+      ],
+    })
+      .populate("user", "username") // ✅ so frontend gets username
+      .sort({ createdAt: -1 })
+      .limit(50);
+
+    res.status(200).json({ posts });
+  } catch (error) {
+    console.error("Error filtering posts:", error);
+    res.status(500).json({ message: "Server error" });
   }
 });
 
