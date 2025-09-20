@@ -1,18 +1,25 @@
-import { useState } from "react";
+import { useState ,useEffect } from "react";
 import { FaTimes } from "react-icons/fa";
 
 interface FeedbackModalProps {
   isOpen: boolean;
+  screenshot?: File | null;
   onClose: () => void;
 }
 
-export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
+export default function FeedbackModal({ isOpen,screenshot, onClose }: FeedbackModalProps) {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [category, setCategory] = useState("");
   const [feedback, setFeedback] = useState("");
+  const [image, setImage] = useState<File | null>(screenshot || null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+      useEffect(() => {
+    // if screenshot changes (Ctrl+Shift+F), show it
+    setImage(screenshot || null);
+  }, [screenshot]);
 
   if (!isOpen) return null;
 
@@ -27,15 +34,16 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
     setSuccess("");
 
     try {
-      const res = await fetch(`${BACKEND_URL}/api/feedback`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include", // Needed to send JWT cookie
-        body: JSON.stringify({
-          category,
-          message: feedback,
-        }),
-      });
+      const formData = new FormData();
+    formData.append("category", category);
+    formData.append("message", feedback);
+    if (image) formData.append("attachment", image);
+
+    const res = await fetch(`${BACKEND_URL}/api/feedback`, {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    });
 
       const data = await res.json();
 
@@ -95,6 +103,43 @@ export default function FeedbackModal({ isOpen, onClose }: FeedbackModalProps) {
           <option value="Purchase and Payment Issue">Purchase and Payment Issue</option>
           <option value="Other">Other</option>
         </select>
+
+        {/* Image upload */}
+<div className="mb-4">
+  <label className="block text-sm font-medium mb-1">Attach image (optional)</label>
+  <input
+    type="file"
+    accept="image/*"
+    onChange={(e) => {
+      const file = e.target.files?.[0];
+      if (file) setImage(file);
+    }}
+    className="block w-full text-sm text-gray-300
+               file:mr-4 file:py-2 file:px-4
+               file:rounded file:border-0
+               file:text-sm file:font-semibold
+               file:bg-red-500 file:text-white
+               hover:file:bg-red-600"
+  />
+
+  {image && (
+    <div className="mt-2">
+      <img
+        src={URL.createObjectURL(image)}
+        alt="Selected attachment"
+        className="max-h-40 rounded border"
+      />
+      <button
+        type="button"
+        className="text-xs text-red-400 mt-1 underline"
+        onClick={() => setImage(null)}
+      >
+        Remove
+      </button>
+    </div>
+  )}
+</div>
+
 
         {/* Feedback textarea */}
         <label className="block text-sm font-medium mb-1">Feedback</label>

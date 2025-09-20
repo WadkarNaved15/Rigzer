@@ -22,20 +22,27 @@ const MessagingComponent = () => {
   const messagesEndRef = useRef(null);
 
   // CSS animation for shine
-  useEffect(() => {
-    const style = document.createElement("style");
-    style.textContent = `
-      @keyframes shine {
-        0% { transform: translateX(-100%); }
-        100% { transform: translateX(400%); }
-      }
-      .animate-shine {
-        animation: shine 3s infinite;
-      }
-    `;
-    document.head.appendChild(style);
-    return () => document.head.removeChild(style);
-  }, []);
+useEffect(() => {
+  const style = document.createElement("style");
+  style.textContent = `
+    @keyframes shine {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(400%); }
+    }
+    .animate-shine {
+      animation: shine 3s infinite;
+    }
+  `;
+  document.head.appendChild(style);
+
+  return () => {
+    // Ensure the cleanup returns void
+    if (document.head.contains(style)) {
+      document.head.removeChild(style);
+    }
+  };
+}, []);
+
 
   const [users] = useState([
     { id: 1, name: "Sarah Johnson", avatar: "SJ", status: "online", lastSeen: "Active now", unreadCount: 2 },

@@ -14,7 +14,7 @@ import type { PostProps } from '../types/Post';
 import CircleLoader from '../components/Loader/CircleLoader';
 import TickerBar from '../components/Home/TickerBar';
 import UploadBox from '../components/Home/Upload';
-import FeedbackModal from '../components/Home/Feedback';
+import { useFeedback } from "../context/FeedbackProvider";
 
 
 // Lazy-loaded components
@@ -29,6 +29,7 @@ const MessagingComponent = lazy(() => import('../components/Home/Message'));
 
 function Home() {
   const { user } = useUser();
+  const { open } = useFeedback();
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
   // const [isModalOpen, setIsModalOpen] = useState(user === null);
@@ -105,7 +106,7 @@ function Home() {
       <TickerBar />
       
 <button
-  onClick={() => setIsFeedbackOpen(true)}
+  onClick={open}
   className="fixed top-[75%] left-[-32px] -translate-y-1/2 rotate-90
              z-[9999] bg-red-500 text-white px-4 py-2 
              rounded-tl-lg rounded-tr-lg shadow-md 
@@ -117,14 +118,14 @@ function Home() {
 
 
 
-      <FeedbackModal
+      {/* <FeedbackModal
         isOpen={isFeedbackOpen}
         onClose={() => setIsFeedbackOpen(false)}
         onSubmit={(category, feedback) => {
           console.log("Feedback submitted:", category, feedback);
           // ✅ send to backend API here
         }}
-      />
+      /> */}
 
       {/* <Suspense fallback={null}>
         {isModalOpen && <HomeModal onClose={() => setIsModalOpen(false)} />}
