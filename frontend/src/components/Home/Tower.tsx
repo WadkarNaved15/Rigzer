@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { PlusCircle } from "lucide-react";
 
-type Face = "follow" | "posts" | "reading";
+type Face = "follow" | "posts" | "reading" | "projects";
 
 interface TowerProps {
   activeFace: Face;
@@ -11,24 +11,35 @@ const Tower: React.FC<TowerProps> = ({ activeFace }) => {
   const cubeRef = useRef<HTMLDivElement>(null);
   const [translateZ, setTranslateZ] = useState(150);
 
+  // Recompute translateZ on mount + resize
   useEffect(() => {
-    if (cubeRef.current) {
-      setTranslateZ(cubeRef.current.offsetWidth / 2);
-    }
+    const update = () => {
+      if (cubeRef.current) {
+        setTranslateZ(cubeRef.current.offsetWidth / 2);
+      }
+    };
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
   }, []);
 
+  // Map active face to rotation
   const rotation = useMemo(() => {
     const map: Record<Face, string> = {
       follow: "rotateY(0deg)",
       posts: "rotateY(-90deg)",
       reading: "rotateY(-180deg)",
+      projects: "rotateY(-270deg)",
     };
     return map[activeFace];
   }, [activeFace]);
 
-  const renderFollowFace = () => (
-    <div className="face face-front dark:text-white overflow-y-auto" style={{ transform: `translateZ(${translateZ}px)` }}>
-      <div className="h-full space-y-4">
+  const FollowFace = () => (
+    <div
+      className="face dark:text-white dark:bg-black overflow-y-auto"
+      style={{ transform: `translateZ(${translateZ}px)` }}
+    >
+      <div className="h-full space-y-4 px-2">
         {Array.from({ length: 3 }, (_, i) => (
           <div key={i} className="flex items-center justify-between gap-4">
             <img
@@ -47,9 +58,12 @@ const Tower: React.FC<TowerProps> = ({ activeFace }) => {
     </div>
   );
 
-  const renderPostsFace = () => (
-    <div className="face face-right dark:text-white overflow-y-auto" style={{ transform: `rotateY(90deg) translateZ(${translateZ}px)` }}>
-      <div className="h-full space-y-4">
+  const PostsFace = () => (
+    <div
+      className="face dark:text-white dark:bg-black overflow-y-auto"
+      style={{ transform: `rotateY(90deg) translateZ(${translateZ}px)` }}
+    >
+      <div className="h-full space-y-4 px-2">
         {Array.from({ length: 4 }, (_, i) => (
           <div key={i} className="border-b pb-4">
             <div className="flex items-center gap-2 mb-2">
@@ -69,9 +83,12 @@ const Tower: React.FC<TowerProps> = ({ activeFace }) => {
     </div>
   );
 
-  const renderReadingFace = () => (
-    <div className="face face-back dark:text-white overflow-y-auto" style={{ transform: `rotateY(180deg) translateZ(${translateZ}px)` }}>
-      <div className="h-full space-y-4">
+  const ReadingFace = () => (
+    <div
+      className="face dark:text-white dark:bg-black overflow-y-auto"
+      style={{ transform: `rotateY(180deg) translateZ(${translateZ}px)` }}
+    >
+      <div className="h-full space-y-4 px-2">
         {Array.from({ length: 3 }, (_, i) => (
           <div key={i} className="border-b pb-4">
             <h3 className="font-semibold mb-2">Article Title {i + 1}</h3>
@@ -84,16 +101,33 @@ const Tower: React.FC<TowerProps> = ({ activeFace }) => {
     </div>
   );
 
+  const ProjectsFace = () => (
+    <div
+      className="face dark:text-white dark:bg-black overflow-y-auto"
+      style={{ transform: `rotateY(-90deg) translateZ(${translateZ}px)` }}
+    >
+      <div className="h-full space-y-4 px-2">
+        <h3 className="font-semibold mb-2">Projects</h3>
+        <ul className="list-disc pl-6 text-gray-600 dark:text-gray-200 space-y-1">
+          <li>Voxel Sandbox</li>
+          <li>Roguelike Toolkit</li>
+          <li>WebGL Racer</li>
+        </ul>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="flex-1 dark:bg-gray-700 h-full w-full overflow-hidden flex items-center justify-center perspective-1000">
+    <div className="flex-1 dark:bg-black h-full w-full overflow-hidden flex items-center justify-center perspective-1000">
       <div
         ref={cubeRef}
         className="relative w-full h-full flex justify-center preserve-3d transition-transform duration-700"
         style={{ transform: rotation }}
       >
-        {renderFollowFace()}
-        {renderPostsFace()}
-        {renderReadingFace()}
+        <FollowFace />
+        <PostsFace />
+        <ReadingFace />
+        <ProjectsFace />
       </div>
     </div>
   );

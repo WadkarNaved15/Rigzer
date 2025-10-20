@@ -1,3 +1,4 @@
+// src/pages/Home.tsx
 import {
   useEffect,
   useState,
@@ -14,32 +15,33 @@ import type { PostProps } from "../types/Post";
 import CircleLoader from "../components/Loader/CircleLoader";
 import TickerBar from "../components/Home/TickerBar";
 import UploadBox from "../components/Home/Upload";
-import FeedbackModal from "../components/Home/Feedback";
 import { useSearch } from "../components/Home/SearchContext";
 import { ArrowLeft } from "lucide-react";
+import { useFeedback } from "../context/FeedbackProvider";
 
 // Lazy-loaded components
-const Profile = lazy(() => import('../components/Home/Profile'));
-const Billboard = lazy(() => import('../components/Home/Billboard'));
-const Right = lazy(() => import('../components/Home/Right'));
-const AddPost = lazy(() => import('../components/Home/AddPost'));
-const Music = lazy(() => import('../components/Music'));
-const PostModal = lazy(() => import('../components/Home/NewPost'));
-const MessagingComponent = lazy(() => import('../components/Home/Message'));
-
+const ProfileCover = lazy(() => import("../components/Home/Profile"));
+const Billboard = lazy(() => import("../components/Home/Billboard"));
+const Right = lazy(() => import("../components/Home/Right"));
+const AddPost = lazy(() => import("../components/Home/AddPost"));
+const Music = lazy(() => import("../components/Music"));
+const PostModal = lazy(() => import("../components/Home/NewPost"));
+const MessagingComponent = lazy(() => import("../components/Home/Message"));
+const Profile = lazy(() => import("../components/Profile/NewProfile"));
 
 function Home() {
   const { user } = useUser();
   const { open } = useFeedback();
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+  const BACKEND_URL =
+    import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
-  // 🔹 Main feed state
+  // Feed state
   const [mainPosts, setMainPosts] = useState<PostProps[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
-  // 🔹 Search feed state
+  // Search feed state
   const [filteredPosts, setFilteredPosts] = useState<PostProps[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
 
@@ -51,77 +53,71 @@ function Home() {
   } = useSearch();
 
   const [isUploading, setIsUploading] = useState(false);
-  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
 
   const loaderRef = useRef<HTMLDivElement | null>(null);
 
-  // 🔹 Fetch main feed posts
+  // Fetch main posts
   const fetchMainPosts = useCallback(
-  async (reset = false) => {
-    if (loading || (!hasMore && !reset)) return;
-    setLoading(true);
+    async (reset = false) => {
+      if (loading || (!hasMore && !reset)) return;
+      setLoading(true);
 
-    try {
-      const res = await axios.get(`${BACKEND_URL}/api/posts/fetch_posts`, {
-        params: {
-          cursor: reset ? null : nextCursor,
-          limit: 3,
-        },
-      });
+      try {
+        const res = await axios.get(`${BACKEND_URL}/api/posts/fetch_posts`, {
+          params: { cursor: reset ? null : nextCursor, limit: 3 },
+        });
 
-      const newPosts = res.data.posts;
-      const newCursor = res.data.nextCursor;
+        const newPosts = res.data.posts;
+        const newCursor = res.data.nextCursor;
 
-      setMainPosts((prev) => {
-        const allPosts = reset ? newPosts : [...prev, ...newPosts];
-        // ✅ Deduplicate by _id
-        return Array.from(new Map(allPosts.map((p) => [p._id, p])).values());
-      });
+        setMainPosts((prev) => {
+          const all = reset ? newPosts : [...prev, ...newPosts];
+          return Array.from(new Map(all.map((p) => [p._id, p])).values());
+        });
 
-      setNextCursor(newCursor);
-      if (!newCursor || newPosts.length === 0) setHasMore(false);
-    } catch (err) {
-      console.error("Failed to fetch posts:", err);
-      setHasMore(false);
-    } finally {
-      setLoading(false);
-    }
-  },
-  [nextCursor, loading, hasMore, BACKEND_URL]
-);
+        setNextCursor(newCursor);
+        if (!newCursor || newPosts.length === 0) setHasMore(false);
+      } catch (err) {
+        console.error("Failed to fetch posts:", err);
+        setHasMore(false);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [nextCursor, loading, hasMore, BACKEND_URL]
+  );
 
-const fetchFilteredPosts = useCallback(
-  async (query: string) => {
-    if (!query.trim()) return;
-    setSearchLoading(true);
-    try {
-      const res = await axios.get(`${BACKEND_URL}/api/posts/filter_posts`, {
-        params: { query },
-      });
+  // Fetch filtered posts
+  const fetchFilteredPosts = useCallback(
+    async (query: string) => {
+      if (!query.trim()) return;
+      setSearchLoading(true);
+      try {
+        const res = await axios.get(`${BACKEND_URL}/api/posts/filter_posts`, {
+          params: { query },
+        });
 
-      const newPosts = res.data.posts;
+        const newPosts = res.data.posts;
+        setFilteredPosts((prev) => {
+          const all = [...prev, ...newPosts];
+          return Array.from(new Map(all.map((p) => [p._id, p])).values());
+        });
+      } catch (err) {
+        console.error("Failed to fetch filtered posts:", err);
+      } finally {
+        setSearchLoading(false);
+      }
+    },
+    [BACKEND_URL]
+  );
 
-      setFilteredPosts((prev) => {
-        const allPosts = [...prev, ...newPosts];
-        // ✅ Deduplicate by _id
-        return Array.from(new Map(allPosts.map((p) => [p._id, p])).values());
-      });
-    } catch (err) {
-      console.error("Failed to fetch filtered posts:", err);
-    } finally {
-      setSearchLoading(false);
-    }
-  },
-  [BACKEND_URL]
-);
-
-
-  // 🔹 Load main feed on mount
+  // Load feed on mount
   useEffect(() => {
     fetchMainPosts(true);
   }, []);
 
-  // 🔹 Load search feed when submittedQuery changes
+  // Handle search query
   useEffect(() => {
     if (submittedQuery.trim()) {
       setShowFilteredFeed(true);
@@ -129,15 +125,13 @@ const fetchFilteredPosts = useCallback(
     }
   }, [submittedQuery]);
 
-  // 🔹 Infinite scroll for main feed only
+  // Infinite scroll (main feed only)
   useEffect(() => {
     if (!hasMore || loading || showFilteredFeed) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) {
-          fetchMainPosts();
-        }
+        if (entries[0].isIntersecting) fetchMainPosts();
       },
       { threshold: 1.0 }
     );
@@ -155,84 +149,40 @@ const fetchFilteredPosts = useCallback(
     <div className="min-h-screen bg-gray-100 dark:bg-black">
       <Header />
       <TickerBar />
-      
-<button
-  onClick={open}
-  className="fixed top-[75%] left-[-32px] -translate-y-1/2 rotate-90
-             z-[9999] bg-red-500 text-white px-4 py-2 
-             rounded-tl-lg rounded-tr-lg shadow-md 
-             hover:bg-red-600 transition-all duration-200 ease-in-out"
->
-  Feedback
-</button>
-
-
-
-
-      {/* <FeedbackModal
-        isOpen={isFeedbackOpen}
-        onClose={() => setIsFeedbackOpen(false)}
-        onSubmit={(category, feedback) => {
-          console.log("Feedback submitted:", category, feedback);
-        }}
-      /> */}
 
       <main className="max-w-7xl mx-auto pl-2 sm:pl-4 lg:pl-6 pr-4 sm:pr-6 lg:pr-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Profile Sidebar */}
+          {/* Left sidebar */}
           <div className="lg:col-span-2">
-            <div
-              className="sticky top-24 shadow-2xl h-54 
-              dark:bg-black bg-white rounded-t-xl 
-              border-t border-r border-gray-200 dark:border-[#3D7A6E]"
-            >
+            <div className="sticky top-24 shadow-2xl h-54 dark:bg-black bg-white rounded-t-xl border-t border-r border-gray-200 dark:border-[#3D7A6E]">
               <Suspense fallback={null}>
-                <Profile />
+                <ProfileCover setProfileOpen={setProfileOpen} />
               </Suspense>
             </div>
-
             <div className="sticky top-80">
               <UploadBox onUploadClick={() => setIsUploading(true)} />
             </div>
           </div>
 
-
-            {/* Center Feed + Billboard */}
-{isUploading ? (
-  <div className="lg:col-span-10 flex flex-col items-center justify-start min-h-[80vh] w-full">
-    <Suspense fallback={null}>
-      <PostModal onCancel={() => setIsUploading(false)} />
-    </Suspense>
-  </div>
-) : (
-  <>
-          {/* Center Feed */}
-          <div className="lg:col-span-6 flex flex-col items-center justify-start min-h-[80vh] w-full">
-            {/* {user && (
-              <Suspense fallback={null}>
-                <AddPost />
-              </Suspense>
-            )} */}
-          {/* Center Feed */}
+          {/* Center + Right */}
           {isUploading ? (
             <div className="lg:col-span-10 flex flex-col items-center justify-start min-h-[80vh] w-full">
               <Suspense fallback={null}>
                 <PostModal onCancel={() => setIsUploading(false)} />
               </Suspense>
             </div>
+          ) : profileOpen ? (
+            <div className="lg:col-span-10 flex flex-col items-center justify-start min-h-[80vh] w-full">
+              <Suspense fallback={null}>
+                <Profile setProfileOpen={setProfileOpen}  />
+              </Suspense>
+            </div>
           ) : (
             <>
+              {/* Center Feed */}
               <div className="lg:col-span-6 flex flex-col items-center justify-start min-h-[80vh] w-full">
-                {user && !showFilteredFeed && (
-                  <Suspense fallback={null}>
-                    <AddPost />
-                  </Suspense>
-                )}
-
-                {/* ✅ Filtered feed (like X search results) */}
                 {showFilteredFeed ? (
                   <div className="w-full mt-4 flex flex-col">
-                    {/* Back button */}
                     <button
                       onClick={() => {
                         setShowFilteredFeed(false);
@@ -255,7 +205,6 @@ const fetchFilteredPosts = useCallback(
                     ))}
                   </div>
                 ) : (
-                  /* ✅ Main feed */
                   <>
                     {mainPosts.length > 0 && (
                       <div className="w-full mt-4 flex flex-col">
@@ -281,9 +230,9 @@ const fetchFilteredPosts = useCallback(
 
               {/* Billboard */}
               <div className="lg:col-span-4 hidden lg:block h-full">
-                <div className="sticky top-24 h-[300px]">
+                <div className="sticky top-24 h-[500px]">
                   <Suspense fallback={null}>
-                    <Right />
+                    <Billboard />
                   </Suspense>
                 </div>
               </div>
@@ -291,13 +240,14 @@ const fetchFilteredPosts = useCallback(
           )}
         </div>
       </main>
+
+      {/* Footer components */}
       <Suspense fallback={null}>
         <MessagingComponent />
       </Suspense>
-
-      <Suspense fallback={null}>
+      {/* <Suspense fallback={null}>
         <Music />
-      </Suspense>
+      </Suspense> */}
     </div>
   );
 }

@@ -74,7 +74,6 @@ const ExePost: React.FC<ExePostProps> = ({
 
       {/* ⚪ Bottom-right bolts */}
       <span className="absolute bottom-0 right-0 h-[0.75px] w-[40px] 
-      <span className="absolute bottom-0 right-0 h-[0.75px] w-[40px] 
         bg-gradient-to-l from-gray-400 via-gray-600 to-transparent animate-shine" />
       <span className="absolute bottom-0 right-0 w-[0.75px] h-[40px] 
         bg-gradient-to-t from-gray-400 via-gray-600 to-transparent animate-shine-vertical" />
@@ -85,11 +84,6 @@ const ExePost: React.FC<ExePostProps> = ({
       <span className="absolute bottom-0 right-0 h-[2px] w-4 
         bg-gradient-to-l from-gray-400 via-gray-600 to-transparent animate-shine"></span> */}
 
-      {/* 🔗 Connector for bottom-right (joins bottom + right bolts) */}
-      {/* <span className="absolute bottom-0 right-0 w-[2px] h-4 
-        bg-gradient-to-t from-gray-400 via-gray-600 to-transparent animate-shine-vertical"></span>
-      <span className="absolute bottom-0 right-0 h-[2px] w-4 
-        bg-gradient-to-l from-gray-400 via-gray-600 to-transparent animate-shine"></span> */}
 
       <div className="p-4">
         <PostHeader username={user.username} timestamp={timestamp} />
@@ -102,13 +96,7 @@ const ExePost: React.FC<ExePostProps> = ({
         {/* <div className="w-full flex"> */}
           <div className="flex justify-center relative overflow-hidden w-full bg-gray-100 dark:bg-gray-700  h-[400px] rounded-xl">
             <div className="flex flex-col items-center justify-center h-full space-y-4">
-              <button
-              onClick={handleGameStream}
-              disabled={loading}
-              className="px-6 py-3 bg-black text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-all"
-            >
-              {loading ? 'Loading...' : 'Play Game'}
-            </button>
+            
               <button
               onClick={handleGameStream}
               disabled={loading}
@@ -126,8 +114,6 @@ const ExePost: React.FC<ExePostProps> = ({
             </p>
           </div> */}
         </div>
-
-        <PostInteractions likes={likes} comments={comments} />
 
         <PostInteractions likes={likes} comments={comments} />
       </div>

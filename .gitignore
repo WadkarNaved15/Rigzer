@@ -14,6 +14,10 @@ project/node_modules/
 server/.env
 project/.env
 
+# Ignore certs folder
+.certs/
+
+
 project/ssl
 
 # ========================

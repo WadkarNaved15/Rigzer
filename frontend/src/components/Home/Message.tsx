@@ -140,22 +140,43 @@ useEffect(() => {
     <div className={`fixed z-50 ${isMaximized ? "inset-0" : "bottom-6 right-6"}`}>
       {/* Floating Button (visible when not open) */}
       {!isOpen && (
-          <button
-            onClick={toggleOpen}
-            className="bg-gradient-to-br from-[#3D7A6E] to-black
-                      hover:from-[#182421] hover:to-teal-900
-                      text-white p-4 rounded-full shadow-lg
-                      transition-all duration-300 transform
-                      hover:scale-110 group relative"
-          >
+<button
+  onClick={toggleOpen}
+  className="
+    bg-gradient-to-br
+   from-gray-400 to-gray-800
+  hover:from-gray-500 hover:to-gray-900
 
-          <MessageCircle size={24} className="group-hover:animate-pulse" />
-          {getUnreadCount() > 0 && (
-            <div className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
-              {getUnreadCount()}
-            </div>
-          )}
-        </button>
+    dark:from-[#3D7A6E] dark:to-black
+    dark:hover:from-[#182421] dark:hover:to-teal-900
+
+    text-white
+    p-4 rounded-full shadow-lg
+    transition-all duration-300 transform
+    hover:scale-110
+    group relative
+  "
+>
+  <MessageCircle
+    size={24}
+    className="group-hover:animate-pulse text-white"
+  />
+
+  {getUnreadCount() > 0 && (
+    <div
+      className="
+        absolute -top-2 -right-2
+        bg-red-500 text-white text-xs
+        rounded-full h-5 w-5 flex items-center justify-center
+        animate-pulse
+      "
+    >
+      {getUnreadCount()}
+    </div>
+  )}
+</button>
+
+
       )}
 
       {/* Chat Window */}
@@ -163,7 +184,7 @@ useEffect(() => {
         <div
           className={`${
             isMaximized
-              ? "w-full h-full bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 dark:from-gray-900 dark:via-black dark:to-gray-800 flex flex-col"
+              ? "w-full h-full bg-gradient-to-br from-gray-500 via-gray-400 to-gray-600 dark:from-gray-900 dark:via-black dark:to-gray-800 flex flex-col"
               : "relative bg-white dark:bg-black w-80 border border-gray-200 shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md rounded-lg flex flex-col"
           } ${isMinimized ? "h-16" : isMaximized ? "h-full" : "h-96"}`}
         >

@@ -115,15 +115,19 @@ export function Header() {
               </Link>
             </div>
 
-            {/* Search Bar */}
-            <form onSubmit={handleSearch} className="flex-1 max-w-2xl mx-4 relative">
+          </div>
+
+          {/* Right section */}
+          <div className="py-3 flex items-center space-x-4">
+                        {/* Search Bar */}
+            <form onSubmit={handleSearch} className="flex-1 max-w-2xl relative">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search posts, games, or users..."
+                  placeholder="Search"
                   className="w-full pl-10 pr-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none focus:ring-2 focus:ring-purple-500"
                 />
 
@@ -152,10 +156,6 @@ export function Header() {
                 )}
               </div>
             </form>
-          </div>
-
-          {/* Right section */}
-          <div className="flex items-center space-x-4">
             <button
               onClick={toggleTheme}
               className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"

@@ -1,10 +1,16 @@
 // src/components/Profile.tsx
 
 import React from 'react';
+import {Header} from "../components/Header";
+import TickerBar from "../components/Home/TickerBar";
+import MessagingComponent from "../components/Home/Message"
 
 const Profile: React.FC = () => {
   return (
-    <div className="bg-black text-white min-h-screen p-8 font-sans">
+    <div className="bg-black text-white min-h-screen font-sans">
+      <Header />
+      <TickerBar />
+      <MessagingComponent />
       <div className="max-w-4xl mx-auto bg-gradient-to-br from-[#1F4D44] to-[#3D7A6E] rounded-lg shadow-2xl overflow-hidden">
         {/* Profile Header Section */}
         <div className="relative h-40 bg-gray-800 ">
