@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useLikes } from '../../hooks/useLikes';
 import PostHeader from './PostHeader';
 import PostInteractions from './PostInteractions';
 import type { ExePostProps } from '../../types/Post';
@@ -9,18 +10,15 @@ const ExePost: React.FC<ExePostProps> = ({
   description,
   gameUrl,
   createdAt,
-  likes = 0,
   comments = 0,
   _id
 }) => {
   const timestamp = useMemo(() => new Date(createdAt).toLocaleString(), [createdAt]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [likesCount, setLikesCount] = useState<number>(likes);
-  const [isLiked, setIsLiked] = useState<boolean>(false);
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-
+  const { likesCount, isLiked, handleLike } = useLikes(_id, BACKEND_URL);
   const handleGameStream = async () => {
     setLoading(true);
     setError(null);
@@ -43,44 +41,8 @@ const ExePost: React.FC<ExePostProps> = ({
       setLoading(false);
     }
   };
-  // ✅ Handle like/unlike
-  const handleLike = async () => {
-    try {
-      if (!isLiked) {
-        // Like the post
-        await axios.post(`${BACKEND_URL}/api/likes`, { postId: _id }, { withCredentials: true });
-        setLikesCount(likesCount + 1);
-      } else {
-        // Unlike the post
-        await axios.delete(`${BACKEND_URL}/api/likes`, { data: { postId: _id }, withCredentials: true });
-        setLikesCount(likesCount - 1);
-      }
-      setIsLiked(!isLiked);
-    } catch (err) {
-      console.error('Error liking post:', err);
-    }
-  };
-
-  // ✅ Optional: fetch if user has already liked this post
-  useEffect(() => {
-  const fetchLikeData = async () => {
-    try {
-      const [checkRes, countRes] = await Promise.all([
-        axios.get(`${BACKEND_URL}/api/likes/check`, { params: { postId: _id }, withCredentials: true }),
-        axios.get(`${BACKEND_URL}/api/likes/count`, { params: { postId: _id }, withCredentials: true }),
-      ]);
-
-      setIsLiked(checkRes.data.liked);
-      setLikesCount(countRes.data.count);
-    } catch (err) {
-      console.error("Error fetching like data:", err);
-    }
-  };
-
-  fetchLikeData();
-}, [_id]);
-
-  return (
+  
+return (
     <article
       className="relative bg-white w-full border-gray-200 
   dark:bg-black shadow-sm 
