@@ -3,6 +3,7 @@ import multer from "multer";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import cloudinary from "../cloudinaryConfig.js";
+import { MeiliSearch } from "meilisearch";
 import Post from "../models/Post.js";
 import User from "../models/User.js";  // adjust path
 import authMiddleware from "../middlewares/authMiddleware.js";
@@ -12,7 +13,12 @@ dotenv.config();
 const router = express.Router();
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
+const client = new MeiliSearch({
+  host: "http://127.0.0.1:7700",
+  apiKey: "shahin124", // your master key
+});
 
+const postsIndex = client.index("posts");
 
 
 // POST /api/posts - Create a new post
@@ -99,27 +105,15 @@ router.get("/filter_posts", async (req, res) => {
       return res.status(400).json({ message: "Search query is required" });
     }
 
-    // Find matching users first (case-insensitive match on username)
-    const matchingUsers = await User.find({
-      username: { $regex: query, $options: "i" },
-    }).select("_id");
+    // 🔍 Search in Meilisearch instead of MongoDB
+    const searchResults = await postsIndex.search(query, {
+      limit: 50, // max results
+      sort: ["createdAt:desc"], // sort newest first
+    });
 
-    const userIds = matchingUsers.map((u) => u._id);
-
-    // Find posts by either description match OR user match
-    const posts = await Post.find({
-      $or: [
-        { description: { $regex: query, $options: "i" } },
-        { user: { $in: userIds } },
-      ],
-    })
-      .populate("user", "username") // ✅ so frontend gets username
-      .sort({ createdAt: -1 })
-      .limit(50);
-
-    res.status(200).json({ posts });
+    res.status(200).json({ posts: searchResults.hits });
   } catch (error) {
-    console.error("Error filtering posts:", error);
+    console.error("Error filtering posts with Meilisearch:", error);
     res.status(500).json({ message: "Server error" });
   }
 });

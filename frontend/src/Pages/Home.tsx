@@ -68,8 +68,9 @@ function Home() {
           params: { cursor: reset ? null : nextCursor, limit: 3 },
         });
 
-        const newPosts = res.data.posts;
-        const newCursor = res.data.nextCursor;
+      const newPosts = res.data.posts;
+      console.log("The posts are ", newPosts);
+      const newCursor = res.data.nextCursor;
 
         setMainPosts((prev) => {
           const all = reset ? newPosts : [...prev, ...newPosts];

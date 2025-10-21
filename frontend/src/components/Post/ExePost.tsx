@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import PostHeader from './PostHeader';
 import PostInteractions from './PostInteractions';
 import type { ExePostProps } from '../../types/Post';
@@ -11,10 +11,13 @@ const ExePost: React.FC<ExePostProps> = ({
   createdAt,
   likes = 0,
   comments = 0,
+  _id
 }) => {
   const timestamp = useMemo(() => new Date(createdAt).toLocaleString(), [createdAt]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [likesCount, setLikesCount] = useState<number>(likes);
+  const [isLiked, setIsLiked] = useState<boolean>(false);
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
@@ -40,6 +43,42 @@ const ExePost: React.FC<ExePostProps> = ({
       setLoading(false);
     }
   };
+  // ✅ Handle like/unlike
+  const handleLike = async () => {
+    try {
+      if (!isLiked) {
+        // Like the post
+        await axios.post(`${BACKEND_URL}/api/likes`, { postId: _id }, { withCredentials: true });
+        setLikesCount(likesCount + 1);
+      } else {
+        // Unlike the post
+        await axios.delete(`${BACKEND_URL}/api/likes`, { data: { postId: _id }, withCredentials: true });
+        setLikesCount(likesCount - 1);
+      }
+      setIsLiked(!isLiked);
+    } catch (err) {
+      console.error('Error liking post:', err);
+    }
+  };
+
+  // ✅ Optional: fetch if user has already liked this post
+  useEffect(() => {
+  const fetchLikeData = async () => {
+    try {
+      const [checkRes, countRes] = await Promise.all([
+        axios.get(`${BACKEND_URL}/api/likes/check`, { params: { postId: _id }, withCredentials: true }),
+        axios.get(`${BACKEND_URL}/api/likes/count`, { params: { postId: _id }, withCredentials: true }),
+      ]);
+
+      setIsLiked(checkRes.data.liked);
+      setLikesCount(countRes.data.count);
+    } catch (err) {
+      console.error("Error fetching like data:", err);
+    }
+  };
+
+  fetchLikeData();
+}, [_id]);
 
   return (
     <article
@@ -104,20 +143,20 @@ const ExePost: React.FC<ExePostProps> = ({
             >
               {loading ? 'Loading...' : 'Play Game'}
             </button>
-              {error && <p className="text-red-500 mt-2">{error}</p>}
-            </div>
-          {/* </div> */}
-          {/* <div className="w-[40%] p-4 pl-6 flex flex-col justify-center">
-            <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-200">Game Details</h2>
-            <p className="text-gray-600 dark:text-gray-300 mb-2">
-              <span className="font-semibold">URL:</span> {gameUrl}
-            </p>
-          </div> */}
+            {error && <p className="text-red-500 mt-2">{error}</p>}
+          </div>
         </div>
-
-        <PostInteractions likes={likes} comments={comments} />
+        <div className="w-[40%] p-4 pl-6 flex flex-col justify-center">
+          <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-200">Game Details</h2>
+          <p className="text-gray-600 dark:text-gray-300 mb-2">
+            <span className="font-semibold">URL:</span> {gameUrl}
+          </p>
+          {/* Add more game details here if available */}
+        </div>
       </div>
-    </article>
+
+      <PostInteractions likes={likesCount} comments={comments} isLiked={isLiked} onLike={handleLike} />
+    </article >
   );
 };
 
