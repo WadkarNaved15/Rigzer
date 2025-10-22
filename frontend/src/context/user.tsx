@@ -12,6 +12,8 @@ type User = {
   name: string;
   email: string;
   avatar?: string;
+  followersCount?: number;
+  followingCount?: number;
 };
 
 type UserContextType = {

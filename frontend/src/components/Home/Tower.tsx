@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import axios from "axios";
 import { PlusCircle } from "lucide-react";
+import { useUser } from "../../context/user";
+import FollowButton from "../FollowButton";
 
 type Face = "follow" | "posts" | "reading" | "projects";
 
@@ -8,6 +11,8 @@ interface TowerProps {
 }
 
 const Tower: React.FC<TowerProps> = ({ activeFace }) => {
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+  const { user } = useUser();
   const cubeRef = useRef<HTMLDivElement>(null);
   const [translateZ, setTranslateZ] = useState(150);
 
@@ -34,29 +39,68 @@ const Tower: React.FC<TowerProps> = ({ activeFace }) => {
     return map[activeFace];
   }, [activeFace]);
 
-  const FollowFace = () => (
+const FollowFace: React.FC = () => {
+  const [users, setUsers] = useState<
+    { _id: string; name: string; username: string; avatar: string }[]
+  >([]);
+
+  // Fetch users to follow from backend
+useEffect(() => {
+  const fetchUsers = async () => {
+    try {
+      const userId = user?.id; // get current logged-in user's ID from context or props
+      const res = await axios.get(
+      `${BACKEND_URL}/api/follow/${userId}/suggested`,
+        {
+          withCredentials: true, // send cookies if using sessions/auth
+        }
+      );
+      setUsers(res.data.users); // set users from backend
+    } catch (err) {
+      console.error("Failed to fetch suggested users:", err);
+    }
+  };
+
+  fetchUsers();
+}, [user?.id]);
+
+  return (
     <div
       className="face dark:text-white dark:bg-black overflow-y-auto"
       style={{ transform: `translateZ(${translateZ}px)` }}
     >
       <div className="h-full space-y-4 px-2">
-        {Array.from({ length: 3 }, (_, i) => (
-          <div key={i} className="flex items-center justify-between gap-4">
-            <img
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-              alt={`User ${i + 1}`}
-              className="w-12 h-12 rounded-full"
-            />
-            <div>
-              <h3 className="font-semibold">User Name {i + 1}</h3>
-              <p className="text-sm text-gray-500">@username{i + 1}</p>
-            </div>
-            <PlusCircle className="w-6 h-6" />
-          </div>
-        ))}
+ {users.length === 0 ? (
+  <p className="text-gray-500 dark:text-gray-400">No users to follow</p>
+) : (
+  users.map((activeUser) => {
+    // --- Here is the console log you requested ---
+    console.log(activeUser);
+    // -------------------------------------------
+
+    return (
+      <div key={activeUser._id} className="flex items-center justify-between gap-4">
+        <img
+          src={activeUser.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"}
+          alt={activeUser.name}
+          className="w-12 h-12 rounded-full"
+        />
+        <div>
+          <h3 className="font-semibold">{activeUser.name}</h3>
+          <p className="text-sm text-gray-500">@{activeUser.username}</p>
+        </div>
+        {user && (
+          <FollowButton userId={user.id} targetId={activeUser._id} />
+        )}
+      </div>
+    );
+  })
+)}
       </div>
     </div>
   );
+};
+
 
   const PostsFace = () => (
     <div

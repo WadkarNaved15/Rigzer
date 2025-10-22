@@ -16,7 +16,7 @@ import axios from "axios";
 function DevLogs() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const [pageData, setPageData] = useState<PageData>({
-    gameTitle: "GAME TITLE",
+    gameTitle: "TITLE",
     postTitle: "Post Title",
     postTag: "Devlog",
     postDate: "1 day ago",
@@ -49,7 +49,7 @@ function DevLogs() {
 
   const [leftColumnCards, setLeftColumnCards] = useState([
     "GameLogo",
-    "PostTitle",
+    // "PostTitle",
     "screenshots",
     "videos",
     "blog",
@@ -152,10 +152,10 @@ function DevLogs() {
             handleChange={handleChange}
           />
         );
-      case "PostTitle":
-        return (
-          <PostTitle key={card} id={card} pageData={pageData} handleChange={handleChange} />
-        );
+      // case "PostTitle":
+      //   return (
+      //     <PostTitle key={card} id={card} pageData={pageData} handleChange={handleChange} />
+      //   );
       case "screenshots":
         return (
           <Screenshots

@@ -16,6 +16,7 @@ import gameZip from "./routes/game.js"
 import devlogsRoutes from "./routes/devlogs.js";
 import gameFetch from "./routes/gameFetch.js";
 import searchRoutes from "./routes/searchRoutes.js"
+import followRoutes from "./routes/followRoutes.js";
 
 dotenv.config();
 
@@ -24,18 +25,26 @@ const PORT = process.env.PORT || 5000;
 
 // Middleware
 app.use(express.json());
-app.use(
-  cors({
-    origin: [
-      "http://localhost:5173",
-      "https://localhost:5173",
-      "https://xn--tlay-0ra.com",
-      process.env.FRONTEND_URL,
-    ],
-    credentials: true,
-    methods: ["GET", "POST"],
-  })
-);
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true); // allow mobile/postman
+    if (
+      [
+        "http://localhost:5173",
+        "https://localhost:5173",
+        "https://xn--tlay-0ra.com",
+        process.env.FRONTEND_URL
+      ].includes(origin) ||
+      origin.endsWith(".devtunnels.ms")
+    ) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+}));
+
 
 
 app.use((req, res, next) => {
@@ -54,6 +63,8 @@ app.use("/api/posts", postRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/devlogs", devlogsRoutes);
+app.use("/api/follow", followRoutes);
+
 
 // Serve uploaded games statically
 app.use("/uploads", express.static("uploads"));

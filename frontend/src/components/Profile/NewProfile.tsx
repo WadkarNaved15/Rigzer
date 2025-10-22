@@ -1,11 +1,16 @@
 import React from "react";
 import { Star, Heart, Plus, Play, Image, Video, X } from "lucide-react";
+import FollowButton from "../FollowButton";
+import FollowersList from "../FollowersList";
+import { useUser } from "../../context/user";
 
 interface ProfilePageProps {
   setProfileOpen: (open: boolean) => void;
 }
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
+  const { user } = useUser();
+  console.log("User in ProfilePage:", user);
   return (
     <div className="relative pt-2 min-h-screen bg-gray-100 dark:bg-black text-gray-900 dark:text-white">
       {/* Close Button */}
@@ -20,7 +25,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
       {/* Main Content - 75% width */}
       <div className="mx-auto px-2 ">
         {/* Header Section */}
-        <div className="flex justify-between items-start">
+        <div className="flex justify-start items-start">
           <div>
             <h1 className="text-2xl font-light mb-2">
               John Developer
@@ -33,6 +38,9 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
               <span>•</span>
               <span>3D Artist</span>
             </div>
+          </div>
+          <div className="ml-16">
+            <FollowersList  userId={user?.id}/>
           </div>
           {/* <div className="text-right">
             <div className="flex items-center space-x-2 mb-2">

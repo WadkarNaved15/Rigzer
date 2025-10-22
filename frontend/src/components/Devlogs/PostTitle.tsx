@@ -24,7 +24,7 @@ const PostTitle: React.FC<PostTitleProps> = ({
     <SortableCard id={id} disabled={readOnly}>
       <div className="col-span-2 mt-2 mb-6">
         {/* Post title */}
-        {readOnly ? (
+        {/* {readOnly ? (
           <h1 className="text-3xl font-bold text-white mb-4">
             {pageData.postTitle || "Untitled Post"}
           </h1>
@@ -35,10 +35,10 @@ const PostTitle: React.FC<PostTitleProps> = ({
             value={pageData.postTitle}
             onChange={(e) => handleChange("postTitle", e)}
           />
-        )}
+        )} */}
 
         {/* Game Info title + Devlog tag */}
-        <div className="flex items-center space-x-4 text-slate-400 mb-4">
+        {/* <div className="flex items-center space-x-4 text-slate-400 mb-4">
           {readOnly ? (
             <span className="text-orange-400 font-bold">
               {pageData.gameInfoTitle || "Game Info"}
@@ -53,7 +53,7 @@ const PostTitle: React.FC<PostTitleProps> = ({
           )}
           <span>»</span>
           <p className="bg-transparent outline-none">Devlog</p>
-        </div>
+        </div> */}
 
         {/* Like + Author info */}
         <div className="flex items-center space-x-6 mb-4">
