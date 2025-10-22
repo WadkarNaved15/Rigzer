@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { useLikes } from '../../hooks/useLikes';
 import PostHeader from './PostHeader';
 import PostInteractions from './PostInteractions';
 import type { ExePostProps } from '../../types/Post';
@@ -9,15 +10,15 @@ const ExePost: React.FC<ExePostProps> = ({
   description,
   gameUrl,
   createdAt,
-  likes = 0,
   comments = 0,
+  _id
 }) => {
   const timestamp = useMemo(() => new Date(createdAt).toLocaleString(), [createdAt]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-
+  const { likesCount, isLiked, handleLike } = useLikes(_id, BACKEND_URL);
   const handleGameStream = async () => {
     setLoading(true);
     setError(null);
@@ -40,8 +41,8 @@ const ExePost: React.FC<ExePostProps> = ({
       setLoading(false);
     }
   };
-
-  return (
+  
+return (
     <article
       className="relative bg-white w-full border-gray-200 
   dark:bg-black shadow-sm 
@@ -104,20 +105,20 @@ const ExePost: React.FC<ExePostProps> = ({
             >
               {loading ? 'Loading...' : 'Play Game'}
             </button>
-              {error && <p className="text-red-500 mt-2">{error}</p>}
-            </div>
-          {/* </div> */}
-          {/* <div className="w-[40%] p-4 pl-6 flex flex-col justify-center">
-            <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-200">Game Details</h2>
-            <p className="text-gray-600 dark:text-gray-300 mb-2">
-              <span className="font-semibold">URL:</span> {gameUrl}
-            </p>
-          </div> */}
+            {error && <p className="text-red-500 mt-2">{error}</p>}
+          </div>
         </div>
-
-        <PostInteractions likes={likes} comments={comments} />
+        <div className="w-[40%] p-4 pl-6 flex flex-col justify-center">
+          <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-200">Game Details</h2>
+          <p className="text-gray-600 dark:text-gray-300 mb-2">
+            <span className="font-semibold">URL:</span> {gameUrl}
+          </p>
+          {/* Add more game details here if available */}
+        </div>
       </div>
-    </article>
+
+      <PostInteractions likes={likesCount} comments={comments} isLiked={isLiked} onLike={handleLike} />
+    </article >
   );
 };
 

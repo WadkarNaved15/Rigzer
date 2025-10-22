@@ -30,6 +30,7 @@
     "gltf-pipeline": "^4.3.0",
     "ioredis": "^5.8.1",
     "jsonwebtoken": "^9.0.2",
+    "meilisearch": "^0.53.0",
     "mongoose": "^8.12.2",
     "multer": "^1.4.5-lts.2",
     "multer-s3": "^3.0.1",

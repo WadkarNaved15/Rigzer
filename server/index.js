@@ -14,6 +14,7 @@ import feedBackRoutes from "./routes/feedback.js"
 import gameRoutes from "./routes/gameRoutes.js"
 import gameZip from "./routes/game.js"
 import devlogsRoutes from "./routes/devlogs.js";
+import likesRoutes from "./routes/likes.js";
 import gameFetch from "./routes/gameFetch.js";
 import searchRoutes from "./routes/searchRoutes.js"
 import followRoutes from "./routes/followRoutes.js";
@@ -59,7 +60,7 @@ app.use(session({ secret: process.env.JWT_SECRET, resave: false, saveUninitializ
 app.use(passport.initialize());
 app.use(passport.session());
 app.use("/api/auth", authRoutes);
-app.use("/api/posts", postRoutes);
+app.use("/api/likes", likesRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/devlogs", devlogsRoutes);

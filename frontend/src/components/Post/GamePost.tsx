@@ -1,5 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo} from 'react';
 import PostHeader from './PostHeader';
+import { useLikes } from '../../hooks/useLikes';
 import PostInteractions from './PostInteractions';
 import type { GamePostProps } from '../../types/Post'; // Assuming you have a type definition for PostProps
 
@@ -10,17 +11,18 @@ const GamePost: React.FC<GamePostProps> = ({
   description,
   gameUrl,
   createdAt,
-  likes = 0,
   comments = 0,
+  _id
 }) => {
   const timestamp = useMemo(() => new Date(createdAt).toLocaleString(), [createdAt]);
-
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+  const { likesCount, isLiked, handleLike } = useLikes(_id, BACKEND_URL);
   const handleStartGame = () => {
     if (gameUrl) {
       window.location.href = gameUrl; // Or use `navigate(gameUrl)` if internal
     }
   };
-
+ 
   return (
     <article
   className="relative bg-white border w-full border-gray-200 
@@ -56,7 +58,7 @@ const GamePost: React.FC<GamePostProps> = ({
           </div>
         </div>
 
-        <PostInteractions likes={likes} comments={comments} />
+        <PostInteractions likes={likesCount} comments={comments} isLiked={isLiked} onLike={handleLike} />
       </div>
     </article>
   );

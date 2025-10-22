@@ -1,18 +1,19 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo} from 'react';
 import PostHeader from './PostHeader';
 import PostInteractions from './PostInteractions';
+import { useLikes } from '../../hooks/useLikes';
 import type { NormalPostProps } from '../../types/Post'; 
-
 const NormalPost: React.FC<NormalPostProps> = ({
   user,
   description,
   media,
   createdAt,
-  likes = 0,
   comments = 0,
+  _id
 }) => {
   const timestamp = useMemo(() => new Date(createdAt).toLocaleString(), [createdAt]);
-
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+  const { likesCount, isLiked, handleLike } = useLikes(_id, BACKEND_URL);
   const mediaUrl = media?.[0] ?? '';
   const isVideo = useMemo(() => /\.(mp4|webm|ogg)$/i.test(mediaUrl), [mediaUrl]);
 
@@ -63,7 +64,7 @@ const NormalPost: React.FC<NormalPostProps> = ({
           )}
         </div>
 
-        <PostInteractions likes={likes} comments={comments} />
+        <PostInteractions likes={likesCount} comments={comments} isLiked={isLiked} onLike={handleLike} />
       </div>
     </article>
   );
