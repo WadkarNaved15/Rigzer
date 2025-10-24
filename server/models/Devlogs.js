@@ -3,13 +3,19 @@ import mongoose from "mongoose";
 const MediaSchema = new mongoose.Schema({
   url: { type: String, required: true },
   type: { type: String },
+  id: { type: String, required: true }, // Add unique ID
 });
 
 const FileItemSchema = new mongoose.Schema({
-  id: { type: Number },
+  id: { type: String, required: true }, // Changed from Number to String
   title: { type: String },
   size: { type: String },
-  url: { type: String }, // store S3 URL instead of raw File object
+  url: { type: String },
+});
+
+const BlogSectionSchema = new mongoose.Schema({
+  id: { type: String, required: true },
+  content: { type: String },
 });
 
 const GameDetailsSchema = new mongoose.Schema({
@@ -43,6 +49,7 @@ const DevlogSchema = new mongoose.Schema(
       videos: [MediaSchema],
       bgImage: MediaSchema,
       gameTitleImage: MediaSchema,
+      blogSections: [BlogSectionSchema], // Add blog sections
     },
     leftColumnCards: [String],
     rightColumnCards: [String],

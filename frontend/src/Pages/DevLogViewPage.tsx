@@ -1,4 +1,3 @@
-// DevLogsView.tsx
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
@@ -21,7 +20,7 @@ const DevLogsView: React.FC = () => {
     const fetchDevlog = async () => {
       try {
         const res = await axios.get(`${BACKEND_URL}/api/devlogs/${id}`);
-        setDevlog(res.data.devlog); // make sure backend returns { devlog: {...} }
+        setDevlog(res.data.devlog);
       } catch (err) {
         console.error("Error fetching devlog:", err);
       } finally {
@@ -32,8 +31,21 @@ const DevLogsView: React.FC = () => {
     if (id) fetchDevlog();
   }, [id]);
 
-  if (loading) return <p>Loading...</p>;
-  if (!devlog) return <p>Devlog not found.</p>;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <p className="text-white text-xl">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!devlog) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-900">
+        <p className="text-white text-xl">Devlog not found.</p>
+      </div>
+    );
+  }
 
   return (
     <DevLogView

@@ -1,16 +1,18 @@
 import React, { useState, useRef } from "react";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, rectSortingStrategy, arrayMove } from "@dnd-kit/sortable";
-import type { PageData, Media, FileItem } from "../types/Devlogs";
+import type { PageData, Media } from "../types/Devlogs";
 import GameLogo from "../components/Devlogs/GameLogo";
-import PostTitle from "../components/Devlogs/PostTitle";
-import Screenshots from "../components/Devlogs/Screenshots";
-import VideoDemo from "../components/Devlogs/VideoDemos";
 import Blog from "../components/Devlogs/Blog";
 import Files from "../components/Devlogs/Files";
 import Purchase from "../components/Devlogs/Purchase";
 import SideBar from "../components/Devlogs/SideBar";
 import GameInfo from "../components/Devlogs/GameInfo";
+import MediaUploader from "../components/Devlogs/MediaUploader";
+import DraggableScreenshot from "../components/Devlogs/DraggableImage";
+import DraggableVideo from "../components/Devlogs/DraggableVideo";
+import DraggableFile from "../components/Devlogs/DraggableFile";
+import DraggableBlog from "../components/Devlogs/DraggableBlog";
 import axios from "axios";
 
 function DevLogs() {
@@ -22,12 +24,9 @@ function DevLogs() {
     postDate: "1 day ago",
     author: "Author Name",
     italicQuote: "Bonjour mes amis!",
-    bodyParagraph1:
-      "Some free bonus extra content has now been added to the Musketeer download bundle...",
-    bodyParagraph2:
-      "The complete soundtrack from the game is also available to enjoy...",
-    bodyParagraph3:
-      "Also, some good news for people interested in obtaining a physical edition...",
+    bodyParagraph1: "Some free bonus extra content...",
+    bodyParagraph2: "The complete soundtrack...",
+    bodyParagraph3: "Also, some good news...",
     storeLink: "https://psytronik.bigcartel.com/products",
     closingQuote: "Have fun & keep it RETRO",
     signature: "Kenz / www.psytronik.net",
@@ -45,15 +44,11 @@ function DevLogs() {
     videos: [],
     bgImage: null,
     gameTitleImage: null,
+    blogSections: [],
   });
 
   const [leftColumnCards, setLeftColumnCards] = useState([
     "GameLogo",
-    // "PostTitle",
-    "screenshots",
-    "videos",
-    "blog",
-    "files",
     "Purchase",
   ]);
 
@@ -73,25 +68,16 @@ function DevLogs() {
     setGradientColor(`${r}, ${g}, ${b}`);
   };
 
-  // Handle single Media file selection
   const handleSelectMedia = (key: keyof PageData, file: File) => {
-    const media: Media = { file, url: URL.createObjectURL(file), type: file.type };
+    const media: Media = { 
+      file, 
+      url: URL.createObjectURL(file), 
+      type: file.type,
+      id: `${key}-${Date.now()}`,
+    };
     setPageData((prev) => ({
       ...prev,
       [key]: media,
-    }));
-  };
-
-  // Handle multiple Media files
-  const handleSelectMultipleMedia = (key: keyof PageData, files: FileList) => {
-    const newMedia: Media[] = Array.from(files).map((file) => ({
-      file,
-      url: URL.createObjectURL(file),
-      type: file.type,
-    }));
-    setPageData((prev) => ({
-      ...prev,
-      [key]: [...(prev[key] as Media[]), ...newMedia],
     }));
   };
 
@@ -100,6 +86,62 @@ function DevLogs() {
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
     setPageData((prev) => ({ ...prev, [field]: e.target.value }));
+  };
+
+  const handleRemoveMedia = (id: string) => {
+    // Remove from pageData
+    setPageData((prev) => {
+      const screenshot = prev.screenshots.find((s) => s.id === id);
+      const video = prev.videos.find((v) => v.id === id);
+      const file = prev.files.find((f) => f.id === id);
+      const blogSection = prev.blogSections.find((b) => b.id === id);
+      
+      if (screenshot) {
+        URL.revokeObjectURL(screenshot.url);
+        return {
+          ...prev,
+          screenshots: prev.screenshots.filter((s) => s.id !== id),
+        };
+      }
+      
+      if (video) {
+        URL.revokeObjectURL(video.url);
+        return {
+          ...prev,
+          videos: prev.videos.filter((v) => v.id !== id),
+        };
+      }
+
+      if (file) {
+        URL.revokeObjectURL(file.url);
+        return {
+          ...prev,
+          files: prev.files.filter((f) => f.id !== id),
+        };
+      }
+
+      if (blogSection) {
+        return {
+          ...prev,
+          blogSections: prev.blogSections.filter((b) => b.id !== id),
+        };
+      }
+      
+      return prev;
+    });
+
+    // Remove from column layout
+    setLeftColumnCards((prev) => prev.filter((card) => card !== id));
+    setRightColumnCards((prev) => prev.filter((card) => card !== id));
+  };
+
+  const handleUpdateBlogSection = (id: string, content: string) => {
+    setPageData((prev) => ({
+      ...prev,
+      blogSections: prev.blogSections.map((blog) =>
+        blog.id === id ? { ...blog, content } : blog
+      ),
+    }));
   };
 
   const handleDragEnd = (event: any) => {
@@ -120,19 +162,21 @@ function DevLogs() {
     } else {
       if (isSourceLeft) {
         const newLeft = leftColumnCards.filter((item) => item !== active.id);
+        const overIndex = rightColumnCards.indexOf(over.id);
         const newRight = [
-          ...rightColumnCards.slice(0, rightColumnCards.indexOf(over.id)),
+          ...rightColumnCards.slice(0, overIndex),
           active.id,
-          ...rightColumnCards.slice(rightColumnCards.indexOf(over.id)),
+          ...rightColumnCards.slice(overIndex),
         ];
         setLeftColumnCards(newLeft);
         setRightColumnCards(newRight);
       } else {
         const newRight = rightColumnCards.filter((item) => item !== active.id);
+        const overIndex = leftColumnCards.indexOf(over.id);
         const newLeft = [
-          ...leftColumnCards.slice(0, leftColumnCards.indexOf(over.id)),
+          ...leftColumnCards.slice(0, overIndex),
           active.id,
-          ...leftColumnCards.slice(leftColumnCards.indexOf(over.id)),
+          ...leftColumnCards.slice(overIndex),
         ];
         setRightColumnCards(newRight);
         setLeftColumnCards(newLeft);
@@ -141,6 +185,60 @@ function DevLogs() {
   };
 
   const renderCard = (card: string) => {
+    // Check if it's a screenshot
+    const screenshot = pageData.screenshots.find((s) => s.id === card);
+    if (screenshot) {
+      return (
+        <DraggableScreenshot
+          key={card}
+          id={card}
+          media={screenshot}
+          onRemove={handleRemoveMedia}
+        />
+      );
+    }
+
+    // Check if it's a video
+    const video = pageData.videos.find((v) => v.id === card);
+    if (video) {
+      return (
+        <DraggableVideo
+          key={card}
+          id={card}
+          media={video}
+          onRemove={handleRemoveMedia}
+        />
+      );
+    }
+
+    // Check if it's a file
+    const file = pageData.files.find((f) => f.id === card);
+    if (file) {
+      return (
+        <DraggableFile
+          key={card}
+          id={card}
+          fileItem={file}
+          onRemove={handleRemoveMedia}
+        />
+      );
+    }
+
+    // Check if it's a blog section
+    const blogSection = pageData.blogSections.find((b) => b.id === card);
+    if (blogSection) {
+      return (
+        <DraggableBlog
+          key={card}
+          id={card}
+          blogSection={blogSection}
+          onUpdate={handleUpdateBlogSection}
+          onRemove={handleRemoveMedia}
+        />
+      );
+    }
+
+    // Render static components
     switch (card) {
       case "GameLogo":
         return (
@@ -150,29 +248,9 @@ function DevLogs() {
             pageData={pageData}
             setPageData={setPageData}
             handleChange={handleChange}
+            handleSelectMedia={handleSelectMedia}
           />
         );
-      // case "PostTitle":
-      //   return (
-      //     <PostTitle key={card} id={card} pageData={pageData} handleChange={handleChange} />
-      //   );
-      case "screenshots":
-        return (
-          <Screenshots
-            key={card}
-            id={card}
-            pageData={pageData}
-            setPageData={setPageData}
-          />
-        );
-      case "videos":
-        return (
-          <VideoDemo key={card} id={card} pageData={pageData} setPageData={setPageData} />
-        );
-      case "blog":
-        return <Blog key={card} id={card} pageData={pageData} handleChange={handleChange} />;
-      case "files":
-        return <Files key={card} id={card} pageData={pageData} setPageData={setPageData} />;
       case "Purchase":
         return <Purchase key={card} id={card} pageData={pageData} handleChange={handleChange} />;
       case "GameInfo":
@@ -184,107 +262,79 @@ function DevLogs() {
     }
   };
 
-const uploadFileToS3 = async (file: File): Promise<string> => {
-  // Request signed URL
-  const res = await axios.get(`${BACKEND_URL}/api/devlogs/getUploadUrl`, {
-    params: { fileName: file.name, fileType: file.type },
-  });
-
-  const { uploadUrl, key } = res.data;
-
-  // Upload the file
-      const putRes = await axios.put(uploadUrl, file, {
-      headers: {
-        "Content-Type": file.type,
-      },
+  const uploadFileToS3 = async (file: File): Promise<string> => {
+    const res = await axios.get(`${BACKEND_URL}/api/devlogs/getUploadUrl`, {
+      params: { fileName: file.name, fileType: file.type },
     });
-    console.log("putRes", putRes);
 
-  if (putRes.status!=200) throw new Error("Upload failed");
+    const { uploadUrl, key } = res.data;
 
-  // Return the public URL (replace with CloudFront if available)
-  const bucket = import.meta.env.VITE_S3_DEVLOGS_BUCKET || "gamesocial-devlogs";
-  return `https://${bucket}.s3.amazonaws.com/${key}`;
-};
+    const putRes = await axios.put(uploadUrl, file, {
+      headers: { "Content-Type": file.type },
+    });
 
+    if (putRes.status !== 200) throw new Error("Upload failed");
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    const bucket = import.meta.env.VITE_S3_DEVLOGS_BUCKET || "gamesocial-devlogs";
+    return `https://${bucket}.s3.amazonaws.com/${key}`;
+  };
 
-  try {
-    const finalData: PageData = { ...pageData };
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
 
-    // 1️⃣ Upload bgImage
-    if (pageData.bgImage?.file) {
-      finalData.bgImage = {
-        ...pageData.bgImage,
-        url: await uploadFileToS3(pageData.bgImage.file),
-      };
-    }
+    try {
+      const finalData: PageData = { ...pageData };
 
-    // 2️⃣ Upload gameTitleImage
-    if (pageData.gameTitleImage?.file) {
-      finalData.gameTitleImage = {
-        ...pageData.gameTitleImage,
-        url: await uploadFileToS3(pageData.gameTitleImage.file),
-      };
-    }
+      if (pageData.bgImage?.file) {
+        finalData.bgImage = {
+          ...pageData.bgImage,
+          url: await uploadFileToS3(pageData.bgImage.file),
+        };
+      }
 
-    // 3️⃣ Upload screenshots
-    if (pageData.screenshots.length) {
+      if (pageData.gameTitleImage?.file) {
+        finalData.gameTitleImage = {
+          ...pageData.gameTitleImage,
+          url: await uploadFileToS3(pageData.gameTitleImage.file),
+        };
+      }
+
       finalData.screenshots = await Promise.all(
-        pageData.screenshots.map(async (s) => {
-          if (s.file) {
-            return { ...s, url: await uploadFileToS3(s.file) };
-          }
-          return s;
-        })
+        pageData.screenshots.map(async (s) =>
+          s.file ? { ...s, url: await uploadFileToS3(s.file) } : s
+        )
       );
-    }
 
-    // 4️⃣ Upload videos
-    if (pageData.videos.length) {
       finalData.videos = await Promise.all(
-        pageData.videos.map(async (v) => {
-          if (v.file) {
-            return { ...v, url: await uploadFileToS3(v.file) };
-          }
-          return v;
-        })
+        pageData.videos.map(async (v) =>
+          v.file ? { ...v, url: await uploadFileToS3(v.file) } : v
+        )
       );
-    }
 
-    // 5️⃣ Upload files (PDFs, zips, etc.)
-    if (pageData.files.length) {
       finalData.files = await Promise.all(
-        pageData.files.map(async (f) => {
-          if (f.file) {
-            return { ...f, url: await uploadFileToS3(f.file) };
-          }
-          return f;
-        })
+        pageData.files.map(async (f) =>
+          f.file ? { ...f, url: await uploadFileToS3(f.file) } : f
+        )
       );
+
+      console.log("Final Data to submit:", finalData);
+
+
+      const res = await axios.post(
+        `${BACKEND_URL}/api/devlogs`,
+        { pageData: finalData, leftColumnCards, rightColumnCards, gradientColor },
+        { headers: { "Content-Type": "application/json" } }
+      );
+
+
+
+      console.log("✅ Devlog saved successfully:", res.data);
+      alert("Devlog saved successfully!");
+    } catch (err) {
+      console.error("❌ Error saving devlog:", err);
+      alert("Error saving devlog.");
     }
-
-    // 6️⃣ Save devlog
-    const res = await axios.post(
-      `${BACKEND_URL}/api/devlogs`,
-      {
-        pageData: finalData,
-        leftColumnCards,
-        rightColumnCards,
-        gradientColor,
-      },
-      { headers: { "Content-Type": "application/json" } }
-    );
-
-    console.log("Devlog saved successfully!", res.data);
-  } catch (err) {
-    console.error(err);
-    alert("Error saving devlog.");
-  }
-};
-
+  };
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -304,7 +354,12 @@ const handleSubmit = async (e: React.FormEvent) => {
           <label htmlFor="gradient-picker" className="text-sm font-semibold mr-2">
             Choose a shade:
           </label>
-          <input type="color" id="gradient-picker" defaultValue="#000000" onChange={handleColorChange} />
+          <input
+            type="color"
+            id="gradient-picker"
+            defaultValue="#000000"
+            onChange={handleColorChange}
+          />
         </div>
 
         {/* Upload Background */}
@@ -322,6 +377,15 @@ const handleSubmit = async (e: React.FormEvent) => {
             ref={bgImageRef}
             hidden
             onChange={(e) => e.target.files && handleSelectMedia("bgImage", e.target.files[0])}
+          />
+        </div>
+
+        {/* Media Uploader */}
+        <div className="absolute top-4 left-56 z-50 flex gap-2">
+          <MediaUploader
+            setPageData={setPageData}
+            setLeftColumnCards={setLeftColumnCards}
+            setRightColumnCards={setRightColumnCards}
           />
         </div>
 

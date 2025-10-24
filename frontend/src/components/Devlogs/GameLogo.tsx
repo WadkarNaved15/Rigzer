@@ -8,6 +8,7 @@ interface GameLogoCardProps {
   setPageData?: React.Dispatch<React.SetStateAction<PageData>>;
   handleChange?: (key: keyof PageData, e: React.ChangeEvent<HTMLInputElement>) => void;
   readOnly?: boolean; // 👈 NEW
+  handleSelectMedia?: (key: keyof PageData, file: File) => void;
 }
 
 /**
@@ -19,6 +20,7 @@ const GameLogoCard: React.FC<GameLogoCardProps> = ({
   pageData,
   setPageData,
   handleChange,
+  handleSelectMedia,
   readOnly = false,
 }) => {
   const titleImageRef = useRef<HTMLInputElement | null>(null);
@@ -91,19 +93,10 @@ const GameLogoCard: React.FC<GameLogoCardProps> = ({
                 ref={titleImageRef}
                 hidden
                 onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) {
-                    setPageData((prev) => ({
-                      ...prev,
-                      gameTitleImage: {
-                        file,
-                        url: URL.createObjectURL(file),
-                        type: file.type,
-                      },
-                    }));
-                  }
-                  e.target.value = ""; // Clear input so re-selecting same file triggers change
-                }}
+                const file = e.target.files?.[0];
+                if (file) handleSelectMedia?.("gameTitleImage", file);
+                e.target.value = "";
+              }}
               />
               <div className="mt-4 flex justify-center gap-4">
                 <button
