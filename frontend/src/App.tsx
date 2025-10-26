@@ -4,6 +4,7 @@ import { Suspense, lazy } from 'react';
 import CreatePostPage from './Pages/CreatePostPage';
 import GameShowcase from './Pages/GameShowcase';
 import TestModelUpload from './Pages/ModelUploads';
+import ModelViewer from './components/ModelViewer';
 import UploadGame from './Pages/UploadGame';
 import GamePost from './components/Home/GamePost'
 import FeedbackProvider from './context/FeedbackProvider';
@@ -50,6 +51,7 @@ function App() {
             <Route path="/createpost" element={<CreatePostPage />} />
             <Route path="/devlogs" element={<DevLogs />} />
             <Route path="/devlogs/view/:id" element={<DevLogsView />} />
+            <Route path="/models" element={<ModelViewer/>} />
             <Route path="/gameshow" element={<GameShowcase />} />
             <Route path="/gameupload" element={<UploadGame />} />
             <Route path="/games" element={<GamePost/>} />
