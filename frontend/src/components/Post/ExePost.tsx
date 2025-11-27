@@ -79,12 +79,12 @@ const ExePost: React.FC<ExePostProps> = ({
           </div>
         </div> */}
 
-        <div className="w-[40%] p-4 pl-6 flex flex-col justify-center">
+        {/* <div className="w-[40%] p-4 pl-6 flex flex-col justify-center">
           <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-200">Game Details</h2>
           <p className="text-gray-600 dark:text-gray-300 mb-2">
             <span className="font-semibold">URL:</span> {gameUrl}
           </p>
-        </div>
+        </div> */}
       </div>
 
       {/* Post Interactions */}

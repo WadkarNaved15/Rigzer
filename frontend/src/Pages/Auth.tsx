@@ -1,21 +1,21 @@
-import React, { useState,useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mail, Lock, ArrowRight, Zap, User, Eye, EyeOff } from 'lucide-react';
-import { GoogleOAuthProvider} from "@react-oauth/google";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import { useNavigate } from "react-router-dom";
 import axios from 'axios';
-import {useUser} from "../context/user.js";
+import { useUser } from "../context/user.js";
 
 type AuthMode = 'login' | 'signup';
 
 function Auth() {
-  const {login} = useUser();
+  const { login } = useUser();
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000"; // Ensure this is set in your .env file
   const [mode, setMode] = useState<AuthMode>('login');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  
+
   // Form states
   const [formData, setFormData] = useState({
     username: '',
@@ -48,7 +48,7 @@ function Auth() {
     };
 
     checkAuth();
-  }, [navigate]); 
+  }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,18 +59,25 @@ function Auth() {
         alert("Passwords do not match.");
         return; // Stop further processing
       }
-      if(mode === 'login'){
-        const response = await axios.post(`${BACKEND_URL}/api/auth/login`, {
-          emailOrUsername: formData.email,
-          password: formData.password
-        });
+      if (mode === 'login') {
+        const response = await axios.post(
+          `${BACKEND_URL}/api/auth/login`,
+          {
+            emailOrUsername: formData.email,
+            password: formData.password
+          },
+          {
+            withCredentials: true // ✅ correct placement
+          }
+        );
+
         console.log(response.data);
         if (response.status === 200) {
           await login(response.data.user);
           console.log(response.data);
           navigate("/")
         }
-      }else{
+      } else {
         const response = await axios.post(`${BACKEND_URL}/api/auth/register`, {
           username: formData.username,
           email: formData.email,
@@ -99,9 +106,9 @@ function Auth() {
 
 
   const handleGoogleLogin = () => {
-    window.location.href = `${BACKEND_URL}/api/auth/google`; 
+    window.location.href = `${BACKEND_URL}/api/auth/google`;
   };
-  
+
   const toggleMode = () => {
     setMode(prev => prev === 'login' ? 'signup' : 'login');
     setFormData({ username: '', email: '', password: '', confirmPassword: '' });
@@ -264,19 +271,19 @@ function Auth() {
                 <span className="px-2 bg-white text-gray-500">Or continue with</span>
               </div>
             </div>
-               <GoogleOAuthProvider clientId="970893892840-8ecshtmle4kip6ps0bl7vbkg3nogl5od.apps.googleusercontent.com">
-            <button
-              onClick={handleGoogleLogin}
-              type="button"
-              className="w-full flex items-center justify-center py-2.5 px-4 border border-gray-200 rounded-xl shadow-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all"
-            >
-              <img
-                src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png"
-                alt="Google"
-                className="h-5 w-auto"
-              />
-              <span className="ml-2 text-gray-700">Continue with Google</span>
-            </button>
+            <GoogleOAuthProvider clientId="970893892840-8ecshtmle4kip6ps0bl7vbkg3nogl5od.apps.googleusercontent.com">
+              <button
+                onClick={handleGoogleLogin}
+                type="button"
+                className="w-full flex items-center justify-center py-2.5 px-4 border border-gray-200 rounded-xl shadow-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all"
+              >
+                <img
+                  src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png"
+                  alt="Google"
+                  className="h-5 w-auto"
+                />
+                <span className="ml-2 text-gray-700">Continue with Google</span>
+              </button>
             </GoogleOAuthProvider>
           </form>
 

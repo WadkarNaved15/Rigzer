@@ -30,7 +30,7 @@ router.post("/", verifyToken, async (req, res) => {
 // Get all messages for a chat
 router.get("/:chatId", verifyToken, async (req, res) => {
   try {
-    const messages = await Message.find({ chatId: req.params.chatId }).populate("sender", "name");
+    const messages = await Message.find({ chatId: req.params.chatId }).populate("sender", "username");
     res.status(200).json(messages);
   } catch (error) {
     console.error(error);
