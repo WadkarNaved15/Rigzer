@@ -42,12 +42,12 @@ router.post("/register", async (req, res) => {
     });
 
     await newUser.save();
-    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "30d" }); 
+    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "30d" });
     res.cookie("token", token, { httpOnly: true, secure: false, maxAge: 30 * 24 * 60 * 60 * 1000 }); // Set cookie for 30 days
     res.status(201).json({ message: "User registered & authenticated successfully", user: newUser, token });
   } catch (error) {
     console.error("Error in registration:", error);
-    res.status(500).json({ error: "Registration failed" });
+    // res.status(500).json({ error: "Registration failed" });
   }
 });
 
@@ -56,37 +56,37 @@ router.post("/register", async (req, res) => {
 // Login Route
 router.post("/login", async (req, res) => {
   try {
-    const { emailOrUsername, password } = req.body; // Accepts either email or username
+    const { emailOrUsername, password } = req.body;
 
-    // Find user by email OR username
     const user = await User.findOne({
       $or: [{ email: emailOrUsername }, { username: emailOrUsername }],
-    });
+    }).select("+password"); // ✅ include password field explicitly
 
-    // Check if user exists and password matches
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    // Generate JWT token
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "30d" });
 
-    // Set token in cookies
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      secure: process.env.NODE_ENV === "production" ? true : false,
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // important for cross-origin
+      maxAge: 30 * 24 * 60 * 60 * 1000,
     });
+
 
     res.status(200).json({ message: "Login successful", token, user });
   } catch (err) {
+    console.error("Error in login:", err);
     res.status(500).json({ error: "Login failed" });
   }
 });
 
+
 // Verify Token Route
 router.get("/verify", verifyToken, (req, res) => {
-  res.status(200).json({ message: "Token is valid" ,user: req.user});
+  res.status(200).json({ message: "Token is valid", user: req.user });
 });
 
 // Logout Route
