@@ -13,6 +13,12 @@ export interface Media {
   id: string; // Add unique ID for each media item
 }
 
+interface ExcalidrawItem {
+  id: string;
+  elements: any[]; // store Excalidraw elements
+  appState: any;   // store Excalidraw state if needed
+}
+
 export interface BlogSection {
   id: string;
   content: string;
@@ -41,4 +47,6 @@ export interface PageData {
   bgImage:Media|null;
   gameTitleImage:Media|null;
   blogSections: BlogSection[];
+  excalidraws: ExcalidrawItem[];
+
 }

@@ -41,6 +41,22 @@ const MediaUploader: React.FC<MediaUploaderProps> = ({
     e.target.value = "";
   };
 
+  const handleAddExcalidraw = () => {
+  const newExcalidraw: ExcalidrawItem = {
+    id: `excalidraw-${Date.now()}-${Math.random()}`,
+    elements: [],
+    appState: {},
+  };
+
+  setPageData(prev => ({
+    ...prev,
+    excalidraws: [...prev.excalidraws, newExcalidraw],
+  }));
+
+  setLeftColumnCards(prev => [...prev, newExcalidraw.id]);
+};
+
+
   const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (files.length === 0) return;
@@ -109,6 +125,13 @@ const MediaUploader: React.FC<MediaUploaderProps> = ({
 
   return (
     <>
+    <button
+        type="button"
+        className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded shadow"
+        onClick={handleAddExcalidraw}
+      >
+        + Excalidraw
+      </button>
       <button
         type="button"
         className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded shadow"
