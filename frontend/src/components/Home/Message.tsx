@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
+import { io } from "socket.io-client";
 import axios from "axios";
+import { toast } from "react-toastify";
 import {
   MessageCircle,
   X,
@@ -25,6 +27,8 @@ const MessagingComponent = () => {
   const [users, setUsers] = useState([]);
   const messagesEndRef = useRef(null);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+  const fileInputRef = useRef(null);
+
   // CSS animation for shine
   useEffect(() => {
     const style = document.createElement("style");
@@ -46,14 +50,31 @@ const MessagingComponent = () => {
       }
     };
   }, []);
-
-
-
-
+  const socket = io("http://localhost:5000", {
+    withCredentials: true,
+  });
   const [conversations, setConversations] = useState({});
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   useEffect(() => scrollToBottom(), [conversations, activeChat]);
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/me", {
+          method: "GET",
+          credentials: "include",  // VERY IMPORTANT FOR COOKIES
+        });
+        const data = await res.json();
+        setCurrentUser(data);
+      } catch (err) {
+        console.error("User fetch error:", err);
+      }
+    };
+
+    fetchUser();
+  }, []);
+
   useEffect(() => {
     const fetchUsers = async () => {
       try {
@@ -71,6 +92,7 @@ const MessagingComponent = () => {
           unreadCount: 0
         }));
         setUsers(formattedUsers);
+        console.log("Users:", formattedUsers);
       } catch (err) {
         console.error("Error fetching users:", err);
       }
@@ -79,17 +101,98 @@ const MessagingComponent = () => {
     fetchUsers();
   }, []);
   useEffect(() => {
-    const fetchCurrentUser = async () => {
-      try {
-        const { data } = await axios.get(`${BACKEND_URL}/api/me`, { withCredentials: true });
-        setCurrentUser(data);
-      } catch (err) {
-        console.error("Failed to fetch current user:", err);
-      }
+    if (currentUser?._id) {
+      socket.emit("join", currentUser._id);
+    }
+  }, [currentUser]);
+
+  useEffect(() => {
+    socket.on("receive-message", (msg) => {
+
+      // If sender is ME but the message came from SERVER (it has no tempId)
+      // AND we already inserted this message in optimistic update → ignore
+      if (msg.senderId === currentUser._id && !msg.tempId) return;
+
+      const otherUserId =
+        msg.senderId === currentUser._id ? msg.receiverId : msg.senderId;
+
+      setConversations((prev) => ({
+        ...prev,
+        [otherUserId]: [...(prev[otherUserId] || []), msg],
+      }));
+    });
+
+    return () => socket.off("receive-message");
+  }, [currentUser]);
+
+const handleFileUpload = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append("media", file);
+
+  // Toast
+  const toastId = toast.loading("Uploading...");
+
+  let fakeProgress = 0;
+  const interval = setInterval(() => {
+    if (fakeProgress < 95) {
+      fakeProgress += 5;
+      toast.update(toastId, {
+        render: `Uploading... ${fakeProgress}%`,
+        isLoading: true,
+      });
+    }
+  }, 200);
+
+  try {
+    const res = await axios.post(`${BACKEND_URL}/api/media/upload`, formData, {
+      withCredentials: true,
+    });
+
+    clearInterval(interval);
+
+    toast.update(toastId, {
+      render: "Upload complete!",
+      type: "success",
+      isLoading: false,
+      autoClose: 1200,
+    });
+
+    const data = res.data;
+
+    const newMessage = {
+      chatId: currentChatId,
+      senderId: currentUser._id,
+      receiverId: activeChat,
+      text: "",
+      mediaUrl: data.url,
+      mediaType: data.mediaType,
+      createdAt: new Date(),
     };
 
-    fetchCurrentUser();
-  }, []);
+    socket.emit("send-message", newMessage);
+
+    setConversations((prev) => ({
+      ...prev,
+      [activeChat]: [...(prev[activeChat] || []), newMessage],
+    }));
+  } catch (err) {
+    clearInterval(interval);
+
+    toast.update(toastId, {
+      render: "Upload failed!",
+      type: "error",
+      isLoading: false,
+      autoClose: 2000,
+    });
+  }
+};
+
+
+
+
   const handleUserClick = async (receiverId) => {
     try {
       setActiveChat(receiverId);
@@ -117,28 +220,30 @@ const MessagingComponent = () => {
     }
   };
 
-  const handleSendMessage = async () => {
-    if (message.trim() && activeChat && currentChatId) {
-      try {
-        // 1️⃣ Send message to backend
-        const { data } = await axios.post(
-          `${BACKEND_URL}/api/messages`,
-          { chatId: currentChatId, text: message },
-          { withCredentials: true }
-        );
+  const handleSendMessage = () => {
+    if (!message.trim()) return;
+    const tempId = Date.now(); // unique temporary ID
+    const newMessage = {
+      tempId,
+      chatId: currentChatId,
+      senderId: currentUser._id,
+      receiverId: activeChat,
+      text: message,
+      createdAt: new Date(),
+    };
 
-        // 2️⃣ Add it instantly to UI
-        setConversations((prev) => ({
-          ...prev,
-          [activeChat]: [...(prev[activeChat] || []), data],
-        }));
+    // emit to server
+    socket.emit("send-message", newMessage);
 
-        setMessage("");
-      } catch (error) {
-        console.error("Error sending message:", error);
-      }
-    }
+    // optimistic update
+    setConversations((prev) => ({
+      ...prev,
+      [activeChat]: [...(prev[activeChat] || []), newMessage],
+    }));
+
+    setMessage("");
   };
+
 
 
   const handleKeyPress = (e) => {
@@ -227,6 +332,14 @@ const MessagingComponent = () => {
 
 
       )}
+      <input
+        type="file"
+        accept="image/*,video/*"
+        ref={fileInputRef}
+        onChange={handleFileUpload}
+        className="hidden"
+      />
+
 
       {/* Chat Window */}
       {isOpen && (
@@ -479,18 +592,46 @@ const MessagingComponent = () => {
                     >
                       {(conversations[activeChat] || []).map((msg) => (
                         <div
-                          key={msg._id || msg.id}
-                          className={`flex ${msg.sender._id === currentUser?._id ? "justify-end" : "justify-start"}`}
+                          key={msg._id || msg.tempId || msg.id}
+                          className={`flex ${msg.senderId === currentUser?._id ? "justify-end" : "justify-start"
+                            }`}
                         >
                           <div
-                            className={`max-w-xs px-3 py-2 rounded-lg text-sm shadow-sm ${msg.sender._id === currentUser?._id ? "bg-gray-600 text-white" : "bg-gray-200 text-black"
+                            className={`max-w-xs px-3 py-2 rounded-lg text-sm shadow-sm ${msg.senderId === currentUser?._id
+                                ? "bg-gray-600 text-white"
+                                : "bg-gray-200 text-black"
                               }`}
                           >
-                            <p>{msg.text}</p>
-                            <p className="text-xs mt-1 text-gray-500">{new Date(msg.createdAt).toLocaleTimeString()}</p>
+
+                            {/* IMAGE */}
+                            {msg.mediaType === "image" && (
+                              <img
+                                src={msg.mediaUrl}
+                                alt="media"
+                                className="rounded-lg max-w-full mb-2"
+                              />
+                            )}
+
+                            {/* VIDEO */}
+                            {msg.mediaType === "video" && (
+                              <video
+                                src={msg.mediaUrl}
+                                controls
+                                className="rounded-lg max-w-full mb-2"
+                              />
+                            )}
+
+                            {/* TEXT */}
+                            {msg.text && <p>{msg.text}</p>}
+
+                            {/* TIME */}
+                            <p className="text-xs mt-1 text-gray-500">
+                              {new Date(msg.createdAt).toLocaleTimeString()}
+                            </p>
                           </div>
                         </div>
                       ))}
+
 
 
                       <div ref={messagesEndRef} />
@@ -505,6 +646,7 @@ const MessagingComponent = () => {
                     >
                       <div className="flex items-center space-x-2">
                         <button
+                          onClick={() => fileInputRef.current.click()}
                           className={`${isMaximized
                             ? "text-white/60 hover:text-white"
                             : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
@@ -512,6 +654,7 @@ const MessagingComponent = () => {
                         >
                           <Paperclip size={18} />
                         </button>
+
                         <div className="flex-1 relative">
                           <textarea
                             value={message}

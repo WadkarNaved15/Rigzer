@@ -1,6 +1,7 @@
 import React, { useMemo} from 'react';
 import PostHeader from './PostHeader';
 import { useLikes } from '../../hooks/useLikes';
+import {Link} from 'react-router-dom';
 import PostInteractions from './PostInteractions';
 import type { GamePostProps } from '../../types/Post'; // Assuming you have a type definition for PostProps
 
@@ -48,13 +49,13 @@ const GamePost: React.FC<GamePostProps> = ({
 
         <div className="relative overflow-hidden bg-gray-100 dark:bg-gray-700 h-[400px] rounded-xl">
           <div className="flex flex-col items-center justify-center h-full space-y-4">
-            <button
-              onClick={handleStartGame}
-              disabled={!gameUrl}
+            <Link to='/stream'><button
+              // onClick={handleStartGame}
+              // disabled={!gameUrl}
               className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-all"
             >
-              {gameUrl ? 'Start Game' : 'Game Not Available'}
-            </button>
+              {/* {gameUrl ? 'Start Game' : 'Game Not Available'} */} Start Game
+            </button></Link>
           </div>
         </div>
 

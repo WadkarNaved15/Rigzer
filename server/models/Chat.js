@@ -1,3 +1,4 @@
+// models/Chat.js
 import mongoose from "mongoose";
 
 const chatSchema = new mongoose.Schema(
@@ -9,14 +10,12 @@ const chatSchema = new mongoose.Schema(
         required: true,
       },
     ],
-    lastMessage: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Message",
-    },
   },
   { timestamps: true }
 );
 
-const Chat = mongoose.model("Chat", chatSchema);
+// Ensure a chat between two users is not duplicated
+chatSchema.index({ participants: 1 }, { unique: false });
 
+const Chat = mongoose.model("Chat", chatSchema);
 export default Chat;

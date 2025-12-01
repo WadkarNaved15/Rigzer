@@ -7,19 +7,19 @@ const messageSchema = new mongoose.Schema(
       ref: "Chat",
       required: true,
     },
-    sender: {
+    senderId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-    text: {
-      type: String,
-      required: true,
-    },
+    text: { type: String, default: "" },
+
+    // NEW FIELDS
+    mediaUrl: { type: String, default: null },
+    mediaType: { type: String, enum: ["image", "video", null], default: null },
   },
   { timestamps: true }
 );
 
 const Message = mongoose.model("Message", messageSchema);
-
 export default Message;

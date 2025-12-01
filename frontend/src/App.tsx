@@ -1,12 +1,16 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 import { Suspense, lazy } from 'react';
 import CreatePostPage from './Pages/CreatePostPage';
 import GameShowcase from './Pages/GameShowcase';
+import Recommendations from './components/Recommendations'
 import TestModelUpload from './Pages/ModelUploads';
 import ModelViewer from './components/ModelViewer';
 import UploadGame from './Pages/UploadGame';
 import GamePost from './components/Home/GamePost'
+import GameStatus from './components/Home/PlayGame'
 import FeedbackProvider from './context/FeedbackProvider';
 import { SearchProvider } from './components/Home/SearchContext';  // ✅ FIX
 
@@ -44,10 +48,12 @@ function App() {
           <Navbar />
         </Suspense> */}
         <Suspense fallback={<div className="text-center mt-10">Loading...</div>}>
+         <ToastContainer />
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/gamestream" element={<GameStream />} />
+            <Route path="/stream" element={<GameStatus/>} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/createpost" element={<CreatePostPage />} />
             <Route path="/devlogs" element={<DevLogs />} />
@@ -57,6 +63,7 @@ function App() {
             <Route path="/gameupload" element={<UploadGame />} />
             <Route path="/games" element={<GamePost/>} />
             <Route path="/puck" element={<Puck />} />
+            <Route path="/recommendations" element={<Recommendations/>} />
             {/* <Route path="/excalidraw" element={<ExcaliDraw/>} /> */}
             {/* <Route path="/canvas" element={<CanvasEditor/>} /> */}
             {/*<Route path="/game" element={<Game />} />

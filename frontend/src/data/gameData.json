@@ -1,0 +1,46 @@
+[
+  {
+    "game_id": "g1",
+    "title": "Shadow Hunt",
+    "tags": ["Horror", "Single-player", "Story-rich"],
+    "engine": "Unreal",
+    "build_type": "Windows",
+    "completion_rate": 0.75,
+    "avg_session": 480,
+    "rage_quit": 0.12,
+    "return_rate": 0.40
+  },
+  {
+    "game_id": "g2",
+    "title": "Pixel Quest",
+    "tags": ["Pixel Art", "Adventure", "Indie"],
+    "engine": "Godot",
+    "build_type": "WebGL",
+    "completion_rate": 0.55,
+    "avg_session": 350,
+    "rage_quit": 0.08,
+    "return_rate": 0.35
+  },
+  {
+    "game_id": "g3",
+    "title": "Nightmare Alley",
+    "tags": ["Horror", "Single-player", "Pixel Art"],
+    "engine": "Godot",
+    "build_type": "Windows",
+    "completion_rate": 0.68,
+    "avg_session": 420,
+    "rage_quit": 0.09,
+    "return_rate": 0.42
+  },
+  {
+    "game_id": "g4",
+    "title": "Speed Run Legends",
+    "tags": ["Racing", "Multiplayer", "Competitive"],
+    "engine": "Unity",
+    "build_type": "Windows",
+    "completion_rate": 0.42,
+    "avg_session": 210,
+    "rage_quit": 0.18,
+    "return_rate": 0.20
+  }
+]
