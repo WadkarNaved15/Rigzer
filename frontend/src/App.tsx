@@ -4,8 +4,10 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { Suspense, lazy } from 'react';
 import CreatePostPage from './Pages/CreatePostPage';
+import WishlistPage from './Pages/WishlistPage';
 import GameShowcase from './Pages/GameShowcase';
 import Recommendations from './components/Recommendations'
+import RecommendationPosts from './components/Home/RecommendationPost'
 import TestModelUpload from './Pages/ModelUploads';
 import ModelViewer from './components/ModelViewer';
 import UploadGame from './Pages/UploadGame';
@@ -54,6 +56,7 @@ function App() {
             <Route path="/auth" element={<Auth />} />
             <Route path="/gamestream" element={<GameStream />} />
             <Route path="/stream" element={<GameStatus/>} />
+            <Route path="/wishlist" element={<WishlistPage/>} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/createpost" element={<CreatePostPage />} />
             <Route path="/devlogs" element={<DevLogs />} />
@@ -63,6 +66,7 @@ function App() {
             <Route path="/gameupload" element={<UploadGame />} />
             <Route path="/games" element={<GamePost/>} />
             <Route path="/puck" element={<Puck />} />
+            <Route path="/recommendationsposts" element={<RecommendationPosts />} />
             <Route path="/recommendations" element={<Recommendations/>} />
             {/* <Route path="/excalidraw" element={<ExcaliDraw/>} /> */}
             {/* <Route path="/canvas" element={<CanvasEditor/>} /> */}
