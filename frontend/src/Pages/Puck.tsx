@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Puck, Render } from "@measured/puck";
 import { config } from "../components/Puck/puckConfig";
 import "@measured/puck/puck.css";
