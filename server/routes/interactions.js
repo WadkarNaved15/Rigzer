@@ -57,13 +57,15 @@ router.post("/played-demo", auth, async (req, res) => {
     const { postId } = req.body;
     const userId = req.user.id;
 
-    await updateInteraction(userId, postId, { playedDemo: true });
+    const updated = await updateInteraction(userId, postId, { playedDemo: true });
+
     res.json({ success: true, interaction: updated });
   } catch (err) {
     console.error("playedDemo error:", err);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 });
+
 
 
 export default router;

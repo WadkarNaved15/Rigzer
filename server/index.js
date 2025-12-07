@@ -15,6 +15,7 @@ import modelUploadRouter from "./routes/compression.js";
 import chatMediaUpload from "./routes/chatMediaUpload.js";
 import gameStatus from "./routes/gameStatus.js"
 import authRoutes from "./routes/auth.js";
+import adRoutes from "./routes/adRoutes.js";
 import postRoutes from "./routes/postRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import meRoutes from "./routes/me.js";
@@ -91,6 +92,7 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/me", meRoutes);
 app.use("/api/game", gameStatus);
 app.use("/uploads", express.static("uploads"));
+app.use("/api/ads", adRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/media/upload", chatMediaUpload);
 app.use("/api/wishlist", wishListRoutes);

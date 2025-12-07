@@ -9,7 +9,6 @@ const stepsMap = {
   ready: "Ready",
 };
 
-// Keep steps in order
 const orderedSteps = [
   "starting_server",
   "initializing_game",
@@ -22,9 +21,25 @@ export default function AdWithStatus({ onComplete }) {
   const [sessionId, setSessionId] = useState(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [showSkip, setShowSkip] = useState(false);
+
+  const [ad, setAd] = useState(null); // ⬅ Store ad fetched from DB
+
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
-  // Start game session on mount
+  // Fetch ad on mount
+  useEffect(() => {
+    const loadAd = async () => {
+      try {
+        const res = await axios.get(`${BACKEND_URL}/api/ads/random`);
+        setAd(res.data);
+      } catch (err) {
+        console.error("Failed to load ad:", err);
+      }
+    };
+    loadAd();
+  }, []);
+
+  // Start game session
   useEffect(() => {
     const startSession = async () => {
       try {
@@ -37,7 +52,7 @@ export default function AdWithStatus({ onComplete }) {
     startSession();
   }, []);
 
-  // Poll backend for status
+  // Poll game status
   useEffect(() => {
     if (!sessionId) return;
 
@@ -47,11 +62,8 @@ export default function AdWithStatus({ onComplete }) {
         const stepKey = res.data.step;
 
         const stepIndex = orderedSteps.indexOf(stepKey);
-        if (stepIndex !== -1) {
-          setCurrentStepIndex(stepIndex);
-        }
+        if (stepIndex !== -1) setCurrentStepIndex(stepIndex);
 
-        // When backend says ready → show skip button
         if (stepKey === "ready") {
           setShowSkip(true);
           clearInterval(interval);
@@ -65,19 +77,47 @@ export default function AdWithStatus({ onComplete }) {
     return () => clearInterval(interval);
   }, [sessionId]);
 
+  if (!ad) {
+    return (
+      <div className="fixed inset-0 bg-black z-50 flex justify-center items-center text-white text-2xl">
+        Loading Ad...
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-black z-50 flex justify-center items-center">
 
-      {/* VIDEO AD */}
-      <video
-        autoPlay
-        muted
-        loop
-        className="w-full h-full object-cover"
-        src="/video-ad.mp4"
-      />
+      {/* MEDIA (Video or Image) */}
+      {ad.mediaType === "video" ? (
+        <video
+          autoPlay
+          muted
+          loop
+          className="w-full h-full object-cover"
+          src={ad.mediaUrl}
+          onClick={() => window.open(ad.redirectUrl, "_blank")}
+        />
+      ) : (
+        <img
+          src={ad.mediaUrl}
+          className="w-full h-full object-cover cursor-pointer"
+          onClick={() => window.open(ad.redirectUrl, "_blank")}
+          alt="Ad"
+        />
+      )}
 
-      {/* TOP-RIGHT STATUS LIST */}
+      {/* LOGO (Top-left corner) */}
+      {ad.logoUrl && (
+        <img
+          src={ad.logoUrl}
+          alt="logo"
+          className="absolute bottom-4 left-4 w-28 h-auto rounded-lg cursor-pointer"
+          onClick={() => window.open(ad.redirectUrl, "_blank")}
+        />
+      )}
+
+      {/* STATUS LIST */}
       <div className="absolute top-6 right-6 bg-black bg-opacity-40 p-4 rounded-xl 
                       text-white space-y-2 text-lg font-semibold select-none">
 
@@ -92,7 +132,7 @@ export default function AdWithStatus({ onComplete }) {
         ))}
       </div>
 
-      {/* SKIP BUTTON (shown when backend is ready) */}
+      {/* SKIP BUTTON */}
       {showSkip && (
         <button
           onClick={onComplete}
