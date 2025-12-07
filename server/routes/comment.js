@@ -1,5 +1,6 @@
 import express from "express";
 import Comment from "../models/Comment.js";
+import { updateInteraction } from "../helper/interactionController.js";
 import authMiddleware from "../middlewares/authMiddleware.js"; // assuming same middleware as likes
 
 const router = express.Router();
@@ -14,6 +15,8 @@ router.post("/", authMiddleware, async (req, res) => {
 
     const comment = new Comment({ post: postId, user: userId, text });
     await comment.save();
+    // UPDATE USER INTERACTION
+    await updateInteraction(userId, postId, { commented: true });
     const populatedComment = await comment.populate("user", "username");
     res.status(201).json(populatedComment);
   } catch (error) {
@@ -39,12 +42,15 @@ router.get("/", async (req, res) => {
 // ❌ Delete Comment (optional)
 router.delete("/:id", authMiddleware, async (req, res) => {
   try {
+    const userId=req.user.id
     const comment = await Comment.findById(req.params.id);
     if (!comment) return res.status(404).json({ message: "Comment not found" });
     if (comment.user.toString() !== req.user.id)
       return res.status(403).json({ message: "Not authorized" });
 
     await comment.deleteOne();
+    // UPDATE USER INTERACTION
+    await updateInteraction(userId, postId, { commented: false });
     res.json({ message: "Comment deleted" });
   } catch (error) {
     console.error("Error deleting comment:", error);

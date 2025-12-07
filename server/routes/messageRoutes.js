@@ -6,35 +6,35 @@ import verifyToken from "../middlewares/authMiddleware.js";
 const router = express.Router();
 
 // Send a message
-router.post("/", verifyToken, async (req, res) => {
+router.post("/", verifyToken,async (req, res) => {
   try {
-    const { chatId, text } = req.body;
     const senderId = req.user.id;
+    const { chatId, text } = req.body;
 
     const message = await Message.create({
       chatId,
-      sender: senderId,
+      senderId,
       text,
     });
 
-    // Update chat’s last message
-    await Chat.findByIdAndUpdate(chatId, { lastMessage: message._id });
-
-    res.status(201).json(message);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Server error while sending message" });
+    res.json(message);
+  } catch (err) {
+    console.error("Send message error:", err);
+    res.status(500).json({ message: "Failed to send message" });
   }
 });
-
 // Get all messages for a chat
-router.get("/:chatId", verifyToken, async (req, res) => {
+router.get("/:chatId", async (req, res) => {
   try {
-    const messages = await Message.find({ chatId: req.params.chatId }).populate("sender", "username");
-    res.status(200).json(messages);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Server error while fetching messages" });
+    const { chatId } = req.params;
+
+    const messages = await Message.find({ chatId })
+      .sort({ createdAt: 1 });
+
+    res.json(messages);
+  } catch (err) {
+    console.error("Fetch messages error:", err);
+    res.status(500).json({ message: "Failed to fetch messages" });
   }
 });
 

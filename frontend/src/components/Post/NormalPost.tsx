@@ -1,4 +1,4 @@
-import React, { memo, useMemo} from 'react';
+import React, { memo, useMemo,useEffect,useRef} from 'react';
 import PostHeader from './PostHeader';
 import PostInteractions from './PostInteractions';
 import { useLikes } from '../../hooks/useLikes';
@@ -14,9 +14,39 @@ const NormalPost: React.FC<NormalPostProps> = ({
   const timestamp = useMemo(() => new Date(createdAt).toLocaleString(), [createdAt]);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
   const { likesCount, isLiked, handleLike } = useLikes(_id, BACKEND_URL);
+  const postRef = useRef(null);
   const mediaUrl = media?.[0] ?? '';
   const isVideo = useMemo(() => /\.(mp4|webm|ogg)$/i.test(mediaUrl), [mediaUrl]);
+   // Send view event to backend
+  const markViewed = async () => {
+    try {
+      await fetch(`${BACKEND_URL}/api/interactions/view`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId: _id })
+      });
+    } catch (err) {
+      console.error("Failed to update view", err);
+    }
+  };
 
+  // Detect when post becomes visible
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          markViewed();
+          observer.disconnect(); 
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    if (postRef.current) observer.observe(postRef.current);
+
+    return () => observer.disconnect();
+  }, []);
   return (
 <article
   className="relative bg-white border w-full border-gray-200 

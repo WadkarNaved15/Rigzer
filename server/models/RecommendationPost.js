@@ -1,16 +1,14 @@
 import mongoose from "mongoose";
 
-const PostSchema = new mongoose.Schema({
+const RecommendationPostSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   description: { type: String, required: true },
   type: {
     type: String,
-    enum: ["normal_post", "game_post","exe_post"],
+    enum: ["normal_post", "game_post"],
     required: true,
     default: "normal_post"
   },
-  media: [{ type: String }],
-  gameUrl: { type: String }, // For game posts
    // 🔥 For recommendation system:
   tags: [{ type: String }],          // e.g. FPS, Racing, Horror
   genre: { type: String },           // optional
@@ -26,5 +24,4 @@ const PostSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 }, { timestamps: true });
 
-
-export default mongoose.model("Post", PostSchema);
+export default mongoose.model("RecommendationPost", RecommendationPostSchema);
