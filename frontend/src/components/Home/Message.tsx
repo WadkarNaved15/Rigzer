@@ -64,7 +64,7 @@ const MessagingComponent = () => {
       }
     };
   }, []);
-  const socket = io("http://localhost:5000", {
+  const socket = io( `${BACKEND_URL}`, {
     withCredentials: true,
   });
   const [conversations, setConversations] = useState<
@@ -78,7 +78,7 @@ const MessagingComponent = () => {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/me", {
+        const res = await fetch(`${BACKEND_URL}/api/me`, {
           method: "GET",
           credentials: "include",  // VERY IMPORTANT FOR COOKIES
         });
