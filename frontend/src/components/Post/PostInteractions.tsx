@@ -5,8 +5,6 @@ import CommentSection from './CommentSection';
 interface PostInteractionsProps {
   likes: number;
   comments: number;
-  postId: string;
-  BACKEND_URL: string;
   isLiked?: boolean;
   isWishlisted?: boolean; 
   onLike?: () => void;
@@ -17,8 +15,6 @@ interface PostInteractionsProps {
 const PostInteractions: React.FC<PostInteractionsProps> = ({
   likes,
   comments,
-  postId,
-  BACKEND_URL,
   isLiked = false,
   isWishlisted = false, 
   onLike,
@@ -87,11 +83,11 @@ const PostInteractions: React.FC<PostInteractionsProps> = ({
       </div>
 
       {/* Comment Section */}
-      {showComments && (
+      {/* {showComments && (
         <div className="mt-3">
           <CommentSection postId={postId} BACKEND_URL={BACKEND_URL} />
         </div>
-      )}
+      )} */}
     </div>
   );
 };

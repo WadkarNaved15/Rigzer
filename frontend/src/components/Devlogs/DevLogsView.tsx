@@ -22,7 +22,8 @@ interface DevLogViewProps {
  * No drag, upload, or edit logic.
  */
 const DevLogView: React.FC<DevLogViewProps> = ({
-  pageData={gameTitle: "GAME TITLE",
+  pageData = {
+    gameTitle: "GAME TITLE",
     postTitle: "Post Title",
     postTag: "Devlog",
     postDate: "1 day ago",
@@ -38,12 +39,13 @@ const DevLogView: React.FC<DevLogViewProps> = ({
     closingQuote: "Have fun & keep it RETRO",
     signature: "Kenz / www.psytronik.net",
     files: [
-      { id: 1, title: "Musketeer [C64] .tap, .d64 + .prg", size: "15 MB" },
-      { id: 2, title: "Musketeer C64 Soundtrack (mp3)", size: "41 MB" },
+      { id: "1", title: "Musketeer [C64] .tap, .d64 + .prg", size: "15 MB", url: "" },
+      { id: "2", title: "Musketeer C64 Soundtrack (mp3)", size: "41 MB", url: "" },
     ],
     price: "$3.99 USD",
     gameInfoTitle: "Game Info Title",
-    gameInfoDescription: "An excellent swashbuckling action-adventure for the C64!",
+    gameInfoDescription:
+      "An excellent swashbuckling action-adventure for the C64!",
     gameDetails: {
       status: "Released",
       author: "Psytronik Software",
@@ -52,9 +54,17 @@ const DevLogView: React.FC<DevLogViewProps> = ({
     },
     screenshots: [],
     videos: [],
-    bgImage: "",
-    gameTitleImage: null,},
-  leftColumnCards=[
+    bgImage: {
+      id: "bg-1",
+      url: "",
+      type: "image",
+    },
+
+    gameTitleImage: null,
+    blogSections: [],
+    excalidraws: [],
+  },
+  leftColumnCards = [
     "GameLogo",
     "PostTitle",
     "screenshots",
@@ -63,11 +73,8 @@ const DevLogView: React.FC<DevLogViewProps> = ({
     "files",
     "Purchase",
   ],
-  rightColumnCards=[
-    "GameInfo",
-    "SideBar",
-  ],
-  gradientColor="20,20,20",
+  rightColumnCards = ["GameInfo", "SideBar"],
+  gradientColor = "20,20,20",
 }) => {
   const renderCard = (card: string) => {
     switch (card) {

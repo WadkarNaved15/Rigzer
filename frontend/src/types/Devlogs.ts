@@ -1,5 +1,5 @@
 export interface FileItem {
-  id: string;
+  id: string | number;
   file?: File;
   title: string;
   size: string;
@@ -13,7 +13,7 @@ export interface Media {
   id: string; // Add unique ID for each media item
 }
 
-interface ExcalidrawItem {
+export interface ExcalidrawItem {
   id: string;
   elements: any[]; // store Excalidraw elements
   appState: any;   // store Excalidraw state if needed

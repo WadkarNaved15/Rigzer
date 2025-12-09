@@ -1,12 +1,30 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { ArrowRight, Loader2, Gamepad } from "lucide-react"; // Using Lucide icons for a modern feel
+// --- Types ---
+interface Preferences {
+  topTags: Record<string, number>;
+  topGenres: Record<string, number>;
+}
 
+interface Post {
+  _id: string;
+  genre: string;
+  description: string;
+  tags?: string[];
+  playCount: number;
+  returnRate: number;
+}
+
+interface Recommendation {
+  post: Post;
+  score: number;
+}
 // --- Component Start ---
 export default function RecommendedPosts() {
   const [loading, setLoading] = useState(true);
-  const [recommendations, setRecommendations] = useState([]);
-  const [preferences, setPreferences] = useState(null);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [preferences, setPreferences] = useState<Preferences | null>(null);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   // 1. Data Fetching Effect

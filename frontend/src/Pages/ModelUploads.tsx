@@ -1,14 +1,6 @@
+// src/Pages/TestModelUpload.tsx
 import React, { useState } from "react";
-
-// ✅ Add type for custom element so TS doesn’t complain
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      "model-viewer": any;
-    }
-  }
-}
-
+import "@google/model-viewer"; // Import model-viewer once globally
 const TestModelUpload: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -46,7 +38,6 @@ const TestModelUpload: React.FC = () => {
         throw new Error(data.message || "Upload failed");
       }
 
-      // Backend returns the path → use it for preview
       setPreviewUrl(`${BACKEND_URL}/${data.path}`);
     } catch (err: any) {
       setError(err.message);
@@ -83,6 +74,7 @@ const TestModelUpload: React.FC = () => {
           <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">
             Compressed Model Preview:
           </h3>
+          {/* @ts-ignore */}
           <model-viewer
             src={previewUrl}
             alt="Compressed 3D Model"
@@ -91,9 +83,7 @@ const TestModelUpload: React.FC = () => {
             disable-zoom
             style={{ width: "100%", height: "400px", background: "transparent" }}
             draco-decoder-path="https://www.gstatic.com/draco/versioned/decoders/1.5.6/"
-          >
-          </model-viewer>
-
+          />
         </div>
       )}
     </div>

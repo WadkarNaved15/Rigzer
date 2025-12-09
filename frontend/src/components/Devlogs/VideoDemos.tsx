@@ -41,6 +41,7 @@ const VideoDemos: React.FC<VideoDemosProps> = ({
     const files = Array.from(e.target.files);
 
     const newMedia: Media[] = files.map((file) => ({
+      id: `screenshot-${Date.now()}-${Math.random()}`, // add a unique id
       file,
       url: URL.createObjectURL(file),
       type: file.type,
@@ -55,7 +56,7 @@ const VideoDemos: React.FC<VideoDemosProps> = ({
   };
 
   return (
-    <SortableCard id={id} disabled={readOnly}>
+    <SortableCard id={id}>
       <div className="col-span-2 mt-8">
         <h3 className="text-2xl font-bold text-white mb-4">Video Demos</h3>
 

@@ -10,7 +10,6 @@ interface DraggableBlogProps {
   onRemove: (id: string) => void;
   readOnly?: boolean;
 }
-
 const DraggableBlog: React.FC<DraggableBlogProps> = ({
   id,
   blogSection,
@@ -19,7 +18,7 @@ const DraggableBlog: React.FC<DraggableBlogProps> = ({
   readOnly = false,
 }) => {
   return (
-    <SortableCard id={id} disabled={readOnly}>
+    <SortableCard id={id} >
       <div className="prose prose-invert max-w-none bg-slate-700/50 rounded-lg p-6">
         {readOnly ? (
           <p className="text-lg text-slate-300 whitespace-pre-wrap">
@@ -27,7 +26,7 @@ const DraggableBlog: React.FC<DraggableBlogProps> = ({
           </p>
         ) : (
           <>
-            <AutoResizeTextarea
+            <AutoResizeTextarea 
               value={blogSection.content}
               className="text-lg text-slate-300 bg-transparent outline-none w-full border-none focus:ring-0"
               placeholder="Write your blog content here..."

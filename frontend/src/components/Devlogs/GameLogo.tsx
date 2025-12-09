@@ -35,7 +35,7 @@ const GameLogoCard: React.FC<GameLogoCardProps> = ({
   }, [pageData.gameTitleImage]);
 
   return (
-    <SortableCard id={id} disabled={readOnly}>
+    <SortableCard id={id} >
       <div className="col-span-2 text-center mt-12">
         <div className="inline-block relative w-full">
           {pageData?.gameTitleImage ? (
@@ -45,14 +45,17 @@ const GameLogoCard: React.FC<GameLogoCardProps> = ({
                 alt="Game Title"
                 className="mx-auto w-full max-h-72 object-contain"
               />
-              {!readOnly && (
+              {!readOnly && pageData.gameTitleImage && (
                 <button
                   type="button"
                   className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded"
-                  onClick={() =>
-                    setPageData((prev) => ({ ...prev, gameTitleImage: null }))
-                  }
+                  onClick={() => {
+                    if (setPageData) {
+                      setPageData((prev) => ({ ...prev, gameTitleImage: null }));
+                    }
+                  }}
                 >
+
                   ✕
                 </button>
               )}
@@ -78,7 +81,7 @@ const GameLogoCard: React.FC<GameLogoCardProps> = ({
                     WebkitTextStroke: "2px #ffffff",
                   }}
                   value={pageData.gameTitle}
-                  onChange={(e) => handleChange("gameTitle", e)}
+                  onChange={(e) => handleChange?.("gameTitle", e)}
                 />
               )}
               <div className="w-full h-1 bg-orange-400 rounded"></div>
@@ -93,10 +96,10 @@ const GameLogoCard: React.FC<GameLogoCardProps> = ({
                 ref={titleImageRef}
                 hidden
                 onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleSelectMedia?.("gameTitleImage", file);
-                e.target.value = "";
-              }}
+                  const file = e.target.files?.[0];
+                  if (file) handleSelectMedia?.("gameTitleImage", file);
+                  e.target.value = "";
+                }}
               />
               <div className="mt-4 flex justify-center gap-4">
                 <button

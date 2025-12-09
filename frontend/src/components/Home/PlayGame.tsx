@@ -1,7 +1,18 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+type AdWithStatusProps = {
+  onComplete?: () => void;
+};
 
-const stepsMap = {
+interface Ad {
+  mediaType: string;
+  mediaUrl: string;
+  redirectUrl: string;
+  logoUrl?: string;
+  // add other properties as needed
+}
+
+const stepsMap: { [key: string]: string } = {
   starting_server: "Initializing",
   initializing_game: "Loading Server",
   initializing_stream: "Initializing Stream",
@@ -17,12 +28,12 @@ const orderedSteps = [
   "ready",
 ];
 
-export default function AdWithStatus({ onComplete }) {
+export default function AdWithStatus({ onComplete = () => {} }: AdWithStatusProps) {
   const [sessionId, setSessionId] = useState(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [showSkip, setShowSkip] = useState(false);
 
-  const [ad, setAd] = useState(null); // ⬅ Store ad fetched from DB
+  const [ad, setAd] = useState<Ad | null>(null);
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 

@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import type { PageData, Media, FileItem, BlogSection } from "../../types/Devlogs";
+import type { PageData, Media, FileItem, BlogSection,ExcalidrawItem } from "../../types/Devlogs";
 
 interface MediaUploaderProps {
   setPageData: React.Dispatch<React.SetStateAction<PageData>>;
@@ -102,7 +102,7 @@ const MediaUploader: React.FC<MediaUploaderProps> = ({
     // Add each file as a draggable card to the left column
     setLeftColumnCards((prev) => [
       ...prev,
-      ...newFiles.map((f) => f.id),
+      ...newFiles.map((f) => f.id) as string[],
     ]);
 
     e.target.value = "";

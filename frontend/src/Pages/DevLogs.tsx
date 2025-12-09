@@ -15,7 +15,7 @@ import DraggableFile from "../components/Devlogs/DraggableFile";
 import DraggableBlog from "../components/Devlogs/DraggableBlog";
 import axios from "axios";
 import { Excalidraw } from "@excalidraw/excalidraw";
-import type { AppState, ExcalidrawElement } from "@excalidraw/excalidraw";
+// import type { AppState, ExcalidrawElement } from "@excalidraw/excalidraw";
 
 function DevLogs() {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
@@ -203,27 +203,27 @@ function DevLogs() {
       );
     }
 
-    const excalidraw = pageData.excalidraws.find((e) => e.id === card);
-if (excalidraw) {
-  return (
-    <div key={card} className="border rounded shadow">
-      <Excalidraw
-        initialData={{ elements: excalidraw.elements, appState: excalidraw.appState }}
-        onChange={(elements: readonly ExcalidrawElement[], state: AppState) => {
-  setPageData((prev) => ({
-    ...prev,
-    excalidraws: prev.excalidraws.map((ex) =>
-      ex.id === card ? { ...ex, elements: [...elements], appState: state } : ex
-    ),
-  }));
-}}
-      />
-      <button className="mt-2 text-red-600" onClick={() => handleRemoveMedia(card)}>
-        Remove
-      </button>
-    </div>
-  );
-}
+    // const excalidraw = pageData.excalidraws.find((e) => e.id === card);
+// if (excalidraw) {
+//   return (
+//     <div key={card} className="border rounded shadow">
+//       <Excalidraw
+//         initialData={{ elements: excalidraw.elements, appState: excalidraw.appState }}
+//         onChange={(elements: readonly ExcalidrawElement[], state: AppState) => {
+//   setPageData((prev) => ({
+//     ...prev,
+//     excalidraws: prev.excalidraws.map((ex) =>
+//       ex.id === card ? { ...ex, elements: [...elements], appState: state } : ex
+//     ),
+//   }));
+// }}
+//       />
+//       <button className="mt-2 text-red-600" onClick={() => handleRemoveMedia(card)}>
+//         Remove
+//       </button>
+//     </div>
+//   );
+// }
 
     // Check if it's a video
     const video = pageData.videos.find((v) => v.id === card);

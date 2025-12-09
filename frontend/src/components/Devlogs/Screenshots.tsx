@@ -24,15 +24,16 @@ const Screenshots: React.FC<ScreenshotProps> = ({
 
     // Assuming newFiles is a FileList or array of File objects
         const newMedia: Media[] = Array.from(files).map((file) => ({
+          id: `screenshot-${Date.now()}-${Math.random()}`, // add a unique id
           file,
           url: URL.createObjectURL(file),
           type: file.type,
         }));
-
-        setPageData((prev) => ({
+           setPageData?.((prev) => ({
           ...prev,
           screenshots: [...prev.screenshots, ...newMedia],
         }));
+
 
 
     // Reset input so selecting the same file again still triggers onChange
@@ -40,17 +41,19 @@ const Screenshots: React.FC<ScreenshotProps> = ({
   };
 
   const handleRemoveScreenshot = (index: number) => {
+      if (setPageData) {
     setPageData((prev) => {
-      URL.revokeObjectURL(prev.screenshots[index]);
+      URL.revokeObjectURL(prev.screenshots[index].url);
       return {
         ...prev,
         screenshots: prev.screenshots.filter((_, i) => i !== index),
       };
     });
-  };
+  }
+};
 
   return (
-    <SortableCard id={id} disabled={readOnly}>
+    <SortableCard id={id}>
       <div className="col-span-2 mt-8">
         <h3 className="text-2xl font-bold text-white mb-4">Screenshots</h3>
 

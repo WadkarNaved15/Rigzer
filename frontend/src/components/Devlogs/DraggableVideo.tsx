@@ -101,7 +101,7 @@ const DraggableVideo: React.FC<DraggableVideoProps> = ({
   }, [isResizing]);
 
   return (
-    <SortableCard id={id} disabled={readOnly || isResizing}>
+    <SortableCard id={id}>
       <div 
         ref={containerRef}
         className="relative inline-block"

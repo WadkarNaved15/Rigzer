@@ -72,10 +72,10 @@ function Home() {
       console.log("The posts are ", newPosts);
       const newCursor = res.data.nextCursor;
 
-        setMainPosts((prev) => {
-          const all = reset ? newPosts : [...prev, ...newPosts];
-          return Array.from(new Map(all.map((p) => [p._id, p])).values());
-        });
+       setMainPosts((prev: PostProps[]) => {
+  const all = reset ? newPosts : [...prev, ...newPosts];
+  return Array.from(new Map(all.map((p: PostProps) => [p._id, p])).values()) as PostProps[];
+});
 
         setNextCursor(newCursor);
         if (!newCursor || newPosts.length === 0) setHasMore(false);
