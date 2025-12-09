@@ -1,21 +1,26 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import dotenv from "dotenv";
 import User from "../models/User.js"; // Correct import after fixing export
 import passport from "passport";
 import verifyToken from "../middlewares/authMiddleware.js";
 
-
+dotenv.config();
 const router = express.Router();
+const url=process.env.FRONTEND_URL
+
+
+// Google OAuth
 router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
 
 // Handle Google OAuth callback
 router.get(
   "/google/callback",
-  passport.authenticate("google", { failureRedirect: "http://localhost:5173/login" }),
+  passport.authenticate("google", { failureRedirect: `${url}/login` }),
   (req, res) => {
     res.cookie("token", req.user.token, { httpOnly: true, secure: false });
-    res.redirect("http://localhost:5173/"); // Redirect to frontend
+    res.redirect(`${url}/`); // Redirect to frontend
   }
 );
 
