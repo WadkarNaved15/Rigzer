@@ -114,13 +114,14 @@ const ExePost: React.FC<ExePostProps> = ({
         {/* 3D model division */}
         <div className="flex justify-center relative overflow-hidden w-full h-[400px] rounded-xl">
           <div className="w-full h-full flex items-center justify-center">
+            {/* @ts-ignore */}
             <model-viewer
               src="/models/free_1972_datsun_240k_gt.glb"
               alt="3D model"
               auto-rotate
               camera-controls
               style={{ width: "600px", height: "400px" }}
-            ></model-viewer>
+            />
           </div>
         </div>
         {/* Game preview / play button */}

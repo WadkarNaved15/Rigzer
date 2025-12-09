@@ -37,9 +37,17 @@ const FollowButton: React.FC<FollowButtonProps> = ({ userId, targetId }) => {
         await axios.post(`${BACKEND_URL}/api/follow/${targetId}/follow`, {}, { withCredentials: true });
       }
       setIsFollowing(!isFollowing);
-    } catch (err) {
-      console.error(err.response?.data?.error || err.message);
-    } finally {
+    }
+    catch (err: unknown) {
+      if (axios.isAxiosError(err)) {
+        console.error(err.response?.data?.error || err.message);
+      } else if (err instanceof Error) {
+        console.error(err.message);
+      } else {
+        console.error("An unknown error occurred");
+      }
+    }
+    finally {
       setLoading(false);
     }
   };

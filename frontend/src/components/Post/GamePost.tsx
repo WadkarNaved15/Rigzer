@@ -1,5 +1,6 @@
-import React, { memo, useMemo, useEffect, useRef } from 'react';
+import React, { memo, useMemo, useEffect, useRef,useState} from 'react';
 import PostHeader from './PostHeader';
+import CommentSection from './CommentSection';
 import { useLikes } from '../../hooks/useLikes';
 import { useWishlist } from '../../hooks/useWishlist';
 import { Link } from 'react-router-dom';
@@ -19,6 +20,7 @@ const GamePost: React.FC<GamePostProps> = ({
   const timestamp = useMemo(() => new Date(createdAt).toLocaleString(), [createdAt]);
   const postRef = useRef(null);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+  const [showComments, setShowComments] = useState(false); // ✅ toggle comment section
   const { likesCount, isLiked, handleLike } = useLikes(_id, BACKEND_URL);
   const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
   let viewStartTime = useRef<number | null>(null);
@@ -129,8 +131,10 @@ const GamePost: React.FC<GamePostProps> = ({
         </div>
 
         <PostInteractions likes={likesCount} comments={comments} isLiked={isLiked} onLike={handleLike} isWishlisted={isWishlisted}
-          onWishlist={handleWishlist} />
+          onWishlist={handleWishlist}  onCommentToggle={() => setShowComments(!showComments)} />
       </div>
+      {/* Comment Section (shown only if showComments is true) */}
+      {showComments && <CommentSection postId={_id} BACKEND_URL={BACKEND_URL} />}
     </article>
   );
 };

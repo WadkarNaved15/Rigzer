@@ -6,11 +6,7 @@ import FollowButton from "../FollowButton";
 
 type Face = "follow" | "posts" | "reading" | "projects";
 
-interface TowerProps {
-  activeFace: Face;
-}
-
-const Tower: React.FC<TowerProps> = ({ activeFace }) => {
+const Tower: React.FC<{ activeFace: Face }> = ({ activeFace }) => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const { user } = useUser();
   const cubeRef = useRef<HTMLDivElement>(null);

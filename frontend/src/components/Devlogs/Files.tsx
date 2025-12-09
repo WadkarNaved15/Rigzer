@@ -26,14 +26,15 @@ const FilesUpload: React.FC<FilesUploadProps> = ({
       url: URL.createObjectURL(file),
     }));
 
-    setPageData((prev) => ({
-      ...prev,
-      files: [...prev.files, ...uploadedFiles],
-    }));
-  };
-
+    if (setPageData) {
+  setPageData((prev) => ({
+    ...prev,
+    files: [...prev.files, ...uploadedFiles],
+  }));
+}
+}
   return (
-    <SortableCard id={id} disabled={readOnly}>
+    <SortableCard id={id} >
       <div className="col-span-2 mb-8">
         <h3 className="text-2xl font-bold text-white mb-6">Files</h3>
 

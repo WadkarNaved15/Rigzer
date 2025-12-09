@@ -109,7 +109,7 @@ export default function EditProfilePage() {
         {/* Sections */}
         <EditInputSection label="Name" name="name" value={profileData.name} onChange={handleChange} />
         <EditInputSection label="Username" name="username" value={profileData.username} onChange={handleChange} />
-        <EditInputSection label="Profession" name="profession" value={profileData.profession} onChange={handleChange} />
+        <EditInputSection label="Profession" name="profession" value={profileData.github || ""}  onChange={handleChange} />
 
         <div className="border-b border-gray-200 pb-6">
           <div className="flex">
@@ -128,14 +128,14 @@ export default function EditProfilePage() {
         {/* Contact Information */}
         <SectionTitle title="Contact Information" />
         <EditInputSection label="Email" name="email" value={profileData.email} onChange={handleChange} type="email" />
-        <EditInputSection label="Phone" name="phone" value={profileData.phone} onChange={handleChange} type="tel" />
-        <EditInputSection label="Location" name="location" value={profileData.location} onChange={handleChange} />
+        <EditInputSection label="Phone" name="phone" value={profileData.phone || ""} onChange={handleChange} type="tel" />
+        <EditInputSection label="Location" name="location" value={profileData.location|| ""} onChange={handleChange} />
 
         {/* Social Links */}
         <SectionTitle title="Social Links" />
-        <EditInputSection icon={<Github size={16} className="mr-2" />} label="GitHub" name="github" value={profileData.github} onChange={handleChange} />
-        <EditInputSection icon={<Linkedin size={16} className="mr-2" />} label="LinkedIn" name="linkedin" value={profileData.linkedin} onChange={handleChange} />
-        <EditInputSection icon={<Globe size={16} className="mr-2" />} label="Website" name="website" value={profileData.website} onChange={handleChange} />
+        <EditInputSection icon={<Github size={16} className="mr-2" />} label="GitHub" name="github" value={profileData.github || ""}  onChange={handleChange} />
+        <EditInputSection icon={<Linkedin size={16} className="mr-2" />} label="LinkedIn" name="linkedin" value={profileData.linkedin || ""} onChange={handleChange} />
+        <EditInputSection icon={<Globe size={16} className="mr-2" />} label="Website" name="website" value={profileData.website || ""}  onChange={handleChange} />
 
         {/* Skills */}
         <SectionTitle title="Professional Skills" />

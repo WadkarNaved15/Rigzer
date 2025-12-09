@@ -30,25 +30,39 @@ const SortablePage: React.FC = () => {
 
   const screenshot1Ref = useRef<HTMLInputElement>(null);
   const screenshot2Ref = useRef<HTMLInputElement>(null);
-
-  const [pageData, setPageData] = useState({
-    gameTitle: "Game Name",
-    gameTitleImage: null,
-    gameInfoTitle: "Game Info Title",
-    gameInfoDescription: "Game description goes here...",
-    postTitle: "This is a Post Title",
-    author: "Author Name",
-    screenshots: [],
-    videos: [],
-    italicQuote: "",
-    storeLink: "",
-    closingQuote: "",
-    signature: "",
-    files: [
-      { id: 1, title: "ReadMe.txt" },
-      { id: 2, title: "PatchNotes.pdf" },
-    ],
-  });
+  const [pageData, setPageData] = useState<{
+  gameTitle: string;
+  gameTitleImage: null;
+  gameInfoTitle: string;
+  gameInfoDescription: string;
+  postTitle: string;
+  author: string;
+  screenshots: string[];
+  videos: string []; // Change this to string[] if you want to allow videos
+  italicQuote: string;
+  storeLink: string;
+  closingQuote: string;
+  signature: string;
+  files: { id: number; title: string; }[];
+}>({
+  gameTitle: "Game Name",
+  gameTitleImage: null,
+  gameInfoTitle: "Game Info Title",
+  gameInfoDescription: "Game description goes here...",
+  postTitle: "This is a Post Title",
+  author: "Author Name",
+  screenshots: [], // Initialize with an empty array
+  videos: [], // Initialize with an empty array
+  italicQuote: "",
+  storeLink: "",
+  closingQuote: "",
+  signature: "",
+  files: [
+    { id: 1, title: "ReadMe.txt" },
+    { id: 2, title: "PatchNotes.pdf" },
+  ],
+});
+  
 
   const sensors = useSensors(
     useSensor(PointerSensor, {

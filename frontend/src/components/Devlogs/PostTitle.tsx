@@ -21,7 +21,7 @@ const PostTitle: React.FC<PostTitleProps> = ({
   readOnly = false,
 }) => {
   return (
-    <SortableCard id={id} disabled={readOnly}>
+    <SortableCard id={id} >
       <div className="col-span-2 mt-2 mb-6">
         {/* Post title */}
         {/* {readOnly ? (
@@ -78,7 +78,7 @@ const PostTitle: React.FC<PostTitleProps> = ({
               value={pageData.author}
               spanClassName="absolute invisible whitespace-pre font-bold text-orange-400"
               className="text-orange-400 bg-transparent outline-none font-bold"
-              onChange={(e) => handleChange("author", e)}
+              onChange={(e) => handleChange?.("author", e)}
             />
           )}
         </div>

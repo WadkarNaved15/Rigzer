@@ -16,7 +16,7 @@ const DraggableFile: React.FC<DraggableFileProps> = ({
   readOnly = false,
 }) => {
   return (
-    <SortableCard id={id} disabled={readOnly}>
+    <SortableCard id={id}>
       <div className="bg-slate-700 rounded-lg p-4 flex justify-between items-center">
         <div className="flex-1">
           <span className="font-bold text-gray-300 block">{fileItem.title}</span>

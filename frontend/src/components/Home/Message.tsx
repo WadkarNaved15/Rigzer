@@ -14,20 +14,34 @@ import {
   Maximize2,
   Square,
 } from "lucide-react";
-
+interface ApiUser {
+  _id: string;
+  username: string;
+}
+interface User {
+  _id:string,
+  id: string;
+  name: string;
+  avatar: string;
+  unreadCount: number;
+  status?: string;
+  lastSeen?: string;
+}
+type Message = any
+type ChatId = string;
 const MessagingComponent = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [message, setMessage] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
-  const [activeChat, setActiveChat] = useState(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [activeChat, setActiveChat] = useState<ChatId | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentChatId, setCurrentChatId] = useState(null); // backend Chat._id
-  const [users, setUsers] = useState([]);
-  const messagesEndRef = useRef(null);
+  const [currentChatId, setCurrentChatId] = useState(null); 
+  const [users, setUsers] = useState<User[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // CSS animation for shine
   useEffect(() => {
@@ -50,10 +64,13 @@ const MessagingComponent = () => {
       }
     };
   }, []);
-  const socket = io("http://localhost:5000", {
+  const socket = io( `${BACKEND_URL}`, {
     withCredentials: true,
   });
-  const [conversations, setConversations] = useState({});
+  const [conversations, setConversations] = useState<
+    Record<string, Message[]>
+  >({});
+
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   useEffect(() => scrollToBottom(), [conversations, activeChat]);
@@ -61,7 +78,7 @@ const MessagingComponent = () => {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/me", {
+        const res = await fetch(`${BACKEND_URL}/api/me`, {
           method: "GET",
           credentials: "include",  // VERY IMPORTANT FOR COOKIES
         });
@@ -79,7 +96,7 @@ const MessagingComponent = () => {
     const fetchUsers = async () => {
       try {
         const res = await axios.get(`${BACKEND_URL}/api/users`);
-        const formattedUsers = res.data.map((user) => ({
+        const formattedUsers = res.data.map((user: ApiUser) => ({
           id: user._id,
           name: user.username,
           avatar: user.username
@@ -101,16 +118,16 @@ const MessagingComponent = () => {
     fetchUsers();
   }, []);
   useEffect(() => {
+    if(!currentUser) return
     if (currentUser?._id) {
       socket.emit("join", currentUser._id);
     }
   }, [currentUser]);
 
   useEffect(() => {
-    socket.on("receive-message", (msg) => {
+    const handler = (msg: any) => {
+      if (!currentUser) return;
 
-      // If sender is ME but the message came from SERVER (it has no tempId)
-      // AND we already inserted this message in optimistic update → ignore
       if (msg.senderId === currentUser._id && !msg.tempId) return;
 
       const otherUserId =
@@ -120,80 +137,89 @@ const MessagingComponent = () => {
         ...prev,
         [otherUserId]: [...(prev[otherUserId] || []), msg],
       }));
-    });
-
-    return () => socket.off("receive-message");
-  }, [currentUser]);
-
-const handleFileUpload = async (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const formData = new FormData();
-  formData.append("media", file);
-
-  // Toast
-  const toastId = toast.loading("Uploading...");
-
-  let fakeProgress = 0;
-  const interval = setInterval(() => {
-    if (fakeProgress < 95) {
-      fakeProgress += 5;
-      toast.update(toastId, {
-        render: `Uploading... ${fakeProgress}%`,
-        isLoading: true,
-      });
-    }
-  }, 200);
-
-  try {
-    const res = await axios.post(`${BACKEND_URL}/api/media/upload`, formData, {
-      withCredentials: true,
-    });
-
-    clearInterval(interval);
-
-    toast.update(toastId, {
-      render: "Upload complete!",
-      type: "success",
-      isLoading: false,
-      autoClose: 1200,
-    });
-
-    const data = res.data;
-
-    const newMessage = {
-      chatId: currentChatId,
-      senderId: currentUser._id,
-      receiverId: activeChat,
-      text: "",
-      mediaUrl: data.url,
-      mediaType: data.mediaType,
-      createdAt: new Date(),
     };
 
-    socket.emit("send-message", newMessage);
+    socket.on("receive-message", handler);
 
-    setConversations((prev) => ({
-      ...prev,
-      [activeChat]: [...(prev[activeChat] || []), newMessage],
-    }));
-  } catch (err) {
-    clearInterval(interval);
+    return () => {
+      socket.off("receive-message", handler);
+    };
+  }, [currentUser]);
 
-    toast.update(toastId, {
-      render: "Upload failed!",
-      type: "error",
-      isLoading: false,
-      autoClose: 2000,
-    });
-  }
-};
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append("media", file);
+
+    // Toast
+    const toastId = toast.loading("Uploading...");
+
+    let fakeProgress = 0;
+    const interval = setInterval(() => {
+      if (fakeProgress < 95) {
+        fakeProgress += 5;
+        toast.update(toastId, {
+          render: `Uploading... ${fakeProgress}%`,
+          isLoading: true,
+        });
+      }
+    }, 200);
+
+    try {
+      const res = await axios.post(`${BACKEND_URL}/api/media/upload`, formData, {
+        withCredentials: true,
+      });
+
+      clearInterval(interval);
+
+      toast.update(toastId, {
+        render: "Upload complete!",
+        type: "success",
+        isLoading: false,
+        autoClose: 1200,
+      });
+
+      const data = res.data;
+
+      const newMessage = {
+        chatId: currentChatId,
+        senderId: currentUser ? currentUser._id : null,
+        receiverId: activeChat,
+        text: "",
+        mediaUrl: data.url,
+        mediaType: data.mediaType,
+        createdAt: new Date(),
+      };
+
+      socket.emit("send-message", newMessage);
+
+      setConversations((prev) => {
+        if (activeChat == null) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [activeChat]: [...(prev[activeChat] || []), newMessage],
+        };
+      });
+    } catch (err) {
+      clearInterval(interval);
+
+      toast.update(toastId, {
+        render: "Upload failed!",
+        type: "error",
+        isLoading: false,
+        autoClose: 2000,
+      });
+    }
+  };
 
 
 
 
-  const handleUserClick = async (receiverId) => {
+  const handleUserClick = async (receiverId: string) => {
     try {
       setActiveChat(receiverId);
       console.log("receiverId", receiverId);
@@ -221,12 +247,12 @@ const handleFileUpload = async (e) => {
   };
 
   const handleSendMessage = () => {
-    if (!message.trim()) return;
+    if (!message.trim() || !activeChat) return;
     const tempId = Date.now(); // unique temporary ID
     const newMessage = {
       tempId,
       chatId: currentChatId,
-      senderId: currentUser._id,
+      senderId: currentUser ? currentUser._id : null,
       receiverId: activeChat,
       text: message,
       createdAt: new Date(),
@@ -246,14 +272,15 @@ const handleFileUpload = async (e) => {
 
 
 
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    handleSendMessage();
+  }
+};
 
-  const formatTime = (ts) => ts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+  const formatTime = (ts:Date) => ts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const getUnreadCount = () => users.reduce((t, u) => t + u.unreadCount, 0);
   const filteredUsers = users.filter((u) => u.name.toLowerCase().includes(searchTerm.toLowerCase()));
   const activeUser = users.find((u) => u.id === activeChat);
@@ -598,8 +625,8 @@ const handleFileUpload = async (e) => {
                         >
                           <div
                             className={`max-w-xs px-3 py-2 rounded-lg text-sm shadow-sm ${msg.senderId === currentUser?._id
-                                ? "bg-gray-600 text-white"
-                                : "bg-gray-200 text-black"
+                              ? "bg-gray-600 text-white"
+                              : "bg-gray-200 text-black"
                               }`}
                           >
 
@@ -646,7 +673,7 @@ const handleFileUpload = async (e) => {
                     >
                       <div className="flex items-center space-x-2">
                         <button
-                          onClick={() => fileInputRef.current.click()}
+                          onClick={() => fileInputRef.current?.click()}
                           className={`${isMaximized
                             ? "text-white/60 hover:text-white"
                             : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"

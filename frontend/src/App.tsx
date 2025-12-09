@@ -23,7 +23,7 @@ const Auth = lazy(() => import('./Pages/Auth'));
 const ProfilePage = lazy(() => import('./Pages/ProfilePage'));
 // const Profile = lazy(() => import('./Pages/Profile'));
 const EditProfilePage = lazy(() => import('./Pages/EditProfile'));
-const GameStream = lazy(() => import('./Pages/GameStream'));
+// const GameStream = lazy(() => import('./Pages/GameStream'));
 const DevLogs = lazy(() => import('./Pages/DevLogs'));
 const DevLogsView = lazy(() => import('./Pages/DevLogViewPage'));
 const Puck = lazy(() => import('./Pages/Puck'));
@@ -54,7 +54,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/gamestream" element={<GameStream />} />
+            {/* <Route path="/gamestream" element={<GameStream />} /> */}
             <Route path="/stream" element={<GameStatus/>} />
             <Route path="/wishlist" element={<WishlistPage/>} />
             <Route path="/profile" element={<ProfilePage />} />

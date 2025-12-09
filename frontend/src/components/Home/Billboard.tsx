@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense } from "react";
 const Tower = React.lazy(() => import("./Tower"));
 
-type Face = "follow" | "whats-new" | "reading" | "projects";
+type Face = "follow" | "posts" | "reading" | "projects";
 
 const Billboard: React.FC = () => {
   const [activeSection, setActiveSection] = useState<Face>("follow");

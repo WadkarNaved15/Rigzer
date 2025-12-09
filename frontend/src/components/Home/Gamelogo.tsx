@@ -14,6 +14,7 @@ const GameLogoCard: React.FC<GameLogoCardProps> = ({
   pageData,
   setPageData,
   handleChange,
+  readonly,
 }) => {
   const titleImageRef = useRef<HTMLInputElement>(null);
 

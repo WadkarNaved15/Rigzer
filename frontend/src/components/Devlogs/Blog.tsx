@@ -20,7 +20,7 @@ const Blog: React.FC<BlogProps> = ({
   readOnly = false,
 }) => {
   return (
-    <SortableCard id={id} disabled={readOnly}>
+    <SortableCard id={id}>
       <div className="col-span-2 prose prose-invert max-w-none mt-4 mb-8 space-y-4">
         {readOnly ? (
           <p className="text-xl italic text-slate-300">
@@ -30,7 +30,11 @@ const Blog: React.FC<BlogProps> = ({
           <AutoResizeTextarea
             value={pageData.italicQuote}
             className="text-xl italic text-slate-300 bg-transparent outline-none w-full"
-            onChange={(e) => handleChange("italicQuote", e)}
+            onChange={(e) => {
+              if (handleChange) {
+                handleChange("italicQuote", e);
+              }
+            }}
           />
         )}
 

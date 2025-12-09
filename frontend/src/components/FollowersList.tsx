@@ -1,11 +1,14 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { Users } from "lucide-react";
-
-const FollowersList = ({ userId }) => {
+type FollowCountResponse = {
+  count: number;
+  users?: any[];
+};
+const FollowersList = ({ userId }: { userId: unknown }) => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-  const [followers, setFollowers] = useState([]);
-  const [following, setFollowing] = useState([]);
+   const [followers, setFollowers] = useState<FollowCountResponse>({ count: 0 });
+  const [following, setFollowing] = useState<FollowCountResponse>({ count: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 

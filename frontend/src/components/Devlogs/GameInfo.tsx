@@ -12,7 +12,7 @@ interface GameInfoProps {
 
 const GameInfo: React.FC<GameInfoProps> = ({ id, pageData, handleChange, readOnly = false }) => {
   return (
-    <SortableCard id={id} disabled={readOnly}>
+    <SortableCard id={id}>
       <div className="col-span-1 space-y-6">
         <div className="bg-slate-700 rounded-lg p-6">
           {readOnly ? (
@@ -28,12 +28,12 @@ const GameInfo: React.FC<GameInfoProps> = ({ id, pageData, handleChange, readOnl
                 type="text"
                 className="text-xl font-bold text-white bg-transparent outline-none w-full"
                 value={pageData.gameInfoTitle}
-                onChange={(e) => handleChange("gameInfoTitle", e)}
+                 onChange={(e) => handleChange && handleChange("gameInfoTitle", e)}
               />
               <AutoResizeTextarea
                 value={pageData.gameInfoDescription}
                 className="text-slate-300 bg-transparent outline-none w-full mt-2"
-                onChange={(e) => handleChange("gameInfoDescription", e)}
+                onChange={(e) => handleChange && handleChange("gameInfoDescription", e)}
               />
             </>
           )}

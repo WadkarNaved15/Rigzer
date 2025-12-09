@@ -1,5 +1,5 @@
 import React from "react";
-import type { PageData } from "../../types/Devlogs";
+import type { GameDetails, PageData } from "../../types/Devlogs";
 import SortableCard from "../Home/SortableCard";
 
 interface SideBarProps {
@@ -20,12 +20,13 @@ const SideBar: React.FC<SideBarProps> = ({
     childKey: keyof PageData["gameDetails"],
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ) => {
-    setPageData((prev) => ({
+    setPageData?.((prev) => ({
       ...prev,
       [parentKey]: {
-        ...prev[parentKey],
-        [childKey]: e.target.value,
-      },
+  ...prev[parentKey] as GameDetails,
+  [childKey]: e.target.value,
+},
+
     }));
   };
 
@@ -34,7 +35,7 @@ const SideBar: React.FC<SideBarProps> = ({
     (readOnly ? " cursor-default opacity-80" : "");
 
   return (
-    <SortableCard id={id} disabled={readOnly}>
+    <SortableCard id={id}>
       <div className="bg-slate-700 rounded-lg p-6 text-sm space-y-3">
         <div className="flex justify-between">
           <span className="text-slate-400">Status</span>

@@ -19,7 +19,7 @@ const Purchase: React.FC<PurchaseProps> = ({
   readOnly = false,
 }) => {
   return (
-    <SortableCard id={id} disabled={readOnly}>
+    <SortableCard id={id}>
       <div className="col-span-2 bg-slate-700 rounded-lg p-6">
         <h3 className="text-2xl font-bold text-white mb-4">
           Get {pageData.gameInfoTitle || "this game"}
@@ -44,7 +44,7 @@ const Purchase: React.FC<PurchaseProps> = ({
                 type="text"
                 className="text-2xl font-bold bg-transparent outline-none w-auto text-white"
                 value={pageData.price}
-                onChange={(e) => handleChange("price", e)}
+                onChange={(e) => handleChange?.("price", e)}
               />
             )}
           </div>
