@@ -28,7 +28,7 @@ const orderedSteps = [
   "ready",
 ];
 
-export default function AdWithStatus({ onComplete = () => {} }: AdWithStatusProps) {
+export default function AdWithStatus({ onComplete = () => { } }: AdWithStatusProps) {
   const [sessionId, setSessionId] = useState(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [showSkip, setShowSkip] = useState(false);
@@ -48,6 +48,26 @@ export default function AdWithStatus({ onComplete = () => {} }: AdWithStatusProp
       }
     };
     loadAd();
+  }, []);
+  // Enable real fullscreen on mount, exit on unmount
+  useEffect(() => {
+    const enterFullscreen = () => {
+      const el = document.documentElement;
+
+      if (el.requestFullscreen) {
+        el.requestFullscreen().catch(() => { });
+      }
+    };
+
+    // Try to enter fullscreen
+    enterFullscreen();
+
+    // Exit fullscreen when component unmounts
+    return () => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => { });
+      }
+    };
   }, []);
 
   // Start game session

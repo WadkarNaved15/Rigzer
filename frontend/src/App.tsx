@@ -11,6 +11,7 @@ import RecommendationPosts from './components/Home/RecommendationPost'
 import TestModelUpload from './Pages/ModelUploads';
 import ModelViewer from './components/ModelViewer';
 import UploadGame from './Pages/UploadGame';
+import { FeedProvider } from './context/FeedContext';
 import GamePost from './components/Home/GamePost'
 import GameStatus from './components/Home/PlayGame'
 import FeedbackProvider from './context/FeedbackProvider';
@@ -42,45 +43,47 @@ const Puck = lazy(() => import('./Pages/Puck'));
 function App() {
   return (
     <SearchProvider>
-    <GoogleOAuthProvider clientId="970893892840-8ecshtmle4kip6ps0bl7vbkg3nogl5od.apps.googleusercontent.com">
-      <FeedbackProvider>
-      <Router>
-        {/* You can lazily load navbar too */}
-        {/* <Suspense fallback={<div>Loading navbar...</div>}>
+      <GoogleOAuthProvider clientId="970893892840-8ecshtmle4kip6ps0bl7vbkg3nogl5od.apps.googleusercontent.com">
+        <FeedProvider>
+          <FeedbackProvider>
+            <Router>
+              {/* You can lazily load navbar too */}
+              {/* <Suspense fallback={<div>Loading navbar...</div>}>
           <Navbar />
         </Suspense> */}
-        <Suspense fallback={<div className="text-center mt-10">Loading...</div>}>
-         <ToastContainer />
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/auth" element={<Auth />} />
-            {/* <Route path="/gamestream" element={<GameStream />} /> */}
-            <Route path="/stream" element={<GameStatus/>} />
-            <Route path="/wishlist" element={<WishlistPage/>} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/createpost" element={<CreatePostPage />} />
-            <Route path="/devlogs" element={<DevLogs />} />
-            <Route path="/devlogs/view/:id" element={<DevLogsView />} />
-            <Route path="/models" element={<ModelViewer/>} />
-            <Route path="/gameshow" element={<GameShowcase />} />
-            <Route path="/gameupload" element={<UploadGame />} />
-            <Route path="/games" element={<GamePost/>} />
-            <Route path="/puck" element={<Puck />} />
-            <Route path="/recommendationsposts" element={<RecommendationPosts />} />
-            <Route path="/recommendations" element={<Recommendations/>} />
-            {/* <Route path="/excalidraw" element={<ExcaliDraw/>} /> */}
-            {/* <Route path="/canvas" element={<CanvasEditor/>} /> */}
-            {/*<Route path="/game" element={<Game />} />
+              <Suspense fallback={<div className="text-center mt-10">Loading...</div>}>
+                <ToastContainer />
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/auth" element={<Auth />} />
+                  {/* <Route path="/gamestream" element={<GameStream />} /> */}
+                  <Route path="/stream" element={<GameStatus />} />
+                  <Route path="/wishlist" element={<WishlistPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/createpost" element={<CreatePostPage />} />
+                  <Route path="/devlogs" element={<DevLogs />} />
+                  <Route path="/devlogs/view/:id" element={<DevLogsView />} />
+                  <Route path="/models" element={<ModelViewer />} />
+                  <Route path="/gameshow" element={<GameShowcase />} />
+                  <Route path="/gameupload" element={<UploadGame />} />
+                  <Route path="/games" element={<GamePost />} />
+                  <Route path="/puck" element={<Puck />} />
+                  <Route path="/recommendationsposts" element={<RecommendationPosts />} />
+                  <Route path="/recommendations" element={<Recommendations />} />
+                  {/* <Route path="/excalidraw" element={<ExcaliDraw/>} /> */}
+                  {/* <Route path="/canvas" element={<CanvasEditor/>} /> */}
+                  {/*<Route path="/game" element={<Game />} />
             <Route path="/profile" element={<Profile />} />*/}
-            <Route path="/editprofile" element={<EditProfilePage />} /> 
-            {/* Future routes */}
-            {/* <Route path="/upload" element={<UploadPage />} />
+                  <Route path="/editprofile" element={<EditProfilePage />} />
+                  {/* Future routes */}
+                  {/* <Route path="/upload" element={<UploadPage />} />
             <Route path="/explore" element={<ExplorePage />} /> */}
-          </Routes>
-        </Suspense>
-      </Router>
-      </FeedbackProvider>
-    </GoogleOAuthProvider>
+                </Routes>
+              </Suspense>
+            </Router>
+          </FeedbackProvider>
+        </FeedProvider>
+      </GoogleOAuthProvider>
     </SearchProvider>
   );
 }

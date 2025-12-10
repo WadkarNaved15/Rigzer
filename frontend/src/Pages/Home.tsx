@@ -8,6 +8,7 @@ import {
   useRef,
 } from "react";
 import { Header } from "../components/Header";
+import { useFeed } from "../context/FeedContext";
 import Post from "../components/Post";
 import { useUser } from "../context/user";
 import axios from "axios";
@@ -34,12 +35,18 @@ function Home() {
   const { open } = useFeedback();
   const BACKEND_URL =
     import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-
   // Feed state
-  const [mainPosts, setMainPosts] = useState<PostProps[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const {
+    posts: mainPosts,
+    setPosts: setMainPosts,
+    nextCursor,
+    setNextCursor,
+    hasMore,
+    setHasMore,
+    scrollY,
+    setScrollY,
+  } = useFeed();
 
   // Search feed state
   const [filteredPosts, setFilteredPosts] = useState<PostProps[]>([]);
@@ -56,6 +63,20 @@ function Home() {
   const [profileOpen, setProfileOpen] = useState(false);
 
   const loaderRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const saveScroll = () => {
+      setScrollY(window.scrollY);
+    };
+
+    window.addEventListener("scroll", saveScroll);
+    return () => window.removeEventListener("scroll", saveScroll);
+  }, []);
+
+  useEffect(() => {
+    if (scrollY > 0) {
+      window.scrollTo(0, scrollY);
+    }
+  }, []);
 
   // Fetch main posts
   const fetchMainPosts = useCallback(
@@ -68,14 +89,14 @@ function Home() {
           params: { cursor: reset ? null : nextCursor, limit: 3 },
         });
 
-      const newPosts = res.data.posts;
-      console.log("The posts are ", newPosts);
-      const newCursor = res.data.nextCursor;
+        const newPosts = res.data.posts;
+        console.log("The posts are ", newPosts);
+        const newCursor = res.data.nextCursor;
 
-       setMainPosts((prev: PostProps[]) => {
-  const all = reset ? newPosts : [...prev, ...newPosts];
-  return Array.from(new Map(all.map((p: PostProps) => [p._id, p])).values()) as PostProps[];
-});
+        setMainPosts((prev: PostProps[]) => {
+          const all = reset ? newPosts : [...prev, ...newPosts];
+          return Array.from(new Map(all.map((p: PostProps) => [p._id, p])).values()) as PostProps[];
+        });
 
         setNextCursor(newCursor);
         if (!newCursor || newPosts.length === 0) setHasMore(false);
@@ -115,8 +136,10 @@ function Home() {
 
   // Load feed on mount
   useEffect(() => {
-    fetchMainPosts(true);
-  }, []);
+    if (mainPosts.length === 0) {
+      fetchMainPosts(true);
+    }
+  }, [])
 
   // Handle search query
   useEffect(() => {
@@ -175,7 +198,7 @@ function Home() {
           ) : profileOpen ? (
             <div className="lg:col-span-10 flex flex-col items-center justify-start min-h-[80vh] w-full">
               <Suspense fallback={null}>
-                <Profile setProfileOpen={setProfileOpen}  />
+                <Profile setProfileOpen={setProfileOpen} />
               </Suspense>
             </div>
           ) : (
