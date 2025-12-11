@@ -15,7 +15,6 @@ const PostHeader: React.FC<PostHeaderProps> = ({
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close menu on outside click or ESC
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -40,7 +39,9 @@ const PostHeader: React.FC<PostHeaderProps> = ({
   }, []);
 
   return (
-    <div className="flex justify-between items-start">
+    <div className="flex justify-between items-center">
+
+      {/* LEFT SIDE: avatar + name + timestamp */}
       <div className="flex items-center gap-3 rounded-xl mb-4">
         <img
           src={avatarUrl}
@@ -48,13 +49,32 @@ const PostHeader: React.FC<PostHeaderProps> = ({
           className="h-10 w-10 rounded-full object-cover"
           loading="lazy"
         />
-        <div>
+
+        <div className="flex items-center gap-2">
           <h3 className="font-semibold text-gray-900 dark:text-white">{username}</h3>
           <p className="text-sm text-gray-500 dark:text-gray-400">{timestamp}</p>
         </div>
       </div>
 
-      <div className="relative" ref={menuRef}>
+      {/* SPACER */}
+      <div className="flex-1" />
+
+      {/* PRICE (Far Right) */}
+      <span
+        className="
+    text-sm font-semibold text-[#5799EF]
+    p-2 rounded-full 
+    hover:bg-[#5799EF]/20 
+    transition-all duration-200
+    cursor-pointer
+  "
+      >
+        $25
+      </span>
+
+
+      {/* MENU BUTTON */}
+      <div className="absolute top-1 right-6" ref={menuRef}>
         <button
           className="dark:text-gray-400 hover:text-black dark:hover:text-white"
           onClick={toggleMenu}
@@ -74,6 +94,7 @@ const PostHeader: React.FC<PostHeaderProps> = ({
           </div>
         )}
       </div>
+
     </div>
   );
 };

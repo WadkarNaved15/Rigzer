@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useEffect, useRef,useState} from 'react';
+import React, { memo, useMemo, useEffect, useRef, useState } from 'react';
 import PostHeader from './PostHeader';
 import CommentSection from './CommentSection';
 import { useLikes } from '../../hooks/useLikes';
@@ -97,19 +97,9 @@ const GamePost: React.FC<GamePostProps> = ({
   return (
     <article
       ref={postRef}
-      className="relative bg-white border w-full border-gray-200 
+      className="relative bg-white w-full border border-gray-200
   dark:border-gray-600 dark:bg-black shadow-sm 
-  overflow-hidden transition-all duration-300 hover:shadow-md
-  /* top bolt */
-  before:content-[''] before:absolute before:top-0 before:left-0 
-  before:h-[2px] before:w-32 
-  before:bg-gradient-to-r before:from-[#3D7A6E] before:via-teal-400 before:to-transparent
-  before:animate-shine
-  /* left bolt */
-  after:content-[''] after:absolute after:top-0 after:left-0 
-  after:w-[0.75px] after:h-[40px]
-  after:bg-gradient-to-b after:from-[#3D7A6E] after:via-teal-400 after:to-transparent
-  after:animate-shine-vertical"
+  overflow-hidden transition-all duration-300 hover:shadow-md"
     >
       <div className="p-4">
         <PostHeader username={user.username} timestamp={timestamp} />
@@ -131,7 +121,7 @@ const GamePost: React.FC<GamePostProps> = ({
         </div>
 
         <PostInteractions likes={likesCount} comments={comments} isLiked={isLiked} onLike={handleLike} isWishlisted={isWishlisted}
-          onWishlist={handleWishlist}  onCommentToggle={() => setShowComments(!showComments)} />
+          onWishlist={handleWishlist} onCommentToggle={() => setShowComments(!showComments)} />
       </div>
       {/* Comment Section (shown only if showComments is true) */}
       {showComments && <CommentSection postId={_id} BACKEND_URL={BACKEND_URL} />}
