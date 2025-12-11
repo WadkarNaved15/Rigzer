@@ -19,6 +19,7 @@
     "@measured/puck": "^0.20.2",
     "@react-oauth/google": "^0.12.2",
     "axios": "^1.11.0",
+    "fabric": "^6.9.0",
     "framer-motion": "^12.23.12",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.533.0",

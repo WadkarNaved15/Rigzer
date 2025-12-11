@@ -27,6 +27,7 @@ const EditProfilePage = lazy(() => import('./Pages/EditProfile'));
 const DevLogs = lazy(() => import('./Pages/DevLogs'));
 const DevLogsView = lazy(() => import('./Pages/DevLogViewPage'));
 const Puck = lazy(() => import('./Pages/Puck'));
+const DevLogCanvas = lazy(() => import('./Pages/DevLogCanvas'));
 // const ExcaliDraw = lazy(() => import('./Pages/ExcaliDraw'))
 // const CanvasEditor = lazy(() => import('./Pages/CanvasEditor'))
 
@@ -61,6 +62,7 @@ function App() {
             <Route path="/createpost" element={<CreatePostPage />} />
             <Route path="/devlogs" element={<DevLogs />} />
             <Route path="/devlogs/view/:id" element={<DevLogsView />} />
+            <Route path="/devlogCanvas" element={<DevLogCanvas />} />
             <Route path="/models" element={<ModelViewer/>} />
             <Route path="/gameshow" element={<GameShowcase />} />
             <Route path="/gameupload" element={<UploadGame />} />
