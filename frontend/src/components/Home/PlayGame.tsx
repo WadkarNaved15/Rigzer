@@ -28,7 +28,7 @@ const orderedSteps = [
   "ready",
 ];
 
-export default function AdWithStatus({ onComplete = () => {} }: AdWithStatusProps) {
+export default function AdWithStatus({ onComplete = () => { } }: AdWithStatusProps) {
   const [sessionId, setSessionId] = useState(null);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [showSkip, setShowSkip] = useState(false);
@@ -41,13 +41,33 @@ export default function AdWithStatus({ onComplete = () => {} }: AdWithStatusProp
   useEffect(() => {
     const loadAd = async () => {
       try {
-        const res = await axios.get(`${BACKEND_URL}/api/ads/random`);
+        const res = await axios.get(`${BACKEND_URL}/api/ads/fairadd`);
         setAd(res.data);
       } catch (err) {
         console.error("Failed to load ad:", err);
       }
     };
     loadAd();
+  }, []);
+  // Enable real fullscreen on mount, exit on unmount
+  useEffect(() => {
+    const enterFullscreen = () => {
+      const el = document.documentElement;
+
+      if (el.requestFullscreen) {
+        el.requestFullscreen().catch(() => { });
+      }
+    };
+
+    // Try to enter fullscreen
+    enterFullscreen();
+
+    // Exit fullscreen when component unmounts
+    return () => {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => { });
+      }
+    };
   }, []);
 
   // Start game session
@@ -119,14 +139,14 @@ export default function AdWithStatus({ onComplete = () => {} }: AdWithStatusProp
       )}
 
       {/* LOGO (Top-left corner) */}
-      {ad.logoUrl && (
+      {/* {ad.logoUrl && ad.logoUrl !== "null" && (
         <img
           src={ad.logoUrl}
           alt="logo"
           className="absolute bottom-4 left-4 w-28 h-auto rounded-lg cursor-pointer"
           onClick={() => window.open(ad.redirectUrl, "_blank")}
         />
-      )}
+      )} */}
 
       {/* STATUS LIST */}
       <div className="absolute top-6 right-6 bg-black bg-opacity-40 p-4 rounded-xl 

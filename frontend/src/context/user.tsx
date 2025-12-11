@@ -39,7 +39,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   // Load from localStorage on mount
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
@@ -60,7 +60,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   useEffect(() => {
     const verifySession = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/auth/verify", {
+        const res = await fetch(`${BACKEND_URL}/api/auth/verify`, {
           method: "GET",
           credentials: "include",
         });

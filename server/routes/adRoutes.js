@@ -18,35 +18,18 @@ router.post("/", async (req, res) => {
 // ===============================
 // GET RANDOM ACTIVE AD
 // ===============================
-router.get("/random", async (req, res) => {
-  try {
-    const now = new Date();
+router.get("/fairadd", async (req, res) => {
+    try {
+    const ad = await Ad.findOne({ isActive: true }).sort({ impressions: 1 });
 
-    const ads = await Ad.aggregate([
-      {
-        $match: {
-          isActive: true,
-          $or: [
-            { endDate: null },
-            { endDate: { $gte: now } }
-          ]
-        }
-      },
-      { $sample: { size: 1 } }
-    ]);
+    if (!ad) return res.status(404).json({ message: "No ads found" });
 
-    if (ads.length === 0)
-      return res.status(404).json({ error: "No active ads found" });
-
-    // Increase impression count
-    await Ad.findByIdAndUpdate(ads[0]._id, {
-      $inc: { impressions: 1 }
+    await Ad.findByIdAndUpdate(ad._id, {
+      $inc: { impressions: 1 },
     });
-
-    res.json(ads[0]);
-
-  } catch (err) {
-    res.status(500).json({ error: "Failed to fetch ad", details: err.message });
+    res.json(ad);
+  } catch (error) {
+    res.status(500).json({ error: "Server error" });
   }
 });
 
