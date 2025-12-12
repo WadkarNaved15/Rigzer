@@ -1,4 +1,4 @@
-import React, { memo, useMemo,useEffect,useRef,useState} from 'react';
+import React, { memo, useMemo, useEffect, useRef, useState } from 'react';
 import { useLikes } from "../../hooks/useLikes";
 import { useWishlist } from '../../hooks/useWishlist';
 import PostHeader from "./PostHeader";
@@ -16,14 +16,13 @@ const ExePost: React.FC<ExePostProps> = ({
   comments = 0,
   _id,
 }) => {
-  const timestamp = useMemo(() => new Date(createdAt).toLocaleString(), [createdAt]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showComments, setShowComments] = useState(false); // ✅ toggle comment section
   const postRef = useRef(null);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const { likesCount, isLiked, handleLike } = useLikes(_id, BACKEND_URL);
-   const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
+  const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
   let viewStartTime = useRef<number | null>(null);
   const handleGameStream = async () => {
     setLoading(true);
@@ -44,6 +43,30 @@ const ExePost: React.FC<ExePostProps> = ({
       setLoading(false);
     }
   };
+  const getRelativeTime = (date: string | Date) => {
+    const now = new Date();
+    const created = new Date(date);
+    const diffMs = now.getTime() - created.getTime();
+
+    const seconds = Math.floor(diffMs / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+
+    // 🔥 If within the same day (< 24 hours)
+    if (seconds < 60) return `${seconds}s`;
+    if (minutes < 60) return `${minutes}m`;
+    if (hours < 24) return `${hours}h`;
+
+    // 🔥 If older than a day → show Month + Day like "Nov 31"
+    const options: Intl.DateTimeFormatOptions = {
+      month: "short",
+      day: "numeric"
+    };
+
+    return created.toLocaleDateString("en-US", options);
+  };
+
+  const timestamp = useMemo(() => getRelativeTime(createdAt), [createdAt]);
   const startViewing = async () => {
     viewStartTime.current = Date.now();
 
@@ -70,40 +93,47 @@ const ExePost: React.FC<ExePostProps> = ({
     });
   };
   const markViewed = async () => {
-       try {
-         await fetch(`${BACKEND_URL}/api/interactions/view`, {
-           method: "POST",
-           credentials: "include",
-           headers: { "Content-Type": "application/json" },
-           body: JSON.stringify({ postId: _id })
-         });
-       } catch (err) {
-         console.error("Failed to update view", err);
-       }
-     };
-   
-     // Detect when post becomes visible
-     useEffect(() => {
-         const observer = new IntersectionObserver(
-           (entries) => {
-             if (entries[0].isIntersecting) {
-               startViewing(); // start tracking
-               markViewed();
-             }
-             else{
-                 stopViewing(); // stop tracking
-             }
-           },
-           { threshold: 0.5 }
-         );
-     
-         if (postRef.current) observer.observe(postRef.current);
-     
-         return () => observer.disconnect();
-       }, []);
+    try {
+      await fetch(`${BACKEND_URL}/api/interactions/view`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId: _id })
+      });
+    } catch (err) {
+      console.error("Failed to update view", err);
+    }
+  };
+
+  // Detect when post becomes visible
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          startViewing(); // start tracking
+          markViewed();
+        }
+        else {
+          stopViewing(); // stop tracking
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    if (postRef.current) observer.observe(postRef.current);
+
+    return () => observer.disconnect();
+  }, []);
   return (
-    <article ref={postRef} className="relative bg-white w-full border-gray-200 dark:bg-black shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md">
-      <div className="p-4">
+    <article
+      ref={postRef}
+      className="relative bg-white w-full border border-gray-200
+  dark:border-gray-600 dark:bg-black shadow-sm 
+  overflow-hidden transition-all duration-300 hover:shadow-md"
+    >
+
+
+      <div ref={postRef} className="p-4">
         <PostHeader username={user.username} timestamp={timestamp} />
 
         {description && (
