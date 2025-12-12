@@ -6,6 +6,7 @@ export interface UserSummary {
   _id: string;
   username: string;
   email: string;
+  avatarUrl?: string;
 }
 
 // Base structure
@@ -13,6 +14,7 @@ interface CommonPostFields {
   _id: string;
   type: PostType;
   user: UserSummary;
+  avatarUrl?: string;
   description: string;
   media: string[];
   createdAt: string;
