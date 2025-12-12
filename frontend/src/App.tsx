@@ -8,7 +8,7 @@ import WishlistPage from './Pages/WishlistPage';
 import GameShowcase from './Pages/GameShowcase';
 import Recommendations from './components/Recommendations'
 import RecommendationPosts from './components/Home/RecommendationPost'
-import TestModelUpload from './Pages/ModelUploads';
+// import TestModelUpload from './Pages/ModelUploads';
 import ModelViewer from './components/ModelViewer';
 import UploadGame from './Pages/UploadGame';
 import { FeedProvider } from './context/FeedContext';

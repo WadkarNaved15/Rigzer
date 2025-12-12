@@ -13,7 +13,9 @@ interface CanvasData {
   };
 }
 
-interface VideoObject extends fabric.FabricImage {
+interface VideoObject extends fabric.Group {
+  videoElement?: HTMLVideoElement;
+  isPlaying?: boolean;
   _stopAnimation?: () => void;
 }
 
@@ -29,6 +31,7 @@ const InfiniteCanvas: React.FC = () => {
   const videoInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoElementsRef = useRef<HTMLVideoElement[]>([]);
+  const renderThrottleRef = useRef<number | null>(null);
 
   // --- FILE ICON HELPER ---
   const getFileIcon = (type: string, name: string): string => {
@@ -66,14 +69,14 @@ const InfiniteCanvas: React.FC = () => {
       const reader = new FileReader();
       reader.onload = (e) => {
         const imgSrc = e.target?.result as string;
-        fabric.FabricImage.fromURL(imgSrc).then((img) => {
+        fabric.Image.fromURL(imgSrc).then((img) => {
           if (!img) {
             console.error("Failed to create image");
             return;
           }
 
-          const maxWidth = 400;
-          const maxHeight = 400;
+          const maxWidth = 300;
+          const maxHeight = 300;
           const iw = img.width || maxWidth;
           const ih = img.height || maxHeight;
 
@@ -86,9 +89,9 @@ const InfiniteCanvas: React.FC = () => {
             scaleY: scale,
             selectable: true,
             hasControls: true,
+            objectCaching: true,
+            statefullCache: true,
           });
-
-          console.log("Adding image at:", { x, y, width: iw * scale, height: ih * scale });
 
           canvas.add(img);
           canvas.setActiveObject(img);
@@ -101,115 +104,232 @@ const InfiniteCanvas: React.FC = () => {
       return;
     }
 
-// VIDEOS (replace your existing video handling block)
-if (file.type.startsWith("video/")) {
-  const url = URL.createObjectURL(file);
-  const videoEl = document.createElement("video");
+    // VIDEOS - With centered play button + mute (no bottom bar)
+    if (file.type.startsWith("video/")) {
+      const url = URL.createObjectURL(file);
+      const videoEl = document.createElement("video");
 
-  // Basic attributes
-  videoEl.src = url;
-  videoEl.muted = true;
-  videoEl.loop = true;
-  videoEl.playsInline = true;
-  videoEl.setAttribute('playsinline', '');
-  videoEl.setAttribute('webkit-playsinline', '');
+      videoEl.src = url;
+      videoEl.muted = true;
+      videoEl.loop = true;
+      videoEl.playsInline = true;
+      videoEl.setAttribute('playsinline', '');
+      videoEl.setAttribute('webkit-playsinline', '');
+      videoEl.style.position = 'absolute';
+      videoEl.style.top = '-10000px';
+      videoEl.style.left = '-10000px';
 
-  // Keep off-screen but use natural size (don't shrink to 1px)
-  videoEl.style.position = 'absolute';
-  videoEl.style.top = '-10000px';
-  videoEl.style.left = '-10000px';
-  // do NOT set width/height CSS to 1px here
+      document.body.appendChild(videoEl);
+      videoElementsRef.current.push(videoEl);
 
-  document.body.appendChild(videoEl);
-  videoElementsRef.current.push(videoEl);
+      const addVideoToCanvas = () => {
+        const vw = videoEl.videoWidth || 640;
+        const vh = videoEl.videoHeight || 480;
 
-  const addVideoToCanvas = () => {
-    // Use actual video intrinsic size (videoEl.videoWidth/videoHeight available after loadedmetadata)
-    const vw = videoEl.videoWidth || 640;
-    const vh = videoEl.videoHeight || 480;
+        videoEl.width = vw;
+        videoEl.height = vh;
 
-    // Set the element's DOM width/height to the intrinsic size so Fabric picks it up correctly
-    videoEl.width = vw;
-    videoEl.height = vh;
-    videoEl.style.width = `${vw}px`;
-    videoEl.style.height = `${vh}px`;
+        const maxWidth = 300;
+        const maxHeight = 300;
+        const scale = Math.min(maxWidth / vw, maxHeight / vh, 1);
 
-    const maxWidth = 500;
-    const maxHeight = 400;
-    const scale = Math.min(maxWidth / vw, maxHeight / vh, 1);
+        const scaledW = vw * scale;
+        const scaledH = vh * scale;
 
-    // Create fabric image from the video element (use fabric.Image)
-    const videoObj = new fabric.Image(videoEl as HTMLVideoElement, {
-      left: x,
-      top: y,
-      scaleX: scale,
-      scaleY: scale,
-      selectable: true,
-      hasControls: true,
-      objectCaching: false, // important for live-updating video frames
-    }) as VideoObject;
+        const centerX = scaledW / 2;
+        const centerY = scaledH / 2;
 
-    // If needed, set explicit width/height on the fabric object so sizing is consistent
-    videoObj.set({
-      width: vw,
-      height: vh,
-    });
+        // Fabric image using the video element
+        const videoFabricImage = new fabric.Image(videoEl, {
+          left: 0,
+          top: 0,
+          scaleX: scale,
+          scaleY: scale,
+          selectable: false,
+          evented: false,
+          objectCaching: false,
+        });
 
-    console.log("Video dimensions:", { vw, vh, scale });
-    console.log("Adding video at:", { x, y, width: vw * scale, height: vh * scale });
+        // Centered play button circle (origin=center)
+        const playRadius = 30;
+        const playButton = new fabric.Circle({
+          radius: playRadius,
+          fill: 'rgba(0,0,0,0.7)',
+          left: centerX,
+          top: centerY,
+          originX: 'center',
+          originY: 'center',
+          selectable: false,
+          evented: false,
+        });
 
-    canvas.add(videoObj);
-    canvas.setActiveObject(videoObj);
-    canvas.requestRenderAll();
+        // Centered play triangle (origin=center)
+        const playIcon = new fabric.Polygon([
+          { x: -10, y: -15 },
+          { x: -10, y: 15 },
+          { x: 15, y: 0 }
+        ], {
+          fill: 'white',
+          left: centerX,
+          top: centerY,
+          originX: 'center',
+          originY: 'center',
+          selectable: false,
+          evented: false,
+        });
 
-    // Try to play (may require user gesture; handle promise)
-    videoEl.play().catch((err) => {
-      console.log("Autoplay prevented; will play after user interaction:", err);
-      // Optionally show a small "play" overlay/tooltip to the user to resume playback.
-    });
+        // Mute icon in bottom-right corner
+        const muteIcon = new fabric.Text('🔇', {
+          fontSize: 20,
+          left: scaledW - 10,
+          top: scaledH - 10,
+          originX: 'right',
+          originY: 'bottom',
+          selectable: false,
+          evented: true,
+        });
 
-    // Animation loop to continuously re-render the canvas while the video object exists
-    let animationId: number;
-    const animate = () => {
-      if (canvas.getObjects().includes(videoObj)) {
-        // Mark object as dirty to force redraw (fabric may cache)
-        videoObj.set('dirty', true);
+        // Build group (no control bar)
+        const videoGroup = new fabric.Group(
+          [videoFabricImage, playButton, playIcon, muteIcon],
+          {
+            left: x,
+            top: y,
+            selectable: true,
+            hasControls: true,
+            objectCaching: false,
+          }
+        ) as VideoObject;
+
+        videoGroup.videoElement = videoEl;
+        videoGroup.isPlaying = false;
+
+        // RAF id for the render loop
+        let rafId: number | null = null;
+        const startRenderLoop = () => {
+          if (!fabricCanvasRef.current) return;
+          const cvs = fabricCanvasRef.current;
+          const loop = () => {
+            if (!videoGroup.isPlaying) return;
+            try { 
+              cvs.requestRenderAll(); 
+            } catch (error) { 
+              console.warn('Render error:', error);
+            }
+            rafId = requestAnimationFrame(loop);
+          };
+          rafId = requestAnimationFrame(loop);
+        };
+        const stopRenderLoop = () => {
+          if (rafId !== null) {
+            try { 
+              cancelAnimationFrame(rafId); 
+            } catch (error) {
+              console.warn('Cancel animation error:', error);
+            }
+            rafId = null;
+          }
+        };
+
+        // Click handling
+        videoGroup.on('mousedown', (e) => {
+          if (!fabricCanvasRef.current) return;
+          const cvs = fabricCanvasRef.current;
+
+          const pointer = cvs.getPointer(e.e as MouseEvent);
+          const groupBounds = videoGroup.getBoundingRect();
+
+          const relativeX = pointer.x - groupBounds.left;
+          const relativeY = pointer.y - groupBounds.top;
+
+          const scaledWidth = groupBounds.width;
+          const scaledHeight = groupBounds.height;
+
+          // calculate mute area
+          const muteButtonArea = {
+            left: scaledWidth - 45,
+            top: scaledHeight - 45,
+            width: 40,
+            height: 40,
+          };
+
+          // Toggle mute
+          if (
+            relativeX >= muteButtonArea.left &&
+            relativeX <= muteButtonArea.left + muteButtonArea.width &&
+            relativeY >= muteButtonArea.top &&
+            relativeY <= muteButtonArea.top + muteButtonArea.height
+          ) {
+            videoEl.muted = !videoEl.muted;
+            muteIcon.set('text', videoEl.muted ? '🔇' : '🔊');
+            videoGroup.setCoords();
+            cvs.requestRenderAll();
+            return;
+          }
+
+          // Toggle play/pause
+          if (videoGroup.isPlaying) {
+            stopRenderLoop();
+            try { 
+              videoEl.pause(); 
+            } catch (error) {
+              console.warn('Pause error:', error);
+            }
+            videoGroup.isPlaying = false;
+            playButton.set('visible', true);
+            playIcon.set('visible', true);
+            videoGroup.setCoords();
+            cvs.requestRenderAll();
+          } else {
+            videoEl.play()
+              .then(() => {
+                videoGroup.isPlaying = true;
+                playButton.set('visible', false);
+                playIcon.set('visible', false);
+                videoGroup.setCoords();
+                startRenderLoop();
+              })
+              .catch(err => {
+                console.warn('video play() failed:', err);
+                videoGroup.isPlaying = false;
+                alert('Unable to play video automatically. Try interacting with the page (click) to allow playback.');
+              });
+          }
+
+          cvs.requestRenderAll();
+        });
+
+        // Cleanup when the object is removed
+        videoGroup._stopAnimation = () => {
+          try { stopRenderLoop(); } catch (error) { console.warn('Stop render loop error:', error); }
+          try { videoEl.pause(); } catch (error) { console.warn('Video pause error:', error); }
+          videoGroup.isPlaying = false;
+          try {
+            playButton.set('visible', true);
+            playIcon.set('visible', true);
+            videoGroup.setCoords();
+            if (fabricCanvasRef.current) fabricCanvasRef.current.requestRenderAll();
+          } catch (error) { 
+            console.warn('Button visibility error:', error);
+          }
+        };
+
+        canvas.add(videoGroup);
+        canvas.setActiveObject(videoGroup);
         canvas.requestRenderAll();
-        animationId = fabric.util.requestAnimFrame(animate);
-      }
-    };
-    animationId = fabric.util.requestAnimFrame(animate);
+      };
 
-    // Cleanup helper on the object
-    videoObj._stopAnimation = () => {
-      fabric.util.cancelAnimFrame(animationId);
-      videoEl.pause();
-      if (videoEl.parentNode) document.body.removeChild(videoEl);
-      const index = videoElementsRef.current.indexOf(videoEl);
-      if (index > -1) videoElementsRef.current.splice(index, 1);
-      URL.revokeObjectURL(url);
-    };
-  };
+      videoEl.addEventListener('loadedmetadata', addVideoToCanvas);
+      videoEl.addEventListener('error', () => {
+        console.error("Video error");
+        alert("Failed to load video. The file might be corrupted or in an unsupported format.");
+        if (videoEl.parentNode) document.body.removeChild(videoEl);
+        URL.revokeObjectURL(url);
+      });
 
-  videoEl.addEventListener('loadedmetadata', () => {
-    console.log("Video metadata loaded:", videoEl.videoWidth, videoEl.videoHeight);
-    addVideoToCanvas();
-  });
-
-  videoEl.addEventListener('error', (e) => {
-    console.error("Video error:", e);
-    alert("Failed to load video. The file might be corrupted or in an unsupported format.");
-    // cleanup in error case
-    if (videoEl.parentNode) document.body.removeChild(videoEl);
-    URL.revokeObjectURL(url);
-  });
-
-  // Start loading metadata
-  videoEl.load();
-
-  return;
-}
-
+      videoEl.load();
+      return;
+    }
 
     // OTHER FILES
     const fileIcon = getFileIcon(file.type, file.name);
@@ -218,8 +338,8 @@ if (file.type.startsWith("video/")) {
     const fileSize = formatFileSize(file.size);
 
     const rect = new fabric.Rect({
-      width: 250,
-      height: 120,
+      width: 200,
+      height: 100,
       fill: "#ffffff",
       stroke: "#333",
       strokeWidth: 2,
@@ -233,23 +353,23 @@ if (file.type.startsWith("video/")) {
       }),
     });
 
-    const icon = new fabric.FabricText(fileIcon, {
-      fontSize: 48,
-      left: 15,
-      top: 20,
+    const icon = new fabric.Text(fileIcon, {
+      fontSize: 40,
+      left: 10,
+      top: 15,
     });
 
-    const nameText = new fabric.FabricText(fileName, {
-      left: 15,
-      top: 80,
-      fontSize: 14,
+    const nameText = new fabric.Text(fileName, {
+      left: 10,
+      top: 65,
+      fontSize: 12,
       fontWeight: "bold",
     });
 
-    const sizeText = new fabric.FabricText(fileSize, {
-      left: 15,
-      top: 100,
-      fontSize: 11,
+    const sizeText = new fabric.Text(fileSize, {
+      left: 10,
+      top: 82,
+      fontSize: 10,
       fill: "#666",
     });
 
@@ -263,11 +383,9 @@ if (file.type.startsWith("video/")) {
     canvas.add(group);
     canvas.setActiveObject(group);
     canvas.requestRenderAll();
-    
-    console.log("Added file card at:", { x, y });
   }, []);
 
-  // Helper: get viewport center in canvas coordinates
+  // Helper: get viewport center
   const getViewportCenter = useCallback(() => {
     if (!fabricCanvasRef.current) {
       return { x: 100, y: 100 };
@@ -293,8 +411,50 @@ if (file.type.startsWith("video/")) {
       height: window.innerHeight,
       backgroundColor: "#f0f0f0",
       preserveObjectStacking: true,
+      renderOnAddRemove: true,
+      skipTargetFind: false,
+      enableRetinaScaling: true,
+      allowTouchScrolling: false,
     });
     fabricCanvasRef.current = fabricCanvas;
+
+    // Cleanup-on-remove handler
+// typed handler for object:removed (has opt.target)
+ const handleObjectRemoved = (opt: { target: fabric.Object }) => {
+      try {
+        const obj = opt.target as VideoObject | undefined;
+        if (!obj) return;
+        
+        if (obj.videoElement instanceof HTMLVideoElement) {
+          const v: HTMLVideoElement = obj.videoElement;
+          try { 
+            if (typeof obj._stopAnimation === 'function') obj._stopAnimation(); 
+          } catch (error) {
+            console.warn('Stop animation error:', error);
+          }
+          try {
+            if (v.parentNode) {
+              v.pause();
+              v.parentNode.removeChild(v);
+            }
+          } catch (error) { 
+            console.warn('Video removal error:', error);
+          }
+          try {
+            if (v.src && v.src.startsWith('blob:')) {
+              URL.revokeObjectURL(v.src);
+            }
+          } catch (error) { 
+            console.warn('URL revoke error:', error);
+          }
+        }
+      } catch (error) {
+        console.warn('object:removed handler error', error);
+      }
+    };
+
+    fabricCanvas.on('object:removed', handleObjectRemoved);
+
 
     // Make canvas non-interactive in view mode
     if (mode === 'view') {
@@ -322,8 +482,17 @@ if (file.type.startsWith("video/")) {
       const evt = opt.e as MouseEvent;
       const deltaX = evt.clientX - lastPosRef.current.x;
       const deltaY = evt.clientY - lastPosRef.current.y;
+
+      if (renderThrottleRef.current) {
+        clearTimeout(renderThrottleRef.current);
+      }
+
       fabricCanvas.relativePan(new fabric.Point(deltaX, deltaY));
       lastPosRef.current = { x: evt.clientX, y: evt.clientY };
+
+      renderThrottleRef.current = window.setTimeout(() => {
+        fabricCanvas.requestRenderAll();
+      }, 16);
     };
 
     const handleMouseUp = () => {
@@ -341,14 +510,14 @@ if (file.type.startsWith("video/")) {
     const handleWheel = (opt: fabric.TEvent) => {
       const evt = opt.e as WheelEvent;
       evt.preventDefault();
-      
+
       const delta = evt.deltaY;
       let newZoom = fabricCanvas.getZoom();
       newZoom *= 0.999 ** delta;
-      
+
       if (newZoom > 5) newZoom = 5;
       if (newZoom < 0.1) newZoom = 0.1;
-      
+
       const point = new fabric.Point(evt.offsetX, evt.offsetY);
       fabricCanvas.zoomToPoint(point, newZoom);
       setZoom(newZoom);
@@ -359,10 +528,10 @@ if (file.type.startsWith("video/")) {
     // --- AUTO-EXPAND ---
     const expandCanvas = (obj: fabric.Object) => {
       if (mode === 'view') return;
-      
+
       const bounds = obj.getBoundingRect();
       const padding = 500;
-      
+
       let newWidth = fabricCanvas.getWidth();
       let newHeight = fabricCanvas.getHeight();
 
@@ -412,7 +581,7 @@ if (file.type.startsWith("video/")) {
     // --- DRAG & DROP ---
     const handleDocDragOver = (e: DragEvent) => e.preventDefault();
     const handleDocDrop = (e: DragEvent) => e.preventDefault();
-    
+
     if (mode === 'edit') {
       document.addEventListener("dragover", handleDocDragOver);
       document.addEventListener("drop", handleDocDrop);
@@ -473,19 +642,32 @@ if (file.type.startsWith("video/")) {
 
     // --- CLEANUP ---
     return () => {
-      // Clean up all video elements
       videoElementsRef.current.forEach(video => {
-        video.pause();
+        try { video.pause(); } catch (error) { console.warn('Video pause error:', error); }
         if (video.parentNode) {
-          document.body.removeChild(video);
+          try { video.parentNode.removeChild(video); } catch (error) { console.warn('Video removal error:', error); }
         }
+        try {
+          if (video.src && video.src.startsWith('blob:')) {
+            URL.revokeObjectURL(video.src);
+          }
+        } catch (error) { console.warn('URL revoke error:', error); }
       });
       videoElementsRef.current = [];
+
+      if (renderThrottleRef.current) {
+        clearTimeout(renderThrottleRef.current);
+      }
 
       fabricCanvas.off("mouse:down", handleMouseDown);
       fabricCanvas.off("mouse:move", handleMouseMove);
       fabricCanvas.off("mouse:up", handleMouseUp);
       fabricCanvas.off("mouse:wheel", handleWheel);
+
+      try { fabricCanvas.off('object:removed', handleObjectRemoved); } catch (error) { console.warn('Event cleanup error:', error); }
+      try { fabricCanvas.off("object:moving"); } catch (error) { console.warn('Event cleanup error:', error); }
+      try { fabricCanvas.off("object:modified"); } catch (error) { console.warn('Event cleanup error:', error); }
+
       window.removeEventListener("resize", handleResize);
       document.removeEventListener("dragover", handleDocDragOver);
       document.removeEventListener("drop", handleDocDrop);
@@ -546,19 +728,17 @@ if (file.type.startsWith("video/")) {
   const addTextBox = () => {
     if (!fabricCanvasRef.current) return;
     const canvas = fabricCanvasRef.current;
-    
+
     const center = getViewportCenter();
-    
+
     const text = new fabric.Textbox('Type here...', {
       left: center.x,
       top: center.y,
       width: 300,
       fontSize: 20,
-      fill: '#000',
-      backgroundColor: 'rgba(255, 255, 255, 0.8)',
       padding: 10,
     });
-    
+
     canvas.add(text);
     canvas.setActiveObject(text);
     canvas.requestRenderAll();
@@ -567,11 +747,11 @@ if (file.type.startsWith("video/")) {
   // --- SAVE CANVAS ---
   const handleSave = () => {
     if (!fabricCanvasRef.current) return;
-    
+
     const canvas = fabricCanvasRef.current;
     const json = canvas.toJSON();
     const vpt = canvas.viewportTransform;
-    
+
     const data: CanvasData = {
       version: '1.0',
       objects: json.objects,
@@ -585,8 +765,7 @@ if (file.type.startsWith("video/")) {
     };
 
     setCanvasData(data);
-    localStorage.setItem('devlog_canvas', JSON.stringify(data));
-    
+
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -594,21 +773,34 @@ if (file.type.startsWith("video/")) {
     a.download = `devlog_${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    
+
     alert('Canvas saved! ✅');
   };
 
   // --- LOAD CANVAS ---
   const handleLoad = () => {
-    const saved = localStorage.getItem('devlog_canvas');
-    if (saved) {
-      const data = JSON.parse(saved);
-      setCanvasData(data);
-      setMode('view');
-      setTimeout(() => setMode('edit'), 100);
-    } else {
-      alert('No saved canvas found!');
-    }
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = JSON.parse(event.target?.result as string);
+          setCanvasData(data);
+          setMode('view');
+          setTimeout(() => setMode('edit'), 100);
+        } catch (err) {
+          console.error('Failed to load canvas file:', err);
+          alert('Failed to load canvas file!');
+        }
+      };
+      reader.readAsText(file);
+    };
+    input.click();
   };
 
   // --- DELETE SELECTED ---
@@ -645,7 +837,7 @@ if (file.type.startsWith("video/")) {
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
       <canvas ref={canvasElementRef} />
-      
+
       <input
         ref={imageInputRef}
         type="file"
@@ -669,7 +861,7 @@ if (file.type.startsWith("video/")) {
         style={{ display: 'none' }}
         onChange={handleAnyFileUpload}
       />
-      
+
       <div style={{
         position: 'absolute',
         top: 10,
