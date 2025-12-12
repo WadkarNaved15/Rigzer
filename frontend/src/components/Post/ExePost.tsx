@@ -128,8 +128,8 @@ const ExePost: React.FC<ExePostProps> = ({
   }, []);
   return (
     <article
-  ref={postRef}
-  className="
+      ref={postRef}
+      className="
     relative w-full 
     border border-gray-200 dark:border-gray-700
     bg-white dark:bg-black
@@ -137,11 +137,7 @@ const ExePost: React.FC<ExePostProps> = ({
     transition-colors duration-200
     cursor-pointer
   "
->
-
-
-
-
+    >
       <div className="flex gap-3 p-4">
 
         {/* LEFT COLUMN — Avatar stays here */}
