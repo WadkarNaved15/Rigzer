@@ -1,964 +1,848 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
-import * as fabric from 'fabric';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import * as PIXI from 'pixi.js';
+import { Viewport } from 'pixi-viewport';
+import { Image, Video, Type, File, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 
-interface CanvasData {
-  version: string;
-  objects: fabric.Object[];
-  background: string;
-  canvasWidth: number;
-  canvasHeight: number;
-  viewport: {
-    zoom: number;
-    pan: { x: number; y: number };
-  };
+// Types
+interface CanvasObject {
+  id: string;
+  type: 'image' | 'video' | 'text' | 'file';
+  x: number;
+  y: number;
+  scaleX: number;
+  scaleY: number;
+  rotation: number;
+  source?: string;
+  text?: string;
+  filename?: string;
 }
 
-interface VideoObject extends fabric.Group {
-  videoElement?: HTMLVideoElement;
-  isPlaying?: boolean;
-  _stopAnimation?: () => void;
+interface SceneState {
+  objects: CanvasObject[];
+  cameraX: number;
+  cameraY: number;
+  cameraZoom: number;
 }
 
+// Infinite Canvas Component
 const InfiniteCanvas: React.FC = () => {
-  const canvasElementRef = useRef<HTMLCanvasElement>(null);
-  const fabricCanvasRef = useRef<fabric.Canvas | null>(null);
-  const isPanningRef = useRef(false);
-  const lastPosRef = useRef<{ x: number; y: number } | null>(null);
-  const [zoom, setZoom] = useState(1);
-  const [canvasData, setCanvasData] = useState<CanvasData | null>(null);
-  const [mode, setMode] = useState<'edit' | 'view'>('edit');
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const videoInputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const videoElementsRef = useRef<HTMLVideoElement[]>([]);
-  const renderThrottleRef = useRef<number | null>(null);
-
-  // --- FILE ICON HELPER ---
-  const getFileIcon = (type: string, name: string): string => {
-    if (type.includes('pdf')) return '📄';
-    if (type.includes('word') || name.endsWith('.doc') || name.endsWith('.docx')) return '📝';
-    if (type.includes('excel') || name.endsWith('.xls') || name.endsWith('.xlsx')) return '📊';
-    if (type.includes('powerpoint') || name.endsWith('.ppt') || name.endsWith('.pptx')) return '📊';
-    if (type.includes('zip') || type.includes('rar') || type.includes('7z')) return '📦';
-    if (type.includes('audio') || name.endsWith('.mp3') || name.endsWith('.wav')) return '🎵';
-    if (name.endsWith('.exe') || name.endsWith('.msi')) return '⚙️';
-    if (name.endsWith('.txt')) return '📃';
-    if (type.includes('json') || name.endsWith('.json')) return '🔧';
-    if (type.includes('xml') || name.endsWith('.xml')) return '🔧';
-    return '📎';
-  };
-
-  // --- FORMAT FILE SIZE ---
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
-  };
-
-  // --- HANDLE FILE ADDITION ---
-  const handleFileAdd = useCallback((file: File, x: number, y: number) => {
-    if (!fabricCanvasRef.current) return;
-    const canvas = fabricCanvasRef.current;
-
-    console.log("Adding file:", file.name, file.type, { x, y });
-
-    // IMAGES
-    if (file.type.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const imgSrc = e.target?.result as string;
-        fabric.Image.fromURL(imgSrc).then((img) => {
-          if (!img) {
-            console.error("Failed to create image");
-            return;
-          }
-
-          const maxWidth = 300;
-          const maxHeight = 300;
-          const iw = img.width || maxWidth;
-          const ih = img.height || maxHeight;
-
-          const scale = Math.min(maxWidth / iw, maxHeight / ih, 1);
-
-          img.set({
-            left: x,
-            top: y,
-            scaleX: scale,
-            scaleY: scale,
-            selectable: true,
-            hasControls: true,
-            objectCaching: true,
-            statefullCache: true,
-          });
-
-          canvas.add(img);
-          canvas.setActiveObject(img);
-          canvas.requestRenderAll();
-        }).catch((err) => {
-          console.error("Error loading image:", err);
-        });
-      };
-      reader.readAsDataURL(file);
-      return;
-    }
-
-    // VIDEOS - With centered play button + mute (no bottom bar)
-    if (file.type.startsWith("video/")) {
-      const url = URL.createObjectURL(file);
-      const videoEl = document.createElement("video");
-
-      videoEl.src = url;
-      videoEl.muted = true;
-      videoEl.loop = true;
-      videoEl.playsInline = true;
-      videoEl.setAttribute('playsinline', '');
-      videoEl.setAttribute('webkit-playsinline', '');
-      videoEl.style.position = 'absolute';
-      videoEl.style.top = '-10000px';
-      videoEl.style.left = '-10000px';
-
-      document.body.appendChild(videoEl);
-      videoElementsRef.current.push(videoEl);
-
-      const addVideoToCanvas = () => {
-        const vw = videoEl.videoWidth || 640;
-        const vh = videoEl.videoHeight || 480;
-
-        videoEl.width = vw;
-        videoEl.height = vh;
-
-        const maxWidth = 300;
-        const maxHeight = 300;
-        const scale = Math.min(maxWidth / vw, maxHeight / vh, 1);
-
-        const scaledW = vw * scale;
-        const scaledH = vh * scale;
-
-        const centerX = scaledW / 2;
-        const centerY = scaledH / 2;
-
-        // Fabric image using the video element
-        const videoFabricImage = new fabric.Image(videoEl, {
-          left: 0,
-          top: 0,
-          scaleX: scale,
-          scaleY: scale,
-          selectable: false,
-          evented: false,
-          objectCaching: false,
-        });
-
-        // Centered play button circle (origin=center)
-        const playRadius = 30;
-        const playButton = new fabric.Circle({
-          radius: playRadius,
-          fill: 'rgba(0,0,0,0.7)',
-          left: centerX,
-          top: centerY,
-          originX: 'center',
-          originY: 'center',
-          selectable: false,
-          evented: false,
-        });
-
-        // Centered play triangle (origin=center)
-        const playIcon = new fabric.Polygon([
-          { x: -10, y: -15 },
-          { x: -10, y: 15 },
-          { x: 15, y: 0 }
-        ], {
-          fill: 'white',
-          left: centerX,
-          top: centerY,
-          originX: 'center',
-          originY: 'center',
-          selectable: false,
-          evented: false,
-        });
-
-        // Mute icon in bottom-right corner
-        const muteIcon = new fabric.Text('🔇', {
-          fontSize: 20,
-          left: scaledW - 10,
-          top: scaledH - 10,
-          originX: 'right',
-          originY: 'bottom',
-          selectable: false,
-          evented: true,
-        });
-
-        // Build group (no control bar)
-        const videoGroup = new fabric.Group(
-          [videoFabricImage, playButton, playIcon, muteIcon],
-          {
-            left: x,
-            top: y,
-            selectable: true,
-            hasControls: true,
-            objectCaching: false,
-          }
-        ) as VideoObject;
-
-        videoGroup.videoElement = videoEl;
-        videoGroup.isPlaying = false;
-
-        // RAF id for the render loop
-        let rafId: number | null = null;
-        const startRenderLoop = () => {
-          if (!fabricCanvasRef.current) return;
-          const cvs = fabricCanvasRef.current;
-          const loop = () => {
-            if (!videoGroup.isPlaying) return;
-            try { 
-              cvs.requestRenderAll(); 
-            } catch (error) { 
-              console.warn('Render error:', error);
-            }
-            rafId = requestAnimationFrame(loop);
-          };
-          rafId = requestAnimationFrame(loop);
-        };
-        const stopRenderLoop = () => {
-          if (rafId !== null) {
-            try { 
-              cancelAnimationFrame(rafId); 
-            } catch (error) {
-              console.warn('Cancel animation error:', error);
-            }
-            rafId = null;
-          }
-        };
-
-        // Click handling
-        videoGroup.on('mousedown', (e) => {
-          if (!fabricCanvasRef.current) return;
-          const cvs = fabricCanvasRef.current;
-
-          const pointer = cvs.getPointer(e.e as MouseEvent);
-          const groupBounds = videoGroup.getBoundingRect();
-
-          const relativeX = pointer.x - groupBounds.left;
-          const relativeY = pointer.y - groupBounds.top;
-
-          const scaledWidth = groupBounds.width;
-          const scaledHeight = groupBounds.height;
-
-          // calculate mute area
-          const muteButtonArea = {
-            left: scaledWidth - 45,
-            top: scaledHeight - 45,
-            width: 40,
-            height: 40,
-          };
-
-          // Toggle mute
-          if (
-            relativeX >= muteButtonArea.left &&
-            relativeX <= muteButtonArea.left + muteButtonArea.width &&
-            relativeY >= muteButtonArea.top &&
-            relativeY <= muteButtonArea.top + muteButtonArea.height
-          ) {
-            videoEl.muted = !videoEl.muted;
-            muteIcon.set('text', videoEl.muted ? '🔇' : '🔊');
-            videoGroup.setCoords();
-            cvs.requestRenderAll();
-            return;
-          }
-
-          // Toggle play/pause
-          if (videoGroup.isPlaying) {
-            stopRenderLoop();
-            try { 
-              videoEl.pause(); 
-            } catch (error) {
-              console.warn('Pause error:', error);
-            }
-            videoGroup.isPlaying = false;
-            playButton.set('visible', true);
-            playIcon.set('visible', true);
-            videoGroup.setCoords();
-            cvs.requestRenderAll();
-          } else {
-            videoEl.play()
-              .then(() => {
-                videoGroup.isPlaying = true;
-                playButton.set('visible', false);
-                playIcon.set('visible', false);
-                videoGroup.setCoords();
-                startRenderLoop();
-              })
-              .catch(err => {
-                console.warn('video play() failed:', err);
-                videoGroup.isPlaying = false;
-                alert('Unable to play video automatically. Try interacting with the page (click) to allow playback.');
-              });
-          }
-
-          cvs.requestRenderAll();
-        });
-
-        // Cleanup when the object is removed
-        videoGroup._stopAnimation = () => {
-          try { stopRenderLoop(); } catch (error) { console.warn('Stop render loop error:', error); }
-          try { videoEl.pause(); } catch (error) { console.warn('Video pause error:', error); }
-          videoGroup.isPlaying = false;
-          try {
-            playButton.set('visible', true);
-            playIcon.set('visible', true);
-            videoGroup.setCoords();
-            if (fabricCanvasRef.current) fabricCanvasRef.current.requestRenderAll();
-          } catch (error) { 
-            console.warn('Button visibility error:', error);
-          }
-        };
-
-        canvas.add(videoGroup);
-        canvas.setActiveObject(videoGroup);
-        canvas.requestRenderAll();
-      };
-
-      videoEl.addEventListener('loadedmetadata', addVideoToCanvas);
-      videoEl.addEventListener('error', () => {
-        console.error("Video error");
-        alert("Failed to load video. The file might be corrupted or in an unsupported format.");
-        if (videoEl.parentNode) document.body.removeChild(videoEl);
-        URL.revokeObjectURL(url);
-      });
-
-      videoEl.load();
-      return;
-    }
-
-    // OTHER FILES
-    const fileIcon = getFileIcon(file.type, file.name);
-    const fileName =
-      file.name.length > 30 ? file.name.substring(0, 30) + "..." : file.name;
-    const fileSize = formatFileSize(file.size);
-
-    const rect = new fabric.Rect({
-      width: 200,
-      height: 100,
-      fill: "#ffffff",
-      stroke: "#333",
-      strokeWidth: 2,
-      rx: 8,
-      ry: 8,
-      shadow: new fabric.Shadow({
-        color: "rgba(0,0,0,0.2)",
-        blur: 10,
-        offsetX: 2,
-        offsetY: 2,
-      }),
-    });
-
-    const icon = new fabric.Text(fileIcon, {
-      fontSize: 40,
-      left: 10,
-      top: 15,
-    });
-
-    const nameText = new fabric.Text(fileName, {
-      left: 10,
-      top: 65,
-      fontSize: 12,
-      fontWeight: "bold",
-    });
-
-    const sizeText = new fabric.Text(fileSize, {
-      left: 10,
-      top: 82,
-      fontSize: 10,
-      fill: "#666",
-    });
-
-    const group = new fabric.Group([rect, icon, nameText, sizeText], {
-      left: x,
-      top: y,
-      selectable: true,
-      hasControls: true,
-    });
-
-    canvas.add(group);
-    canvas.setActiveObject(group);
-    canvas.requestRenderAll();
-  }, []);
-
-  // Helper: get viewport center
-  const getViewportCenter = useCallback(() => {
-    if (!fabricCanvasRef.current) {
-      return { x: 100, y: 100 };
-    }
-    const canvas = fabricCanvasRef.current;
-    const vpt = canvas.viewportTransform;
-
-    const zoom = canvas.getZoom();
-    const offsetX = vpt[4];
-    const offsetY = vpt[5];
-
-    const centerX = (window.innerWidth / 2 - offsetX) / zoom;
-    const centerY = (window.innerHeight / 2 - offsetY) / zoom;
-
-    return { x: centerX, y: centerY };
-  }, []);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const pixiAppRef = useRef<PIXI.Application | null>(null);
+  const viewportRef = useRef<Viewport | null>(null);
+  const objectsMapRef = useRef<Map<string, PIXI.Container>>(new Map());
+  const videoElementsRef = useRef<Map<string, HTMLVideoElement>>(new Map());
+  
+  const [sceneState, setSceneState] = useState<SceneState>({
+    objects: [],
+    cameraX: 0,
+    cameraY: 0,
+    cameraZoom: 1
+  });
+  
+  const [editingText, setEditingText] = useState<{
+    id: string;
+    x: number;
+    y: number;
+    text: string;
+  } | null>(null);
 
   useEffect(() => {
-    if (!canvasElementRef.current) return;
+    if (!canvasRef.current) return;
 
-    const fabricCanvas = new fabric.Canvas(canvasElementRef.current, {
+    let destroyed = false;
+
+    const app = new PIXI.Application();
+
+    app.init({
       width: window.innerWidth,
       height: window.innerHeight,
-      backgroundColor: "#f0f0f0",
-      preserveObjectStacking: true,
-      renderOnAddRemove: true,
-      skipTargetFind: false,
-      enableRetinaScaling: true,
-      allowTouchScrolling: false,
+      background: 0x1a1a1a,
+      antialias: true,
+      resolution: window.devicePixelRatio || 1,
+      autoDensity: true,
+    }).then(() => {
+      if (destroyed || !canvasRef.current) {
+        app.destroy(true);
+        return;
+      }
+
+      canvasRef.current.appendChild(app.canvas);
+      pixiAppRef.current = app;
+
+      const viewport = new Viewport({
+        screenWidth: window.innerWidth,
+        screenHeight: window.innerHeight,
+        worldWidth: 100000,
+        worldHeight: 100000,
+        events: app.renderer.events,
+      });
+
+      viewport
+        .drag()
+        .pinch()
+        .wheel()
+        .decelerate();
+
+      app.stage.addChild(viewport);
+      viewport.moveCenter(0, 0);
+      viewportRef.current = viewport;
+
+      const onResize = () => {
+        app.renderer.resize(window.innerWidth, window.innerHeight);
+        viewport.resize(window.innerWidth, window.innerHeight);
+      };
+
+      window.addEventListener("resize", onResize);
+
+      // Camera state tracking
+      const updateCameraState = () => {
+        setSceneState(prev => ({
+          ...prev,
+          cameraX: viewport.center.x,
+          cameraY: viewport.center.y,
+          cameraZoom: viewport.scale.x
+        }));
+      };
+
+      viewport.on('moved', updateCameraState);
+      viewport.on('zoomed', updateCameraState);
+
+      return () => {
+        window.removeEventListener("resize", onResize);
+      };
     });
-    fabricCanvasRef.current = fabricCanvas;
 
-    // Cleanup-on-remove handler
-// typed handler for object:removed (has opt.target)
- const handleObjectRemoved = (opt: { target: fabric.Object }) => {
-      try {
-        const obj = opt.target as VideoObject | undefined;
-        if (!obj) return;
-        
-        if (obj.videoElement instanceof HTMLVideoElement) {
-          const v: HTMLVideoElement = obj.videoElement;
-          try { 
-            if (typeof obj._stopAnimation === 'function') obj._stopAnimation(); 
-          } catch (error) {
-            console.warn('Stop animation error:', error);
-          }
-          try {
-            if (v.parentNode) {
-              v.pause();
-              v.parentNode.removeChild(v);
-            }
-          } catch (error) { 
-            console.warn('Video removal error:', error);
-          }
-          try {
-            if (v.src && v.src.startsWith('blob:')) {
-              URL.revokeObjectURL(v.src);
-            }
-          } catch (error) { 
-            console.warn('URL revoke error:', error);
-          }
-        }
-      } catch (error) {
-        console.warn('object:removed handler error', error);
-      }
-    };
-
-    fabricCanvas.on('object:removed', handleObjectRemoved);
-
-
-    // Make canvas non-interactive in view mode
-    if (mode === 'view') {
-      fabricCanvas.selection = false;
-      fabricCanvas.forEachObject(obj => {
-        obj.selectable = false;
-        obj.evented = false;
-      });
-    }
-
-    // --- PANNING ---
-    const handleMouseDown = (opt: fabric.TEvent) => {
-      const evt = opt.e as MouseEvent;
-      if (mode === 'edit' && (evt.altKey || evt.button === 1)) {
-        isPanningRef.current = true;
-        lastPosRef.current = { x: evt.clientX, y: evt.clientY };
-        fabricCanvas.setCursor("grab");
-        fabricCanvas.selection = false;
-        evt.preventDefault();
-      }
-    };
-
-    const handleMouseMove = (opt: fabric.TEvent) => {
-      if (!isPanningRef.current || !lastPosRef.current) return;
-      const evt = opt.e as MouseEvent;
-      const deltaX = evt.clientX - lastPosRef.current.x;
-      const deltaY = evt.clientY - lastPosRef.current.y;
-
-      if (renderThrottleRef.current) {
-        clearTimeout(renderThrottleRef.current);
-      }
-
-      fabricCanvas.relativePan(new fabric.Point(deltaX, deltaY));
-      lastPosRef.current = { x: evt.clientX, y: evt.clientY };
-
-      renderThrottleRef.current = window.setTimeout(() => {
-        fabricCanvas.requestRenderAll();
-      }, 16);
-    };
-
-    const handleMouseUp = () => {
-      isPanningRef.current = false;
-      lastPosRef.current = null;
-      fabricCanvas.setCursor("default");
-      if (mode === 'edit') fabricCanvas.selection = true;
-    };
-
-    fabricCanvas.on("mouse:down", handleMouseDown);
-    fabricCanvas.on("mouse:move", handleMouseMove);
-    fabricCanvas.on("mouse:up", handleMouseUp);
-
-    // --- ZOOM ---
-    const handleWheel = (opt: fabric.TEvent) => {
-      const evt = opt.e as WheelEvent;
-      evt.preventDefault();
-
-      const delta = evt.deltaY;
-      let newZoom = fabricCanvas.getZoom();
-      newZoom *= 0.999 ** delta;
-
-      if (newZoom > 5) newZoom = 5;
-      if (newZoom < 0.1) newZoom = 0.1;
-
-      const point = new fabric.Point(evt.offsetX, evt.offsetY);
-      fabricCanvas.zoomToPoint(point, newZoom);
-      setZoom(newZoom);
-    };
-
-    fabricCanvas.on("mouse:wheel", handleWheel);
-
-    // --- AUTO-EXPAND ---
-    const expandCanvas = (obj: fabric.Object) => {
-      if (mode === 'view') return;
-
-      const bounds = obj.getBoundingRect();
-      const padding = 500;
-
-      let newWidth = fabricCanvas.getWidth();
-      let newHeight = fabricCanvas.getHeight();
-
-      if (bounds.left + bounds.width + padding > newWidth) {
-        newWidth = bounds.left + bounds.width + padding;
-      }
-      if (bounds.top + bounds.height + padding > newHeight) {
-        newHeight = bounds.top + bounds.height + padding;
-      }
-
-      if (bounds.left < 0) {
-        const shift = Math.abs(bounds.left) + padding;
-        fabricCanvas.getObjects().forEach(o => {
-          o.set({ left: (o.left || 0) + shift });
-        });
-        newWidth += shift;
-      }
-      if (bounds.top < 0) {
-        const shift = Math.abs(bounds.top) + padding;
-        fabricCanvas.getObjects().forEach(o => {
-          o.set({ top: (o.top || 0) + shift });
-        });
-        newHeight += shift;
-      }
-
-      fabricCanvas.setDimensions({ width: newWidth, height: newHeight });
-    };
-
-    if (mode === 'edit') {
-      fabricCanvas.on("object:moving", (opt) => {
-        if (opt.target) expandCanvas(opt.target);
-      });
-      fabricCanvas.on("object:modified", (opt) => {
-        if (opt.target) expandCanvas(opt.target);
-      });
-    }
-
-    // --- RESIZE ---
-    const handleResize = () => {
-      fabricCanvas.setDimensions({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
-    };
-    window.addEventListener("resize", handleResize);
-
-    // --- DRAG & DROP ---
-    const handleDocDragOver = (e: DragEvent) => e.preventDefault();
-    const handleDocDrop = (e: DragEvent) => e.preventDefault();
-
-    if (mode === 'edit') {
-      document.addEventListener("dragover", handleDocDragOver);
-      document.addEventListener("drop", handleDocDrop);
-    }
-
-    const wrapperEl = fabricCanvas.wrapperEl as HTMLDivElement | undefined;
-    const handleCanvasDrop = (e: DragEvent) => {
-      if (mode === 'view') return;
-      e.preventDefault();
-      if (!fabricCanvasRef.current) return;
-
-      const canvas = fabricCanvasRef.current;
-      const pointer = canvas.getScenePoint(e);
-      const files = e.dataTransfer?.files;
-      const textData = e.dataTransfer?.getData("text/plain");
-
-      if (files && files.length > 0) {
-        Array.from(files).forEach((file, index) => {
-          const offset = index * 100;
-          handleFileAdd(file, pointer.x + offset, pointer.y + offset);
-        });
-      } else if (textData) {
-        const text = new fabric.Textbox(textData, {
-          left: pointer.x,
-          top: pointer.y,
-          fontSize: 16,
-          width: 300,
-          fill: '#000',
-        });
-        canvas.add(text);
-        canvas.requestRenderAll();
-      }
-    };
-
-    if (wrapperEl && mode === 'edit') {
-      wrapperEl.addEventListener("drop", handleCanvasDrop);
-    }
-
-    // Load saved data if in view mode
-    if (mode === 'view' && canvasData) {
-      fabricCanvas.loadFromJSON(canvasData).then(() => {
-        fabricCanvas.setDimensions({
-          width: canvasData.canvasWidth,
-          height: canvasData.canvasHeight,
-        });
-        fabricCanvas.setViewportTransform([
-          canvasData.viewport.zoom,
-          0,
-          0,
-          canvasData.viewport.zoom,
-          canvasData.viewport.pan.x,
-          canvasData.viewport.pan.y,
-        ]);
-        setZoom(canvasData.viewport.zoom);
-        fabricCanvas.requestRenderAll();
-      });
-    }
-
-    // --- CLEANUP ---
     return () => {
-      videoElementsRef.current.forEach(video => {
-        try { video.pause(); } catch (error) { console.warn('Video pause error:', error); }
-        if (video.parentNode) {
-          try { video.parentNode.removeChild(video); } catch (error) { console.warn('Video removal error:', error); }
-        }
-        try {
-          if (video.src && video.src.startsWith('blob:')) {
-            URL.revokeObjectURL(video.src);
-          }
-        } catch (error) { console.warn('URL revoke error:', error); }
+      destroyed = true;
+
+      videoElementsRef.current.forEach(v => {
+        v.pause();
+        v.src = "";
       });
-      videoElementsRef.current = [];
+      videoElementsRef.current.clear();
 
-      if (renderThrottleRef.current) {
-        clearTimeout(renderThrottleRef.current);
-      }
+      objectsMapRef.current.forEach(o => o.destroy({ children: true }));
+      objectsMapRef.current.clear();
 
-      fabricCanvas.off("mouse:down", handleMouseDown);
-      fabricCanvas.off("mouse:move", handleMouseMove);
-      fabricCanvas.off("mouse:up", handleMouseUp);
-      fabricCanvas.off("mouse:wheel", handleWheel);
-
-      try { fabricCanvas.off('object:removed', handleObjectRemoved); } catch (error) { console.warn('Event cleanup error:', error); }
-      try { fabricCanvas.off("object:moving"); } catch (error) { console.warn('Event cleanup error:', error); }
-      try { fabricCanvas.off("object:modified"); } catch (error) { console.warn('Event cleanup error:', error); }
-
-      window.removeEventListener("resize", handleResize);
-      document.removeEventListener("dragover", handleDocDragOver);
-      document.removeEventListener("drop", handleDocDrop);
-      if (wrapperEl) {
-        wrapperEl.removeEventListener("drop", handleCanvasDrop);
-      }
-      fabricCanvas.dispose();
-      fabricCanvasRef.current = null;
+      viewportRef.current?.destroy({ children: true });
+      pixiAppRef.current?.destroy(true);
     };
-  }, [mode, canvasData, handleFileAdd]);
+  }, []);
 
-  // --- IMAGE UPLOAD ---
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || !fabricCanvasRef.current) return;
+  // Create a unique ID
+  const generateId = () => `obj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    const center = getViewportCenter();
+  // Update object state
+  const updateObjectState = useCallback((id: string) => {
+    const obj = objectsMapRef.current.get(id);
+    if (!obj) return;
+    
+    setSceneState(prev => ({
+      ...prev,
+      objects: prev.objects.map(o => 
+        o.id === id ? {
+          ...o,
+          x: obj.x,
+          y: obj.y,
+          scaleX: obj.scale.x,
+          scaleY: obj.scale.y,
+          rotation: obj.rotation
+        } : o
+      )
+    }));
+  }, []);
 
-    Array.from(files).forEach((file, index) => {
-      const offset = index * 100;
-      handleFileAdd(file, center.x + offset, center.y + offset);
+// Add image to canvas
+  const addImage = useCallback(async (url: string) => {
+    if (!viewportRef.current) return;
+
+    const id = generateId();
+    const viewport = viewportRef.current;
+    
+    try {
+      // Create image element (works for both blob and regular URLs)
+      const img = document.createElement('img');
+      img.crossOrigin = 'anonymous';
+      
+      // Wait for image to load
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = reject;
+        img.src = url;
+      });
+      
+      // Create texture from image element
+      const texture = PIXI.Texture.from(img);
+      const sprite = new PIXI.Sprite(texture);
+      sprite.anchor.set(0.5);
+      
+      const container = new PIXI.Container();
+      container.addChild(sprite);
+      
+      // Position at viewport center
+      const worldPos = viewport.toWorld(viewport.screenWidth / 2, viewport.screenHeight / 2);
+      container.position.set(worldPos.x, worldPos.y);
+      
+      // Make interactive
+      container.eventMode = 'static';
+      container.cursor = 'pointer';
+      
+      // Scale to reasonable size
+      const maxSize = 300;
+      const scale = Math.min(maxSize / sprite.width, maxSize / sprite.height);
+      container.scale.set(scale);
+      
+      // Add to viewport first
+      viewport.addChild(container);
+      objectsMapRef.current.set(id, container);
+      
+      // Drag functionality
+      let dragging = false;
+      let dragStart = { x: 0, y: 0 };
+      
+      container.on('pointerdown', (e: any) => {
+        dragging = true;
+        const pos = e.data.getLocalPosition(container.parent);
+        dragStart = { x: pos.x - container.x, y: pos.y - container.y };
+        viewport.pause = true;
+        e.stopPropagation();
+      });
+      
+      container.on('pointermove', (e: any) => {
+        if (dragging) {
+          const pos = e.data.getLocalPosition(container.parent);
+          container.position.set(pos.x - dragStart.x, pos.y - dragStart.y);
+          e.stopPropagation();
+        }
+      });
+      
+      container.on('pointerup', () => {
+        if (dragging) {
+          dragging = false;
+          viewport.pause = false;
+          updateObjectState(id);
+        }
+      });
+      
+      container.on('pointerupoutside', () => {
+        if (dragging) {
+          dragging = false;
+          viewport.pause = false;
+          updateObjectState(id);
+        }
+      });
+      
+      setSceneState(prev => ({
+        ...prev,
+        objects: [...prev.objects, {
+          id,
+          type: 'image',
+          x: container.x,
+          y: container.y,
+          scaleX: container.scale.x,
+          scaleY: container.scale.y,
+          rotation: container.rotation,
+          source: url
+        }]
+      }));
+    } catch (error) {
+      console.error('Failed to load image:', error);
+    }
+  }, [updateObjectState]);
+
+  // Add video to canvas
+  const addVideo = useCallback(async (url: string) => {
+    if (!viewportRef.current) return;
+
+    const id = generateId();
+    const viewport = viewportRef.current;
+    
+    try {
+      // FIX: Setup Video Element thoroughly
+      const video = document.createElement('video');
+      video.src = url;
+      video.crossOrigin = 'anonymous';
+      video.loop = true;
+      video.muted = true; // Required for autoplay
+      video.playsInline = true; 
+      video.autoplay = true;
+
+      // Keep a reference so it doesn't get garbage collected
+      videoElementsRef.current.set(id, video);
+      
+      // Wait for 'canplay' instead of metadata to ensure a frame is ready
+      await new Promise<void>((resolve, reject) => {
+        video.oncanplay = () => resolve();
+        video.onerror = reject;
+        video.load(); // Force load
+      });
+
+      // Force play before creating texture
+      await video.play();
+      
+      // Create texture using the specific video source
+      const texture = PIXI.Texture.from(video);
+      const sprite = new PIXI.Sprite(texture);
+      sprite.anchor.set(0.5);
+      
+      const container = new PIXI.Container();
+      container.addChild(sprite);
+      
+      const worldPos = viewport.toWorld(viewport.screenWidth / 2, viewport.screenHeight / 2);
+      container.position.set(worldPos.x, worldPos.y);
+      
+      container.eventMode = 'static';
+      container.cursor = 'pointer';
+      
+      const maxSize = 400;
+      const scale = Math.min(maxSize / video.videoWidth, maxSize / video.videoHeight);
+      container.scale.set(scale);
+      
+      viewport.addChild(container);
+      objectsMapRef.current.set(id, container);
+      
+      // --- Drag Logic (Same as before) ---
+      let dragging = false;
+      let dragStart = { x: 0, y: 0 };
+      
+      container.on('pointerdown', (e: any) => {
+        dragging = true;
+        const pos = e.data.getLocalPosition(container.parent);
+        dragStart = { x: pos.x - container.x, y: pos.y - container.y };
+        viewport.pause = true;
+        e.stopPropagation();
+      });
+      
+      container.on('pointermove', (e: any) => {
+        if (dragging) {
+          const pos = e.data.getLocalPosition(container.parent);
+          container.position.set(pos.x - dragStart.x, pos.y - dragStart.y);
+          e.stopPropagation();
+        }
+      });
+      
+      container.on('pointerup', () => {
+        if (dragging) {
+          dragging = false;
+          viewport.pause = false;
+          updateObjectState(id);
+        }
+      });
+      
+      container.on('pointerupoutside', () => {
+        if (dragging) {
+          dragging = false;
+          viewport.pause = false;
+          updateObjectState(id);
+        }
+      });
+      
+      setSceneState(prev => ({
+        ...prev,
+        objects: [...prev.objects, {
+          id,
+          type: 'video',
+          x: container.x,
+          y: container.y,
+          scaleX: container.scale.x,
+          scaleY: container.scale.y,
+          rotation: container.rotation,
+          source: url
+        }]
+      }));
+    } catch (error) {
+      console.error('Failed to load video:', error);
+    }
+  }, [updateObjectState]);
+
+  // Add text to canvas
+  const addText = useCallback((initialText: string = 'Double-click to edit') => {
+    if (!viewportRef.current) return;
+
+    const id = generateId();
+    const viewport = viewportRef.current;
+    
+    const text = new PIXI.Text(initialText, {
+      fontFamily: 'Arial',
+      fontSize: 24,
+      fill: 0xffffff,
+      wordWrap: true,
+      wordWrapWidth: 300
     });
-
-    if (imageInputRef.current) imageInputRef.current.value = "";
-  };
-
-  // --- VIDEO UPLOAD ---
-  const handleVideoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || !fabricCanvasRef.current) return;
-
-    const center = getViewportCenter();
-
-    Array.from(files).forEach((file, index) => {
-      const offset = index * 100;
-      handleFileAdd(file, center.x + offset, center.y + offset);
+    
+    const container = new PIXI.Container();
+    container.addChild(text);
+    
+    text.anchor.set(0.5);
+    
+    const worldPos = viewport.toWorld(viewport.screenWidth / 2, viewport.screenHeight / 2);
+    container.position.set(worldPos.x, worldPos.y);
+    
+    // Make interactive (v7+ way)
+    container.eventMode = 'static';
+    container.cursor = 'pointer';
+    
+    // Drag and double-click functionality
+    let dragging = false;
+    let dragStart = { x: 0, y: 0 };
+    let pointerDownTime = 0;
+    let lastPointerUpTime = 0;
+    let hasMoved = false;
+    
+    container.on('pointerdown', (e: any) => {
+      pointerDownTime = Date.now();
+      hasMoved = false;
+      dragging = true;
+      const pos = e.data.getLocalPosition(container.parent);
+      dragStart = { x: pos.x - container.x, y: pos.y - container.y };
+      viewport.pause = true;
+      e.stopPropagation();
     });
-
-    if (videoInputRef.current) videoInputRef.current.value = "";
-  };
-
-  // --- ANY FILE UPLOAD ---
-  const handleAnyFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || !fabricCanvasRef.current) return;
-
-    const center = getViewportCenter();
-
-    Array.from(files).forEach((file, index) => {
-      const offset = index * 100;
-      handleFileAdd(file, center.x + offset, center.y + offset);
+    
+    container.on('pointermove', (e: any) => {
+      if (dragging) {
+        hasMoved = true;
+        const pos = e.data.getLocalPosition(container.parent);
+        container.position.set(pos.x - dragStart.x, pos.y - dragStart.y);
+        e.stopPropagation();
+      }
     });
-
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  // --- ADD TEXT BOX ---
-  const addTextBox = () => {
-    if (!fabricCanvasRef.current) return;
-    const canvas = fabricCanvasRef.current;
-
-    const center = getViewportCenter();
-
-    const text = new fabric.Textbox('Type here...', {
-      left: center.x,
-      top: center.y,
-      width: 300,
-      fontSize: 20,
-      padding: 10,
+    
+    container.on('pointerup', (e: any) => {
+      if (dragging) {
+        dragging = false;
+        viewport.pause = false;
+        
+        const currentTime = Date.now();
+        const timeSinceDown = currentTime - pointerDownTime;
+        const timeSinceLastUp = currentTime - lastPointerUpTime;
+        
+        // Check for double-click: quick tap, didn't move, and within 400ms of last click
+        if (!hasMoved && timeSinceDown < 250 && timeSinceLastUp < 400) {
+          const screenPos = viewport.toScreen(container.x, container.y);
+          setEditingText({
+            id,
+            x: screenPos.x,
+            y: screenPos.y,
+            text: text.text
+          });
+          lastPointerUpTime = 0; // Reset to prevent triple-click
+        } else {
+          lastPointerUpTime = currentTime;
+          if (hasMoved) {
+            updateObjectState(id);
+          }
+        }
+      }
     });
+    
+    container.on('pointerupoutside', () => {
+      if (dragging) {
+        dragging = false;
+        viewport.pause = false;
+        if (hasMoved) {
+          updateObjectState(id);
+        }
+      }
+    });
+    
+    viewport.addChild(container);
+    objectsMapRef.current.set(id, container);
+    
+    setSceneState(prev => ({
+      ...prev,
+      objects: [...prev.objects, {
+        id,
+        type: 'text',
+        x: container.x,
+        y: container.y,
+        scaleX: container.scale.x,
+        scaleY: container.scale.y,
+        rotation: container.rotation,
+        text: initialText
+      }]
+    }));
+  }, [updateObjectState]);
 
-    canvas.add(text);
-    canvas.setActiveObject(text);
-    canvas.requestRenderAll();
-  };
+  // Add file icon to canvas
+  const addFile = useCallback((filename: string) => {
+    if (!viewportRef.current) return;
 
-  // --- SAVE CANVAS ---
-  const handleSave = () => {
-    if (!fabricCanvasRef.current) return;
+    const id = generateId();
+    const viewport = viewportRef.current;
+    
+    const container = new PIXI.Container();
+    
+    // File icon background with shadow
+    const shadow = new PIXI.Graphics();
+    shadow.beginFill(0x000000, 0.2);
+    shadow.drawRoundedRect(4, 4, 160, 180, 10);
+    shadow.endFill();
+    
+    const bg = new PIXI.Graphics();
+    bg.beginFill(0x2d2d2d);
+    bg.lineStyle(2, 0x404040);
+    bg.drawRoundedRect(0, 0, 160, 180, 10);
+    bg.endFill();
+    
+    // File icon with folded corner
+    const fileIcon = new PIXI.Graphics();
+    fileIcon.beginFill(0x4a9eff);
+    fileIcon.drawRoundedRect(35, 20, 90, 100, 5);
+    fileIcon.endFill();
+    
+    // Folded corner
+    fileIcon.beginFill(0x3a7ecf);
+    fileIcon.moveTo(125, 20);
+    fileIcon.lineTo(105, 20);
+    fileIcon.lineTo(125, 40);
+    fileIcon.lineTo(125, 20);
+    fileIcon.endFill();
+    
+    // Document lines
+    const lines = new PIXI.Graphics();
+    lines.lineStyle(2, 0xffffff, 0.3);
+    for (let i = 0; i < 5; i++) {
+      lines.moveTo(45, 40 + i * 12);
+      lines.lineTo(115, 40 + i * 12);
+    }
+    
+    // File extension badge
+    const ext = filename.split('.').pop()?.toUpperCase() || 'FILE';
+    const extBadge = new PIXI.Graphics();
+    extBadge.beginFill(0xff6b6b);
+    extBadge.drawRoundedRect(50, 125, 60, 25, 5);
+    extBadge.endFill();
+    
+    const extText = new PIXI.Text(ext.substring(0, 4), {
+      fontFamily: 'Arial',
+      fontSize: 12,
+      fill: 0xffffff,
+      fontWeight: 'bold',
+      align: 'center'
+    });
+    extText.anchor.set(0.5);
+    extText.position.set(80, 137.5);
+    
+    // Filename text
+    const displayName = filename.length > 20 ? filename.substring(0, 17) + '...' : filename;
+    const nameText = new PIXI.Text(displayName, {
+      fontFamily: 'Arial',
+      fontSize: 13,
+      fill: 0xffffff,
+      align: 'center',
+      wordWrap: true,
+      wordWrapWidth: 150
+    });
+    nameText.anchor.set(0.5);
+    nameText.position.set(80, 162);
+    
+    container.addChild(shadow, bg, fileIcon, lines, extBadge, extText, nameText);
+    container.pivot.set(80, 90);
+    
+    const worldPos = viewport.toWorld(viewport.screenWidth / 2, viewport.screenHeight / 2);
+    container.position.set(worldPos.x, worldPos.y);
+    
+    // Make interactive (v7+ way)
+    container.eventMode = 'static';
+    container.cursor = 'pointer';
+    
+    // Drag functionality
+    let dragging = false;
+    let dragStart = { x: 0, y: 0 };
+    
+    container.on('pointerdown', (e: any) => {
+      dragging = true;
+      const pos = e.data.getLocalPosition(container.parent);
+      dragStart = { x: pos.x - container.x, y: pos.y - container.y };
+      viewport.pause = true;
+      e.stopPropagation();
+    });
+    
+    container.on('pointermove', (e: any) => {
+      if (dragging) {
+        const pos = e.data.getLocalPosition(container.parent);
+        container.position.set(pos.x - dragStart.x, pos.y - dragStart.y);
+        e.stopPropagation();
+      }
+    });
+    
+    container.on('pointerup', () => {
+      if (dragging) {
+        dragging = false;
+        viewport.pause = false;
+        updateObjectState(id);
+      }
+    });
+    
+    container.on('pointerupoutside', () => {
+      if (dragging) {
+        dragging = false;
+        viewport.pause = false;
+        updateObjectState(id);
+      }
+    });
+    
+    viewport.addChild(container);
+    objectsMapRef.current.set(id, container);
+    
+    setSceneState(prev => ({
+      ...prev,
+      objects: [...prev.objects, {
+        id,
+        type: 'file',
+        x: container.x,
+        y: container.y,
+        scaleX: container.scale.x,
+        scaleY: container.scale.y,
+        rotation: container.rotation,
+        filename
+      }]
+    }));
+  }, [updateObjectState]);
 
-    const canvas = fabricCanvasRef.current;
-    const json = canvas.toJSON();
-    const vpt = canvas.viewportTransform;
+  // Handle text editing
+  const handleTextEdit = useCallback((newText: string) => {
+    if (!editingText) return;
+    
+    const obj = objectsMapRef.current.get(editingText.id);
+    if (obj) {
+      const textObj = obj.children[0] as PIXI.Text;
+      textObj.text = newText;
+      
+      setSceneState(prev => ({
+        ...prev,
+        objects: prev.objects.map(o => 
+          o.id === editingText.id ? { ...o, text: newText } : o
+        )
+      }));
+    }
+    
+    setEditingText(null);
+  }, [editingText]);
 
-    const data: CanvasData = {
-      version: '1.0',
-      objects: json.objects,
-      background: json.background,
-      canvasWidth: canvas.getWidth(),
-      canvasHeight: canvas.getHeight(),
-      viewport: {
-        zoom: canvas.getZoom(),
-        pan: { x: vpt[4], y: vpt[5] },
-      },
-    };
+  // File upload handlers
+  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video' | 'file') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const url = URL.createObjectURL(file);
+    
+    if (type === 'image') {
+      addImage(url);
+    } else if (type === 'video') {
+      addVideo(url);
+    } else {
+      addFile(file.name);
+    }
+    
+    e.target.value = '';
+  }, [addImage, addVideo, addFile]);
 
-    setCanvasData(data);
-
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  // Save scene
+  const saveScene = useCallback(() => {
+    const json = JSON.stringify(sceneState, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `devlog_${Date.now()}.json`;
+    a.download = `canvas_scene_${Date.now()}.json`;
     a.click();
     URL.revokeObjectURL(url);
+  }, [sceneState]);
 
-    alert('Canvas saved! ✅');
-  };
-
-  // --- LOAD CANVAS ---
-  const handleLoad = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        try {
-          const data = JSON.parse(event.target?.result as string);
-          setCanvasData(data);
-          setMode('view');
-          setTimeout(() => setMode('edit'), 100);
-        } catch (err) {
-          console.error('Failed to load canvas file:', err);
-          alert('Failed to load canvas file!');
+  // Load scene
+  const loadScene = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const loaded: SceneState = JSON.parse(ev.target?.result as string);
+        
+        // Clear existing objects
+        objectsMapRef.current.forEach(obj => obj.destroy({ children: true }));
+        objectsMapRef.current.clear();
+        videoElementsRef.current.forEach(video => {
+          video.pause();
+          video.src = '';
+        });
+        videoElementsRef.current.clear();
+        
+        // Restore objects
+        loaded.objects.forEach(obj => {
+          if (obj.type === 'image' && obj.source) {
+            addImage(obj.source);
+          } else if (obj.type === 'video' && obj.source) {
+            addVideo(obj.source);
+          } else if (obj.type === 'text' && obj.text) {
+            addText(obj.text);
+          } else if (obj.type === 'file' && obj.filename) {
+            addFile(obj.filename);
+          }
+        });
+        
+        // Restore camera
+        if (viewportRef.current) {
+          viewportRef.current.moveCenter(loaded.cameraX, loaded.cameraY);
+          viewportRef.current.setZoom(loaded.cameraZoom);
         }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
-  };
-
-  // --- DELETE SELECTED ---
-  const deleteSelected = () => {
-    if (!fabricCanvasRef.current) return;
-    const canvas = fabricCanvasRef.current;
-    const active = canvas.getActiveObject();
-    if (active) {
-      const videoObj = active as VideoObject;
-      if (videoObj._stopAnimation) {
-        videoObj._stopAnimation();
+      } catch (err) {
+        console.error('Failed to load scene:', err);
       }
-      canvas.remove(active);
-      canvas.requestRenderAll();
-    }
-  };
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }, [addImage, addVideo, addText, addFile]);
 
-  // --- CLEAR CANVAS ---
-  const clearCanvas = () => {
-    if (!fabricCanvasRef.current) return;
-    if (window.confirm('Clear entire canvas?')) {
-      fabricCanvasRef.current.getObjects().forEach(obj => {
-        const videoObj = obj as VideoObject;
-        if (videoObj._stopAnimation) {
-          videoObj._stopAnimation();
-        }
-      });
-      fabricCanvasRef.current.clear();
-      fabricCanvasRef.current.backgroundColor = "#f0f0f0";
-      fabricCanvasRef.current.requestRenderAll();
-    }
+  // Camera controls
+  const zoomIn = () => viewportRef.current?.zoom(1.2, true);
+  const zoomOut = () => viewportRef.current?.zoom(0.8, true);
+  const resetView = () => {
+    viewportRef.current?.moveCenter(0, 0);
+    viewportRef.current?.setZoom(1);
   };
 
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
-      <canvas ref={canvasElementRef} />
-
-      <input
-        ref={imageInputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        style={{ display: 'none' }}
-        onChange={handleImageUpload}
-      />
-      <input
-        ref={videoInputRef}
-        type="file"
-        accept="video/*"
-        multiple
-        style={{ display: 'none' }}
-        onChange={handleVideoUpload}
-      />
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        style={{ display: 'none' }}
-        onChange={handleAnyFileUpload}
-      />
-
-      <div style={{
-        position: 'absolute',
-        top: 10,
-        left: 10,
-        background: 'rgba(255,255,255,0.95)',
-        padding: '12px',
-        borderRadius: 8,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-        display: 'flex',
-        gap: '8px',
-        flexWrap: 'wrap',
-        maxWidth: '90vw',
-      }}>
-        {mode === 'edit' ? (
-          <>
-            <button onClick={addTextBox} style={buttonStyle}>📝 Add Text</button>
-            <button onClick={() => imageInputRef.current?.click()} style={buttonStyle}>
-              🖼️ Add Image
-            </button>
-            <button onClick={() => videoInputRef.current?.click()} style={buttonStyle}>
-              🎥 Add Video
-            </button>
-            <button onClick={() => fileInputRef.current?.click()} style={buttonStyle}>
-              📁 Add Any File
-            </button>
-            <button onClick={deleteSelected} style={{...buttonStyle, background: '#ff4444', color: 'white'}}>
-              🗑️ Delete
-            </button>
-            <button onClick={clearCanvas} style={{...buttonStyle, background: '#ff6666', color: 'white'}}>
-              Clear All
-            </button>
-            <button onClick={handleSave} style={{...buttonStyle, background: '#4CAF50', color: 'white'}}>
-              💾 Save
-            </button>
-            <button onClick={handleLoad} style={{...buttonStyle, background: '#2196F3', color: 'white'}}>
-              📂 Load
-            </button>
-          </>
-        ) : (
-          <button onClick={() => setMode('edit')} style={{...buttonStyle, background: '#FF9800', color: 'white'}}>
-            ✏️ Edit Mode
-          </button>
-        )}
+    <div className="relative w-full h-screen overflow-hidden bg-gray-900">
+      {/* Canvas Container */}
+      <div ref={canvasRef} className="absolute inset-0" />
+      
+      {/* Toolbar */}
+      <div className="absolute top-4 left-4 flex gap-2 bg-gray-800 p-2 rounded-lg shadow-lg">
+        <label className="cursor-pointer p-2 bg-blue-600 hover:bg-blue-700 rounded transition" title="Add Image">
+          <Image size={20} className="text-white" />
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => handleFileUpload(e, 'image')}
+          />
+        </label>
+        
+        <label className="cursor-pointer p-2 bg-purple-600 hover:bg-purple-700 rounded transition" title="Add Video">
+          <Video size={20} className="text-white" />
+          <input
+            type="file"
+            accept="video/*"
+            className="hidden"
+            onChange={(e) => handleFileUpload(e, 'video')}
+          />
+        </label>
+        
+        <button
+          onClick={() => addText()}
+          className="p-2 bg-green-600 hover:bg-green-700 rounded transition"
+          title="Add Text"
+        >
+          <Type size={20} className="text-white" />
+        </button>
+        
+        <label className="cursor-pointer p-2 bg-yellow-600 hover:bg-yellow-700 rounded transition" title="Add File">
+          <File size={20} className="text-white" />
+          <input
+            type="file"
+            className="hidden"
+            onChange={(e) => handleFileUpload(e, 'file')}
+          />
+        </label>
+        
+        <div className="w-px bg-gray-600 mx-1" />
+        
+        <button
+          onClick={saveScene}
+          className="p-2 bg-gray-600 hover:bg-gray-700 rounded transition"
+          title="Save Scene"
+        >
+          <Save size={20} className="text-white" />
+        </button>
+        
+        <label className="cursor-pointer p-2 bg-gray-600 hover:bg-gray-700 rounded transition" title="Load Scene">
+          <FolderOpen size={20} className="text-white" />
+          <input
+            type="file"
+            accept=".json"
+            className="hidden"
+            onChange={loadScene}
+          />
+        </label>
       </div>
-
-      <div style={{
-        position: 'absolute',
-        top: 10,
-        right: 10,
-        background: 'rgba(0,0,0,0.7)',
-        color: 'white',
-        padding: '8px 12px',
-        borderRadius: 4,
-        fontSize: 12,
-        fontFamily: 'monospace'
-      }}>
-        {mode === 'view' ? '👁️ VIEW' : '✏️ EDIT'} | Zoom: {(zoom * 100).toFixed(0)}%
+      
+      {/* Camera Controls */}
+      <div className="absolute top-4 right-4 flex flex-col gap-2 bg-gray-800 p-2 rounded-lg shadow-lg">
+        <button
+          onClick={zoomIn}
+          className="p-2 bg-gray-600 hover:bg-gray-700 rounded transition"
+          title="Zoom In"
+        >
+          <ZoomIn size={20} className="text-white" />
+        </button>
+        
+        <button
+          onClick={zoomOut}
+          className="p-2 bg-gray-600 hover:bg-gray-700 rounded transition"
+          title="Zoom Out"
+        >
+          <ZoomOut size={20} className="text-white" />
+        </button>
+        
+        <button
+          onClick={resetView}
+          className="p-2 bg-gray-600 hover:bg-gray-700 rounded transition"
+          title="Reset View"
+        >
+          <Maximize2 size={20} className="text-white" />
+        </button>
       </div>
-
-      <div style={{
-        position: 'absolute',
-        bottom: 10,
-        left: 10,
-        background: 'rgba(0,0,0,0.7)',
-        color: 'white',
-        padding: '8px 12px',
-        borderRadius: 4,
-        fontSize: 11,
-        maxWidth: '400px',
-      }}>
-        {mode === 'edit' ? (
-          <>
-            🖱️ <strong>Drag & Drop</strong> any file anywhere<br/>
-            🖼️ <strong>Images/Videos</strong> display directly on canvas<br/>
-            📄 <strong>PDFs/Docs/EXE</strong> show as file cards<br/>
-            ⌨️ <strong>Alt+Drag</strong> to pan | 🔍 <strong>Scroll</strong> to zoom<br/>
-            ↔️ <strong>Drag corners</strong> to resize | 🔄 <strong>Rotate</strong> with handle
-          </>
-        ) : (
-          <>
-            👁️ Viewing saved canvas | Alt+Drag to pan | Scroll to zoom
-          </>
-        )}
+      
+      {/* Status Bar */}
+      <div className="absolute bottom-4 left-4 bg-gray-800 px-4 py-2 rounded-lg shadow-lg text-white text-sm">
+        Objects: {sceneState.objects.length} | 
+        X: {Math.round(sceneState.cameraX)} | 
+        Y: {Math.round(sceneState.cameraY)} | 
+        Zoom: {(sceneState.cameraZoom * 100).toFixed(0)}%
       </div>
+      
+      {/* Instructions */}
+      <div className="absolute bottom-4 right-4 bg-gray-800 px-4 py-2 rounded-lg shadow-lg text-gray-300 text-xs max-w-xs">
+        <div className="font-semibold mb-1">Controls:</div>
+        <div>• Drag objects to move them</div>
+        <div>• Double-click text to edit</div>
+        <div>• Scroll to zoom, drag empty space to pan</div>
+      </div>
+      
+      {/* Text Editing Overlay */}
+      {editingText && (
+        <div
+          className="absolute z-50"
+          style={{
+            left: editingText.x - 150,
+            top: editingText.y - 40
+          }}
+        >
+          <textarea
+            autoFocus
+            defaultValue={editingText.text}
+            onBlur={(e) => handleTextEdit(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleTextEdit(e.currentTarget.value);
+              } else if (e.key === 'Escape') {
+                setEditingText(null);
+              }
+            }}
+            className="w-80 min-h-16 p-3 bg-white border-2 border-blue-500 rounded-lg shadow-xl text-black resize-none focus:outline-none focus:border-blue-600"
+            placeholder="Enter text..."
+          />
+          <div className="text-xs text-gray-400 mt-1 text-center bg-gray-800 p-1 rounded">
+            Press Enter to save • Shift+Enter for new line • Esc to cancel
+          </div>
+        </div>
+      )}
     </div>
   );
-};
-
-const buttonStyle: React.CSSProperties = {
-  padding: '8px 12px',
-  border: 'none',
-  borderRadius: 4,
-  cursor: 'pointer',
-  fontSize: 12,
-  background: '#f0f0f0',
-  transition: 'all 0.2s',
-  whiteSpace: 'nowrap',
 };
 
 export default InfiniteCanvas;
