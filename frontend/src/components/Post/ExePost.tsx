@@ -15,6 +15,7 @@ const ExePost: React.FC<ExePostProps> = ({
   createdAt,
   comments = 0,
   _id,
+  avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
 }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +25,7 @@ const ExePost: React.FC<ExePostProps> = ({
   const { likesCount, isLiked, handleLike } = useLikes(_id, BACKEND_URL);
   const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
   let viewStartTime = useRef<number | null>(null);
+  console.log("user", user);
   const handleGameStream = async () => {
     setLoading(true);
     setError(null);
@@ -127,23 +129,43 @@ const ExePost: React.FC<ExePostProps> = ({
   return (
     <article
       ref={postRef}
-      className="relative bg-white w-full border border-gray-200
-  dark:border-gray-600 dark:bg-black shadow-sm 
-  overflow-hidden transition-all duration-300 hover:shadow-md"
+      className="
+    relative w-full 
+    border border-gray-200 dark:border-gray-700
+    bg-white dark:bg-black
+    hover:bg-[#F7F9F9] dark:hover:bg-[#16181C]
+    transition-colors duration-200
+    cursor-pointer
+  "
     >
+      <div className="flex gap-3 p-4">
+
+        {/* LEFT COLUMN — Avatar stays here */}
+        <img
+          src={avatarUrl}
+          alt={user.username}
+          className="h-10 w-10 rounded-full object-cover mt-1"
+        />
+
+        {/* RIGHT COLUMN — Header + content */}
+        <div className="flex flex-col flex-1 min-w-0">
 
 
-      <div ref={postRef} className="p-4">
-        <PostHeader username={user.username} timestamp={timestamp} />
+          {/* Username + Date + Menu + Price */}
+          <PostHeader
+            username={user.username}
+            timestamp={timestamp}
+          />
 
-        {description && (
-          <div className="mb-4">
-            <p className="text-gray-800 dark:text-gray-200">{description}</p>
-          </div>
-        )}
-        {/* 3D model division */}
-        <div className="flex justify-center relative overflow-hidden w-full h-[400px] rounded-xl">
-          <div className="w-full h-full flex items-center justify-center">
+          {/* DESCRIPTION */}
+          {description && (
+            <p className="text-gray-800 dark:text-gray-200 mt-2 mb-4">
+              {description}
+            </p>
+          )}
+
+          {/* 3D MODEL */}
+          <div className="flex justify-center relative overflow-hidden w-full h-[400px] rounded-xl">
             {/* @ts-ignore */}
             <model-viewer
               src="/models/free_1972_datsun_240k_gt.glb"
@@ -153,42 +175,23 @@ const ExePost: React.FC<ExePostProps> = ({
               style={{ width: "600px", height: "400px" }}
             />
           </div>
-        </div>
-        {/* Game preview / play button */}
-        {/* <div className="flex justify-center relative overflow-hidden w-full bg-gray-100 dark:bg-gray-700 h-[400px] rounded-xl">
-          <div className="flex flex-col items-center justify-center h-full space-y-4">
-            <button
-              onClick={handleGameStream}
-              disabled={loading}
-              className="px-6 py-3 bg-black text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-all"
-            >
-              {loading ? "Loading..." : "Play Game"}
-            </button>
-            {error && <p className="text-red-500 mt-2">{error}</p>}
-          </div>
-        </div> */}
+          {/* Post Interactions */}
+          <PostInteractions
+            likes={likesCount}
+            comments={comments}
+            isLiked={isLiked}
+            onLike={handleLike}
+            isWishlisted={isWishlisted}
+            onWishlist={handleWishlist}
+            onCommentToggle={() => setShowComments(!showComments)} // ✅ toggle
+          />
 
-        {/* <div className="w-[40%] p-4 pl-6 flex flex-col justify-center">
-          <h2 className="text-2xl font-bold mb-4 text-gray-800 dark:text-gray-200">Game Details</h2>
-          <p className="text-gray-600 dark:text-gray-300 mb-2">
-            <span className="font-semibold">URL:</span> {gameUrl}
-          </p>
-        </div> */}
+          {/* Comment Section (shown only if showComments is true) */}
+          {showComments && <CommentSection postId={_id} BACKEND_URL={BACKEND_URL} />}
+        </div>
+
       </div>
 
-      {/* Post Interactions */}
-      <PostInteractions
-        likes={likesCount}
-        comments={comments}
-        isLiked={isLiked}
-        onLike={handleLike}
-        isWishlisted={isWishlisted}
-        onWishlist={handleWishlist}
-        onCommentToggle={() => setShowComments(!showComments)} // ✅ toggle
-      />
-
-      {/* Comment Section (shown only if showComments is true) */}
-      {showComments && <CommentSection postId={_id} BACKEND_URL={BACKEND_URL} />}
     </article>
   );
 };

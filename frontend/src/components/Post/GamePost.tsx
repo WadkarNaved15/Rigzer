@@ -15,7 +15,8 @@ const GamePost: React.FC<GamePostProps> = ({
   gameUrl,
   createdAt,
   comments = 0,
-  _id
+  _id,
+  avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
 }) => {
   const timestamp = useMemo(() => new Date(createdAt).toLocaleString(), [createdAt]);
   const postRef = useRef(null);
@@ -97,34 +98,70 @@ const GamePost: React.FC<GamePostProps> = ({
   return (
     <article
       ref={postRef}
-      className="relative bg-white w-full border border-gray-200
-  dark:border-gray-600 dark:bg-black shadow-sm 
-  overflow-hidden transition-all duration-300 hover:shadow-md"
+      className="
+    relative w-full 
+    border border-gray-200 dark:border-gray-700
+    bg-white dark:bg-black
+    hover:bg-[#F7F9F9] dark:hover:bg-[#16181C]
+    transition-colors duration-200
+    cursor-pointer
+  "
     >
-      <div className="p-4">
-        <PostHeader username={user.username} timestamp={timestamp} />
+      <div className="flex gap-3 p-4">
 
-        {description && (
-          <p className="mb-4 text-gray-800 dark:text-gray-200">{description}</p>
-        )}
+        {/* LEFT COLUMN — Avatar stays here */}
+        <img
+          src={avatarUrl}
+          alt={user.username}
+          className="h-10 w-10 rounded-full object-cover mt-1"
+        />
 
-        <div className="relative overflow-hidden bg-gray-100 dark:bg-gray-700 h-[400px] rounded-xl">
-          <div className="flex flex-col items-center justify-center h-full space-y-4">
-            <Link to='/stream'><button
-              onClick={handleStartGame}
-              // disabled={!gameUrl}
-              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-all"
-            >
-              {/* {gameUrl ? 'Start Game' : 'Game Not Available'} */} Start Game
-            </button></Link>
+        {/* RIGHT COLUMN — Header + content */}
+        <div className="flex flex-col flex-1 min-w-0">
+
+
+          {/* Username + Date + Menu + Price */}
+          <PostHeader
+            username={user.username}
+            timestamp={timestamp}
+          />
+
+          {/* DESCRIPTION */}
+          {description && (
+            <p className="text-gray-800 dark:text-gray-200 mt-2 mb-4">
+              {description}
+            </p>
+          )}
+
+          {/* Game Preview */}
+          <div className="relative overflow-hidden bg-gray-100 dark:bg-gray-700 h-[400px] rounded-xl">
+            <div className="flex flex-col items-center justify-center h-full space-y-4">
+              <Link to='/stream'><button
+                onClick={handleStartGame}
+                // disabled={!gameUrl}
+                className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-all"
+              >
+                {/* {gameUrl ? 'Start Game' : 'Game Not Available'} */} Start Game
+              </button></Link>
+            </div>
           </div>
+          {/* Post Interactions */}
+          <PostInteractions
+            likes={likesCount}
+            comments={comments}
+            isLiked={isLiked}
+            onLike={handleLike}
+            isWishlisted={isWishlisted}
+            onWishlist={handleWishlist}
+            onCommentToggle={() => setShowComments(!showComments)} // ✅ toggle
+          />
+
+          {/* Comment Section (shown only if showComments is true) */}
+          {showComments && <CommentSection postId={_id} BACKEND_URL={BACKEND_URL} />}
         </div>
 
-        <PostInteractions likes={likesCount} comments={comments} isLiked={isLiked} onLike={handleLike} isWishlisted={isWishlisted}
-          onWishlist={handleWishlist} onCommentToggle={() => setShowComments(!showComments)} />
       </div>
-      {/* Comment Section (shown only if showComments is true) */}
-      {showComments && <CommentSection postId={_id} BACKEND_URL={BACKEND_URL} />}
+
     </article>
   );
 };
