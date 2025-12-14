@@ -29,7 +29,7 @@ const PostDetail = ({ post, onClose }: { post: PostProps; onClose: () => void })
           dark:bg-black dark:text-white
           border-gray-200 dark:border-gray-800
           "
-          >
+        >
           <h1 className="text-lg font-semibold tracking-tight">
             Asset Preview
           </h1>
@@ -90,7 +90,7 @@ const PostDetail = ({ post, onClose }: { post: PostProps; onClose: () => void })
 
                 {/* @ts-ignore */}
                 <model-viewer
-                  src="/models/free_1972_datsun_240k_gt.glb"
+                  src="/models/2016_rezvani_beast_x.glb"
                   alt="3D model"
                   auto-rotate
                   camera-controls
@@ -102,6 +102,7 @@ const PostDetail = ({ post, onClose }: { post: PostProps; onClose: () => void })
                     backgroundColor: "transparent",
                   }}
                 />
+
 
               </div>
             </main>
