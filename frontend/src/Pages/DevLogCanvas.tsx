@@ -112,14 +112,24 @@ const updateSelectionGizmo = useCallback(() => {
       let startState = { scale: { x: 0, y: 0 }, rotation: 0 };
       let dragging = false;
 
-      handle.on('pointerdown', (e) => {
-        e.stopPropagation();
-        dragging = true;
-        viewportRef.current!.pause = true; // Disable viewport drag
-        const pos = e.data.getLocalPosition(selectionLayerRef.current!.parent);
-        startMouse = { x: pos.x, y: pos.y };
-        startState = { scale: { x: target.scale.x, y: target.scale.y }, rotation: target.rotation };
-      });
+     handle.on('pointerdown', (e) => {
+  e.stopPropagation();
+  dragging = true;
+
+  const viewport = viewportRef.current;
+  if (!viewport) return;
+
+  viewport.pause = true; // Disable viewport drag
+
+  const pos = e.data.getLocalPosition(viewport);
+  startMouse = { x: pos.x, y: pos.y };
+
+  startState = {
+    scale: { x: target.scale.x, y: target.scale.y },
+    rotation: target.rotation,
+  };
+});
+
 
       const onMove = (e: any) => {
         if (!dragging) return;
