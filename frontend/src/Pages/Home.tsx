@@ -28,6 +28,7 @@ const AddPost = lazy(() => import("../components/Home/AddPost"));
 const Music = lazy(() => import("../components/Music"));
 const PostModal = lazy(() => import("../components/Home/NewPost"));
 const MessagingComponent = lazy(() => import("../components/Home/Message"));
+const PostDetails = lazy(() => import("../Pages/PostDetail"));
 const Profile = lazy(() => import("../components/Profile/NewProfile"));
 
 function Home() {
@@ -51,6 +52,8 @@ function Home() {
   // Search feed state
   const [filteredPosts, setFilteredPosts] = useState<PostProps[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [postDetailsOpen, setPostDetailsOpen] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<PostProps | null>(null);
 
   const {
     submittedQuery,
@@ -190,15 +193,27 @@ function Home() {
 
           {/* Center + Right */}
           {isUploading ? (
-            <div className="lg:col-span-10 flex flex-col items-center justify-start min-h-[80vh] w-full">
+            <div className="lg:col-span-10 flex justify-center min-h-[80vh] w-full">
               <Suspense fallback={null}>
                 <PostModal onCancel={() => setIsUploading(false)} />
               </Suspense>
             </div>
           ) : profileOpen ? (
-            <div className="lg:col-span-10 flex flex-col items-center justify-start min-h-[80vh] w-full">
+            <div className="lg:col-span-10 flex justify-center min-h-[80vh] w-full">
               <Suspense fallback={null}>
                 <Profile setProfileOpen={setProfileOpen} />
+              </Suspense>
+            </div>
+          ) : postDetailsOpen && selectedPost ? (
+            <div className="lg:col-span-10 min-h-[80vh] w-full">
+              <Suspense fallback={null}>
+                <PostDetails
+                  post={selectedPost}
+                  onClose={() => {
+                    setPostDetailsOpen(false);
+                    setSelectedPost(null);
+                  }}
+                />
               </Suspense>
             </div>
           ) : (
@@ -225,7 +240,13 @@ function Home() {
                       </div>
                     )}
                     {filteredPosts.map((post) => (
-                      <Post key={post._id} {...post} />
+                      <Post key={post._id}
+                        {...post}
+                        onOpenDetails={() => {
+                          setSelectedPost(post);
+                          setPostDetailsOpen(true);
+                        }}
+                      />
                     ))}
                   </div>
                 ) : (
@@ -233,7 +254,12 @@ function Home() {
                     {mainPosts.length > 0 && (
                       <div className="w-full mt-4 flex flex-col">
                         {mainPosts.map((post) => (
-                          <Post key={post._id} {...post} />
+                          <Post key={post._id}
+                            {...post}
+                            onOpenDetails={() => {
+                              setSelectedPost(post);
+                              setPostDetailsOpen(true);
+                            }} />
                         ))}
                       </div>
                     )}

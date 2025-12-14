@@ -7,12 +7,14 @@ import CommentSection from "./CommentSection";
 import "@google/model-viewer";
 import type { ExePostProps } from "../../types/Post";
 import axios from "axios";
-
+import { useNavigate, useLocation } from "react-router-dom";
 const ExePost: React.FC<ExePostProps> = ({
   user,
   description,
   gameUrl,
+  onOpenDetails,
   createdAt,
+  detailed = false,
   comments = 0,
   _id,
   avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
@@ -24,6 +26,8 @@ const ExePost: React.FC<ExePostProps> = ({
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const { likesCount, isLiked, handleLike } = useLikes(_id, BACKEND_URL);
   const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
+  const navigate = useNavigate();
+  const location = useLocation();
   let viewStartTime = useRef<number | null>(null);
   console.log("user", user);
   const handleGameStream = async () => {
@@ -106,6 +110,10 @@ const ExePost: React.FC<ExePostProps> = ({
       console.error("Failed to update view", err);
     }
   };
+  // Auto show comments in detail view 
+  useEffect(() => {
+    if (detailed) setShowComments(true);
+  }, [detailed]);
 
   // Detect when post becomes visible
   useEffect(() => {
@@ -127,9 +135,19 @@ const ExePost: React.FC<ExePostProps> = ({
     return () => observer.disconnect();
   }, []);
   return (
-    <article
-      ref={postRef}
-      className="
+  //   
+  <article
+  ref={postRef}
+  onClick={(e) => {
+    if (detailed) return;
+
+    // prevent interaction clicks
+    if ((e.target as HTMLElement).closest("button")) return;
+
+    // 🔥 OPEN DETAILS IN HOME (NO ROUTING)
+    onOpenDetails?.();
+  }}
+  className="
     relative w-full 
     border border-gray-200 dark:border-gray-700
     bg-white dark:bg-black
@@ -137,7 +155,8 @@ const ExePost: React.FC<ExePostProps> = ({
     transition-colors duration-200
     cursor-pointer
   "
-    >
+>
+
       <div className="flex gap-3 p-4">
 
         {/* LEFT COLUMN — Avatar stays here */}
