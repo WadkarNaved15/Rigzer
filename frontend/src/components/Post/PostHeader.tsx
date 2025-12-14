@@ -72,8 +72,8 @@ const PostHeader: React.FC<PostHeaderProps> = ({
           <button
             className="
               p-2 rounded-full transition-all duration-200 
-              hover:bg-[#5799EF]/20 
-              dark:text-gray-400 hover:text-black dark:hover:text-white
+              dark:text-gray-400 
+              hover:text-black dark:hover:text-white
             "
             onClick={toggleMenu}
             aria-label="More options"

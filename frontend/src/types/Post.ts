@@ -17,9 +17,11 @@ interface CommonPostFields {
   avatarUrl?: string;
   description: string;
   media: string[];
+  onOpenDetails?: () => void;
   createdAt: string;
   updatedAt: string;
   likes?: number;
+  detailed?: boolean;
   comments?: number;
 }
 
