@@ -1,11 +1,11 @@
 import { useNavigate } from "react-router-dom";
-import { X } from "lucide-react";
+import { X, UserPlus, UserCheck } from "lucide-react";
 import { PostProps } from "../types/Post";
+
 import "@google/model-viewer";
 
 const PostDetail = ({ post, onClose }: { post: PostProps; onClose: () => void }) => {
   const navigate = useNavigate();
-
   return (
     <div className="w-full h-full flex justify-center">
       <div
@@ -19,34 +19,67 @@ const PostDetail = ({ post, onClose }: { post: PostProps; onClose: () => void })
 
 
         {/* HEADER */}
+
         <div
           className="
-          sticky top-0 z-30
-          flex items-center justify-between
-          px-6 py-4
-          border-b
-          bg-white text-black
-          dark:bg-black dark:text-white
-          border-gray-200 dark:border-gray-800
-          "
+    sticky top-0 z-30
+    w-full
+    border-b
+    bg-white text-black
+    dark:bg-black dark:text-white
+    border-gray-200 dark:border-gray-800
+    px-6 py-4
+  "
         >
-          <h1 className="text-lg font-semibold tracking-tight">
-            Asset Preview
-          </h1>
+          <div className="flex items-center justify-between w-full">
 
-          <button
-            onClick={onClose}
-            className="
-      p-2 rounded-full
-      hover:bg-black/5
-      dark:hover:bg-white/10
-      transition
-    "
-            aria-label="Close"
-          >
-            <X className="w-5 h-5" />
-          </button>
+            {/* LEFT: Username + Date */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className="h-10 w-10 rounded-full overflow-hidden flex-shrink-0">
+                  <img
+                    src={
+                      post.user.avatarUrl ??
+                      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+                    }
+                    alt={post.user.username}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+
+
+                <h3 className="font-semibold text-gray-900 dark:text-white">
+                  {post.user.username}
+                </h3>
+                <button
+                  className="p-1 rounded-full transition-colors duration-150 hover:bg-gray-200 dark:hover:bg-gray-700"
+                >
+                  <UserPlus className="w-4 h-4 text-blue-500" />
+                </button>
+              </div>
+            </div>
+
+            {/* RIGHT: Price + Close */}
+            <div className="flex items-center gap-2">
+              {/* CLOSE BUTTON */}
+              <button
+                onClick={onClose}
+                className="
+          p-2 rounded-full
+          transition-all duration-200
+          text-gray-500
+          hover:text-black dark:hover:text-white
+          hover:bg-black/5 dark:hover:bg-white/10
+        "
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+
+            </div>
+          </div>
         </div>
+
 
 
         {/* MAIN HORIZONTAL LAYOUT */}
