@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as PIXI from 'pixi.js';
 import { Viewport } from 'pixi-viewport';
-import { Image, Video, Type, File, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { Image, Video, Type, File, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2,Trash2 } from 'lucide-react';
 
 // Types
 interface CanvasObject {
@@ -31,6 +31,13 @@ const InfiniteCanvas: React.FC = () => {
   const viewportRef = useRef<Viewport | null>(null);
   const objectsMapRef = useRef<Map<string, PIXI.Container>>(new Map());
   const videoElementsRef = useRef<Map<string, HTMLVideoElement>>(new Map());
+
+  // Selection Refs & State
+  const selectionLayerRef = useRef<PIXI.Container | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+    // Add these constants before the component definition
+  const SELECTION_COLOR = 0x3b82f6; // Blue
+  const HANDLE_COLOR = 0xffffff;
   
   const [sceneState, setSceneState] = useState<SceneState>({
     objects: [],
@@ -45,6 +52,222 @@ const InfiniteCanvas: React.FC = () => {
     y: number;
     text: string;
   } | null>(null);
+
+
+const updateSelectionGizmo = useCallback(() => {
+    if (!selectionLayerRef.current || !objectsMapRef.current) return;
+    
+    // Clear previous selection UI
+    selectionLayerRef.current.removeChildren();
+    
+    if (!selectedId) return;
+    
+    const target = objectsMapRef.current.get(selectedId);
+    if (!target) return;
+
+    // Get bounds of the target content
+    const content = target.children[0] as PIXI.Container;
+    const bounds = content.getLocalBounds();
+    
+    // Create a container for the gizmo that matches target transforms
+    const gizmo = new PIXI.Container();
+    gizmo.position.copyFrom(target.position);
+    gizmo.rotation = target.rotation;
+    gizmo.scale.copyFrom(target.scale);
+    
+    // Draw Border
+    const border = new PIXI.Graphics();
+    border.lineStyle(2 / target.scale.x, SELECTION_COLOR);
+    border.drawRect(bounds.x, bounds.y, bounds.width, bounds.height);
+    gizmo.addChild(border);
+
+    // Helper to create interactive handles
+    const createHandle = (x: number, y: number, cursor: string, type: 'resize' | 'rotate') => {
+      const handle = new PIXI.Graphics();
+      const size = 12 / target.scale.x; // Keep handle size consistent visually
+      
+      handle.eventMode = 'static';
+      handle.cursor = cursor;
+      
+      handle.beginFill(type === 'resize' ? HANDLE_COLOR : SELECTION_COLOR);
+      handle.lineStyle(1 / target.scale.x, SELECTION_COLOR);
+      
+      if (type === 'rotate') {
+        handle.drawCircle(0, 0, size);
+        // Stick connecting to box
+        const stick = new PIXI.Graphics();
+        stick.lineStyle(1 / target.scale.x, SELECTION_COLOR);
+        stick.moveTo(0, 0);
+        stick.lineTo(0, (bounds.y - 30) - bounds.y); 
+        handle.addChild(stick);
+      } else {
+        handle.drawRect(-size/2, -size/2, size, size);
+      }
+      
+      handle.endFill();
+      handle.position.set(x, y);
+
+      // Interaction Logic for Handles
+      let startMouse = { x: 0, y: 0 };
+      let startState = { scale: { x: 0, y: 0 }, rotation: 0 };
+      let dragging = false;
+
+      handle.on('pointerdown', (e) => {
+        e.stopPropagation();
+        dragging = true;
+        viewportRef.current!.pause = true; // Disable viewport drag
+        const pos = e.data.getLocalPosition(selectionLayerRef.current!.parent);
+        startMouse = { x: pos.x, y: pos.y };
+        startState = { scale: { x: target.scale.x, y: target.scale.y }, rotation: target.rotation };
+      });
+
+      const onMove = (e: any) => {
+        if (!dragging) return;
+        const pos = e.data.getLocalPosition(selectionLayerRef.current!.parent);
+        
+        if (type === 'resize') {
+            const dx = pos.x - startMouse.x;
+            // Determine direction based on handle position relative to center
+            const directionX = x < (bounds.x + bounds.width/2) ? -1 : 1;
+            
+            // Simple uniform scaling calculation
+            const scaleChange = dx * 0.01 * directionX; 
+            const newScale = Math.max(0.1, startState.scale.x + scaleChange);
+            
+            target.scale.set(newScale);
+            gizmo.scale.set(newScale);
+        } else {
+            // Rotation
+            const currentAngle = Math.atan2(pos.y - target.y, pos.x - target.x);
+            const startAngle = Math.atan2(startMouse.y - target.y, startMouse.x - target.x);
+            
+            target.rotation = startState.rotation + (currentAngle - startAngle);
+            gizmo.rotation = target.rotation;
+        }
+        updateObjectState(selectedId);
+      };
+
+      const onUp = () => {
+        if(dragging) {
+            dragging = false;
+            viewportRef.current!.pause = false;
+            updateSelectionGizmo(); // Refresh line widths
+        }
+      };
+
+      // Listen on viewport to catch moves even if mouse goes off handle
+      viewportRef.current!.on('pointermove', onMove);
+      viewportRef.current!.on('pointerup', onUp);
+      viewportRef.current!.on('pointerupoutside', onUp);
+
+      return handle;
+    };
+
+    // Add 4 Corner Handles (Resize)
+    gizmo.addChild(createHandle(bounds.x, bounds.y, 'nw-resize', 'resize')); // TL
+    gizmo.addChild(createHandle(bounds.x + bounds.width, bounds.y, 'ne-resize', 'resize')); // TR
+    gizmo.addChild(createHandle(bounds.x, bounds.y + bounds.height, 'sw-resize', 'resize')); // BL
+    gizmo.addChild(createHandle(bounds.x + bounds.width, bounds.y + bounds.height, 'se-resize', 'resize')); // BR
+    
+    // Add Rotation Handle (Top Center)
+    gizmo.addChild(createHandle(bounds.x + bounds.width / 2, bounds.y - 40, 'grab', 'rotate'));
+
+    selectionLayerRef.current.addChild(gizmo);
+
+  }, [selectedId]); // Will be defined below
+
+
+  // --- 2. Deletion Logic ---
+  const deleteSelectedObject = useCallback(() => {
+    if (!selectedId) return;
+    
+    const obj = objectsMapRef.current.get(selectedId);
+    if (obj) {
+      obj.destroy({ children: true });
+      objectsMapRef.current.delete(selectedId);
+      
+      // Cleanup video reference if it exists
+      if (videoElementsRef.current.has(selectedId)) {
+        const v = videoElementsRef.current.get(selectedId);
+        v?.pause();
+        videoElementsRef.current.delete(selectedId);
+      }
+    }
+
+    setSceneState(prev => ({
+      ...prev,
+      objects: prev.objects.filter(o => o.id !== selectedId)
+    }));
+    
+    setSelectedId(null);
+    selectionLayerRef.current?.removeChildren();
+  }, [selectedId]);
+
+
+  // --- 3. Object Update & Interaction Logic ---
+  const updateObjectState = useCallback((id: string) => {
+    const obj = objectsMapRef.current.get(id);
+    if (!obj) return;
+    
+    setSceneState(prev => ({
+      ...prev,
+      objects: prev.objects.map(o => 
+        o.id === id ? {
+          ...o,
+          x: obj.x,
+          y: obj.y,
+          scaleX: obj.scale.x,
+          scaleY: obj.scale.y,
+          rotation: obj.rotation
+        } : o
+      )
+    }));
+  }, []);
+
+  // Generic interaction setup (Drag, Select)
+  const setupCommonInteractions = useCallback((container: PIXI.Container, id: string) => {
+    container.eventMode = 'static';
+    container.cursor = 'pointer';
+
+    let dragging = false;
+    let dragStart = { x: 0, y: 0 };
+
+    container.on('pointerdown', (e: any) => {
+        e.stopPropagation();
+        setSelectedId(id); // Select object on click
+        
+        dragging = true;
+        const pos = e.data.getLocalPosition(container.parent);
+        dragStart = { x: pos.x - container.x, y: pos.y - container.y };
+        viewportRef.current!.pause = true;
+    });
+
+    container.on('pointermove', (e: any) => {
+        if (dragging) {
+            const pos = e.data.getLocalPosition(container.parent);
+            container.position.set(pos.x - dragStart.x, pos.y - dragStart.y);
+            
+            // If dragging the selected object, update the gizmo in real-time
+            if (id === selectedId) updateSelectionGizmo(); 
+        }
+    });
+
+    const onEnd = () => {
+        if (dragging) {
+            dragging = false;
+            viewportRef.current!.pause = false;
+            updateObjectState(id);
+        }
+    };
+
+    container.on('pointerup', onEnd);
+    container.on('pointerupoutside', onEnd);
+  }, [selectedId, updateObjectState, updateSelectionGizmo]);
+
+  // Update Gizmo whenever selection changes
+  useEffect(() => {
+    updateSelectionGizmo();
+  }, [selectedId, updateSelectionGizmo]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -81,12 +304,29 @@ const InfiniteCanvas: React.FC = () => {
         .drag()
         .pinch()
         .wheel()
-        .decelerate();
+        .decelerate()
+        .clampZoom({
+          minScale: 0.1,
+          maxScale: 5,
+          
+        });
 
       app.stage.addChild(viewport);
       viewport.moveCenter(0, 0);
       viewportRef.current = viewport;
 
+      // ADD THIS: Create Selection Layer on top of everything
+   // Create Selection Layer (Z-Index 9999 ensures it's always on top)
+      const selectionLayer = new PIXI.Container();
+      selectionLayer.zIndex = 9999;
+      viewport.addChild(selectionLayer);
+      selectionLayerRef.current = selectionLayer;
+      viewport.sortableChildren = true;
+
+      // Click background to deselect
+      viewport.on('clicked', () => {
+        setSelectedId(null);
+      });
       const onResize = () => {
         app.renderer.resize(window.innerWidth, window.innerHeight);
         viewport.resize(window.innerWidth, window.innerHeight);
@@ -114,64 +354,46 @@ const InfiniteCanvas: React.FC = () => {
 
     return () => {
       destroyed = true;
-
-      videoElementsRef.current.forEach(v => {
-        v.pause();
-        v.src = "";
-      });
+      videoElementsRef.current.forEach(v => { v.pause(); v.src = ""; });
       videoElementsRef.current.clear();
-
       objectsMapRef.current.forEach(o => o.destroy({ children: true }));
       objectsMapRef.current.clear();
-
       viewportRef.current?.destroy({ children: true });
       pixiAppRef.current?.destroy(true);
     };
   }, []);
 
+  // Keyboard Delete Listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId && !editingText) {
+        deleteSelectedObject();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedId, editingText, deleteSelectedObject]);
+
   // Create a unique ID
   const generateId = () => `obj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-  // Update object state
-  const updateObjectState = useCallback((id: string) => {
-    const obj = objectsMapRef.current.get(id);
-    if (!obj) return;
-    
-    setSceneState(prev => ({
-      ...prev,
-      objects: prev.objects.map(o => 
-        o.id === id ? {
-          ...o,
-          x: obj.x,
-          y: obj.y,
-          scaleX: obj.scale.x,
-          scaleY: obj.scale.y,
-          rotation: obj.rotation
-        } : o
-      )
-    }));
-  }, []);
+
 
 // Add image to canvas
-  const addImage = useCallback(async (url: string) => {
+ const addImage = useCallback(async (url: string) => {
     if (!viewportRef.current) return;
-
     const id = generateId();
     const viewport = viewportRef.current;
     
     try {
-      // Create image element (works for both blob and regular URLs)
       const img = document.createElement('img');
       img.crossOrigin = 'anonymous';
-      
-      // Wait for image to load
       await new Promise<void>((resolve, reject) => {
         img.onload = () => resolve();
         img.onerror = reject;
         img.src = url;
       });
       
-      // Create texture from image element
       const texture = PIXI.Texture.from(img);
       const sprite = new PIXI.Sprite(texture);
       sprite.anchor.set(0.5);
@@ -179,108 +401,57 @@ const InfiniteCanvas: React.FC = () => {
       const container = new PIXI.Container();
       container.addChild(sprite);
       
-      // Position at viewport center
       const worldPos = viewport.toWorld(viewport.screenWidth / 2, viewport.screenHeight / 2);
       container.position.set(worldPos.x, worldPos.y);
       
-      // Make interactive
-      container.eventMode = 'static';
-      container.cursor = 'pointer';
-      
-      // Scale to reasonable size
       const maxSize = 300;
       const scale = Math.min(maxSize / sprite.width, maxSize / sprite.height);
       container.scale.set(scale);
       
-      // Add to viewport first
+      // Use common interaction logic
+      setupCommonInteractions(container, id);
+      
       viewport.addChild(container);
       objectsMapRef.current.set(id, container);
-      
-      // Drag functionality
-      let dragging = false;
-      let dragStart = { x: 0, y: 0 };
-      
-      container.on('pointerdown', (e: any) => {
-        dragging = true;
-        const pos = e.data.getLocalPosition(container.parent);
-        dragStart = { x: pos.x - container.x, y: pos.y - container.y };
-        viewport.pause = true;
-        e.stopPropagation();
-      });
-      
-      container.on('pointermove', (e: any) => {
-        if (dragging) {
-          const pos = e.data.getLocalPosition(container.parent);
-          container.position.set(pos.x - dragStart.x, pos.y - dragStart.y);
-          e.stopPropagation();
-        }
-      });
-      
-      container.on('pointerup', () => {
-        if (dragging) {
-          dragging = false;
-          viewport.pause = false;
-          updateObjectState(id);
-        }
-      });
-      
-      container.on('pointerupoutside', () => {
-        if (dragging) {
-          dragging = false;
-          viewport.pause = false;
-          updateObjectState(id);
-        }
-      });
       
       setSceneState(prev => ({
         ...prev,
         objects: [...prev.objects, {
-          id,
-          type: 'image',
-          x: container.x,
-          y: container.y,
-          scaleX: container.scale.x,
-          scaleY: container.scale.y,
-          rotation: container.rotation,
-          source: url
+          id, type: 'image',
+          x: container.x, y: container.y,
+          scaleX: container.scale.x, scaleY: container.scale.y,
+          rotation: container.rotation, source: url
         }]
       }));
+      setSelectedId(id); // Auto-select
     } catch (error) {
       console.error('Failed to load image:', error);
     }
-  }, [updateObjectState]);
+  }, [setupCommonInteractions, updateObjectState]);
 
-  // Add video to canvas
-  const addVideo = useCallback(async (url: string) => {
+const addVideo = useCallback(async (url: string) => {
     if (!viewportRef.current) return;
-
     const id = generateId();
     const viewport = viewportRef.current;
     
     try {
-      // FIX: Setup Video Element thoroughly
       const video = document.createElement('video');
       video.src = url;
       video.crossOrigin = 'anonymous';
       video.loop = true;
-      video.muted = true; // Required for autoplay
+      video.muted = true;
       video.playsInline = true; 
       video.autoplay = true;
 
-      // Keep a reference so it doesn't get garbage collected
       videoElementsRef.current.set(id, video);
       
-      // Wait for 'canplay' instead of metadata to ensure a frame is ready
       await new Promise<void>((resolve, reject) => {
         video.oncanplay = () => resolve();
         video.onerror = reject;
-        video.load(); // Force load
+        video.load();
       });
-
-      // Force play before creating texture
       await video.play();
       
-      // Create texture using the specific video source
       const texture = PIXI.Texture.from(video);
       const sprite = new PIXI.Sprite(texture);
       sprite.anchor.set(0.5);
@@ -291,160 +462,103 @@ const InfiniteCanvas: React.FC = () => {
       const worldPos = viewport.toWorld(viewport.screenWidth / 2, viewport.screenHeight / 2);
       container.position.set(worldPos.x, worldPos.y);
       
-      container.eventMode = 'static';
-      container.cursor = 'pointer';
-      
       const maxSize = 400;
       const scale = Math.min(maxSize / video.videoWidth, maxSize / video.videoHeight);
       container.scale.set(scale);
       
+      setupCommonInteractions(container, id);
+      
       viewport.addChild(container);
       objectsMapRef.current.set(id, container);
-      
-      // --- Drag Logic (Same as before) ---
-      let dragging = false;
-      let dragStart = { x: 0, y: 0 };
-      
-      container.on('pointerdown', (e: any) => {
-        dragging = true;
-        const pos = e.data.getLocalPosition(container.parent);
-        dragStart = { x: pos.x - container.x, y: pos.y - container.y };
-        viewport.pause = true;
-        e.stopPropagation();
-      });
-      
-      container.on('pointermove', (e: any) => {
-        if (dragging) {
-          const pos = e.data.getLocalPosition(container.parent);
-          container.position.set(pos.x - dragStart.x, pos.y - dragStart.y);
-          e.stopPropagation();
-        }
-      });
-      
-      container.on('pointerup', () => {
-        if (dragging) {
-          dragging = false;
-          viewport.pause = false;
-          updateObjectState(id);
-        }
-      });
-      
-      container.on('pointerupoutside', () => {
-        if (dragging) {
-          dragging = false;
-          viewport.pause = false;
-          updateObjectState(id);
-        }
-      });
       
       setSceneState(prev => ({
         ...prev,
         objects: [...prev.objects, {
-          id,
-          type: 'video',
-          x: container.x,
-          y: container.y,
-          scaleX: container.scale.x,
-          scaleY: container.scale.y,
-          rotation: container.rotation,
-          source: url
+          id, type: 'video',
+          x: container.x, y: container.y,
+          scaleX: container.scale.x, scaleY: container.scale.y,
+          rotation: container.rotation, source: url
         }]
       }));
+      setSelectedId(id);
     } catch (error) {
       console.error('Failed to load video:', error);
     }
-  }, [updateObjectState]);
+  }, [setupCommonInteractions, updateObjectState]);
 
   // Add text to canvas
-  const addText = useCallback((initialText: string = 'Double-click to edit') => {
+const addText = useCallback((initialText: string = 'Double-click to edit') => {
     if (!viewportRef.current) return;
-
     const id = generateId();
     const viewport = viewportRef.current;
     
     const text = new PIXI.Text(initialText, {
-      fontFamily: 'Arial',
-      fontSize: 24,
-      fill: 0xffffff,
-      wordWrap: true,
-      wordWrapWidth: 300
+      fontFamily: 'Arial', fontSize: 24, fill: 0xffffff,
+      wordWrap: true, wordWrapWidth: 300
     });
+    text.anchor.set(0.5);
     
     const container = new PIXI.Container();
     container.addChild(text);
     
-    text.anchor.set(0.5);
-    
     const worldPos = viewport.toWorld(viewport.screenWidth / 2, viewport.screenHeight / 2);
     container.position.set(worldPos.x, worldPos.y);
     
-    // Make interactive (v7+ way)
+    // Make interactive
     container.eventMode = 'static';
     container.cursor = 'pointer';
     
-    // Drag and double-click functionality
     let dragging = false;
     let dragStart = { x: 0, y: 0 };
-    let pointerDownTime = 0;
-    let lastPointerUpTime = 0;
-    let hasMoved = false;
+    let lastClickTime = 0; // For double-click detection
     
     container.on('pointerdown', (e: any) => {
-      pointerDownTime = Date.now();
-      hasMoved = false;
+      e.stopPropagation();
+      
+      // 1. Single Click: Select the object immediately
+      setSelectedId(id);
+      
       dragging = true;
       const pos = e.data.getLocalPosition(container.parent);
       dragStart = { x: pos.x - container.x, y: pos.y - container.y };
       viewport.pause = true;
-      e.stopPropagation();
+
+      // 2. Double Click Detection logic
+      const now = Date.now();
+      if (now - lastClickTime < 300) {
+        // It's a double click! Enter edit mode
+        const screenPos = viewport.toScreen(container.x, container.y);
+        setEditingText({
+          id, 
+          x: screenPos.x, 
+          y: screenPos.y,
+          text: (container.children[0] as PIXI.Text).text
+        });
+        dragging = false; // Stop dragging if we are editing
+      }
+      lastClickTime = now;
     });
     
     container.on('pointermove', (e: any) => {
       if (dragging) {
-        hasMoved = true;
         const pos = e.data.getLocalPosition(container.parent);
         container.position.set(pos.x - dragStart.x, pos.y - dragStart.y);
-        e.stopPropagation();
+        
+        // Update the Selection Box (Gizmo) while dragging
+        if (id === selectedId) updateSelectionGizmo();
       }
     });
     
-    container.on('pointerup', (e: any) => {
+    const onEnd = () => {
       if (dragging) {
         dragging = false;
         viewport.pause = false;
-        
-        const currentTime = Date.now();
-        const timeSinceDown = currentTime - pointerDownTime;
-        const timeSinceLastUp = currentTime - lastPointerUpTime;
-        
-        // Check for double-click: quick tap, didn't move, and within 400ms of last click
-        if (!hasMoved && timeSinceDown < 250 && timeSinceLastUp < 400) {
-          const screenPos = viewport.toScreen(container.x, container.y);
-          setEditingText({
-            id,
-            x: screenPos.x,
-            y: screenPos.y,
-            text: text.text
-          });
-          lastPointerUpTime = 0; // Reset to prevent triple-click
-        } else {
-          lastPointerUpTime = currentTime;
-          if (hasMoved) {
-            updateObjectState(id);
-          }
-        }
+        updateObjectState(id);
       }
-    });
+    };
     
-    container.on('pointerupoutside', () => {
-      if (dragging) {
-        dragging = false;
-        viewport.pause = false;
-        if (hasMoved) {
-          updateObjectState(id);
-        }
-      }
-    });
+    container.on('pointerup', onEnd);
+    container.on('pointerupoutside', onEnd);
     
     viewport.addChild(container);
     objectsMapRef.current.set(id, container);
@@ -452,17 +566,17 @@ const InfiniteCanvas: React.FC = () => {
     setSceneState(prev => ({
       ...prev,
       objects: [...prev.objects, {
-        id,
-        type: 'text',
-        x: container.x,
-        y: container.y,
-        scaleX: container.scale.x,
-        scaleY: container.scale.y,
-        rotation: container.rotation,
-        text: initialText
+        id, type: 'text',
+        x: container.x, y: container.y,
+        scaleX: container.scale.x, scaleY: container.scale.y,
+        rotation: container.rotation, text: initialText
       }]
     }));
-  }, [updateObjectState]);
+    
+    // Auto-select the new text on creation
+    setSelectedId(id);
+    
+  }, [updateObjectState, selectedId, updateSelectionGizmo]);
 
   // Add file icon to canvas
   const addFile = useCallback((filename: string) => {
@@ -697,8 +811,23 @@ const InfiniteCanvas: React.FC = () => {
   }, [addImage, addVideo, addText, addFile]);
 
   // Camera controls
-  const zoomIn = () => viewportRef.current?.zoom(1.2, true);
-  const zoomOut = () => viewportRef.current?.zoom(0.8, true);
+const zoomBy = (factor: number) => {
+  const viewport = viewportRef.current;
+  if (!viewport) return;
+
+  const newZoom = viewport.scale.x * factor;
+
+  viewport.zoomPercent(
+    ((newZoom - viewport.scale.x) / viewport.scale.x) * 100,
+    true
+  );
+};
+
+const zoomIn = () => zoomBy(1.2);
+const zoomOut = () => zoomBy(0.8);
+
+
+
   const resetView = () => {
     viewportRef.current?.moveCenter(0, 0);
     viewportRef.current?.setZoom(1);
@@ -707,8 +836,14 @@ const InfiniteCanvas: React.FC = () => {
   return (
     <div className="relative w-full h-screen overflow-hidden bg-gray-900">
       {/* Canvas Container */}
-      <div ref={canvasRef} className="absolute inset-0" />
-      
+      <div
+          ref={canvasRef}
+          className="absolute inset-0"
+          style={{
+            touchAction: 'none',      // ⬅️ REQUIRED
+            overscrollBehavior: 'none'
+          }}
+        />
       {/* Toolbar */}
       <div className="absolute top-4 left-4 flex gap-2 bg-gray-800 p-2 rounded-lg shadow-lg">
         <label className="cursor-pointer p-2 bg-blue-600 hover:bg-blue-700 rounded transition" title="Add Image">
@@ -748,6 +883,14 @@ const InfiniteCanvas: React.FC = () => {
           />
         </label>
         
+       <div className="w-px bg-gray-600 mx-1" />
+        
+        {selectedId && (
+            <button onClick={deleteSelectedObject} className="p-2 bg-red-600 hover:bg-red-700 rounded transition" title="Delete Selected">
+                <Trash2 size={20} className="text-white" />
+            </button>
+        )}
+        
         <div className="w-px bg-gray-600 mx-1" />
         
         <button
@@ -771,21 +914,26 @@ const InfiniteCanvas: React.FC = () => {
       
       {/* Camera Controls */}
       <div className="absolute top-4 right-4 flex flex-col gap-2 bg-gray-800 p-2 rounded-lg shadow-lg">
-        <button
-          onClick={zoomIn}
-          className="p-2 bg-gray-600 hover:bg-gray-700 rounded transition"
-          title="Zoom In"
-        >
-          <ZoomIn size={20} className="text-white" />
-        </button>
-        
-        <button
-          onClick={zoomOut}
-          className="p-2 bg-gray-600 hover:bg-gray-700 rounded transition"
-          title="Zoom Out"
-        >
-          <ZoomOut size={20} className="text-white" />
-        </button>
+      <button
+  onClick={() => {
+    console.log('ZOOM IN CLICKED');
+    zoomIn();
+  }}
+  className="p-2 bg-gray-600 hover:bg-gray-700 rounded transition"
+>
+  <ZoomIn size={20} className="text-white" />
+</button>
+
+<button
+  onClick={() => {
+    console.log('ZOOM OUT CLICKED');
+    zoomOut();
+  }}
+  className="p-2 bg-gray-600 hover:bg-gray-700 rounded transition"
+>
+  <ZoomOut size={20} className="text-white" />
+</button>
+
         
         <button
           onClick={resetView}
