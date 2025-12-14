@@ -187,7 +187,7 @@ const ExePost: React.FC<ExePostProps> = ({
           <div className="flex justify-center relative overflow-hidden w-full h-[400px] rounded-xl">
             {/* @ts-ignore */}
             <model-viewer
-              src="/models/2016_rezvani_beast_x.glb"
+              src="/models/full_gameready_city_buildings.glb"
               alt="3D model"
               auto-rotate
               camera-controls

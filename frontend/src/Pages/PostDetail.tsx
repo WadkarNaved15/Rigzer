@@ -90,7 +90,7 @@ const PostDetail = ({ post, onClose }: { post: PostProps; onClose: () => void })
 
                 {/* @ts-ignore */}
                 <model-viewer
-                  src="/models/2016_rezvani_beast_x.glb"
+                  src="/models/full_gameready_city_buildings.glb"
                   alt="3D model"
                   auto-rotate
                   camera-controls
