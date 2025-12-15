@@ -15,6 +15,7 @@ interface CanvasObject {
   source?: string;
   text?: string;
   filename?: string;
+  code?:string;
 }
 
 interface SceneState {
@@ -497,76 +498,87 @@ const addVideo = useCallback(async (url: string) => {
   }, [setupCommonInteractions, updateObjectState]);
 
   // Add text to canvas
-const addText = useCallback((initialText: string = 'Double-click to edit') => {
+// Add text to canvas
+  const addText = useCallback((initialText: string = 'Double-click to edit') => {
     if (!viewportRef.current) return;
     const id = generateId();
     const viewport = viewportRef.current;
-    
+
     const text = new PIXI.Text(initialText, {
-      fontFamily: 'Arial', fontSize: 24, fill: 0xffffff,
-      wordWrap: true, wordWrapWidth: 300
+      fontFamily: 'Arial',
+      fontSize: 24,
+      fill: 0x000000,
+      wordWrap: true,
+      wordWrapWidth: 300
     });
     text.anchor.set(0.5);
-    
+
     const container = new PIXI.Container();
     container.addChild(text);
-    
+
     const worldPos = viewport.toWorld(viewport.screenWidth / 2, viewport.screenHeight / 2);
     container.position.set(worldPos.x, worldPos.y);
-    
+
     // Make interactive
     container.eventMode = 'static';
     container.cursor = 'pointer';
-    
+
     let dragging = false;
+    let hasMoved = false;
     let dragStart = { x: 0, y: 0 };
-    let lastClickTime = 0; // For double-click detection
-    
+    let lastClickTime = 0;
+
     container.on('pointerdown', (e: any) => {
       e.stopPropagation();
-      
-      // 1. Single Click: Select the object immediately
       setSelectedId(id);
-      
-      dragging = true;
+
+      hasMoved = false;
       const pos = e.data.getLocalPosition(container.parent);
       dragStart = { x: pos.x - container.x, y: pos.y - container.y };
+      dragging = true;
       viewport.pause = true;
-
-      // 2. Double Click Detection logic
-      const now = Date.now();
-      if (now - lastClickTime < 300) {
-        // It's a double click! Enter edit mode
-        const screenPos = viewport.toScreen(container.x, container.y);
-        setEditingText({
-          id, 
-          x: screenPos.x, 
-          y: screenPos.y,
-          text: (container.children[0] as PIXI.Text).text
-        });
-        dragging = false; // Stop dragging if we are editing
-      }
-      lastClickTime = now;
     });
-    
+
     container.on('pointermove', (e: any) => {
       if (dragging) {
         const pos = e.data.getLocalPosition(container.parent);
-        container.position.set(pos.x - dragStart.x, pos.y - dragStart.y);
+        const newX = pos.x - dragStart.x;
+        const newY = pos.y - dragStart.y;
         
-        // Update the Selection Box (Gizmo) while dragging
-        if (id === selectedId) updateSelectionGizmo();
+        // Only consider it a drag if moved more than 5 pixels
+        if (Math.abs(newX - container.x) > 5 || Math.abs(newY - container.y) > 5) {
+          hasMoved = true;
+          container.position.set(newX, newY);
+          if (id === selectedId) updateSelectionGizmo();
+        }
       }
     });
-    
+
     const onEnd = () => {
       if (dragging) {
         dragging = false;
         viewport.pause = false;
-        updateObjectState(id);
+        
+        // Only check for double-click if the user didn't drag
+        if (!hasMoved) {
+          const now = Date.now();
+          if (now - lastClickTime < 400) {
+            // Double click detected!
+            const screenPos = viewport.toScreen(container.x, container.y);
+            setEditingText({
+              id,
+              x: screenPos.x,
+              y: screenPos.y,
+              text: (container.children[0] as PIXI.Text).text
+            });
+          }
+          lastClickTime = now;
+        } else {
+          updateObjectState(id);
+        }
       }
     };
-    
+
     container.on('pointerup', onEnd);
     container.on('pointerupoutside', onEnd);
     
