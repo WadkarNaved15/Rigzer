@@ -289,7 +289,7 @@ const updateSelectionGizmo = useCallback(() => {
     app.init({
       width: window.innerWidth,
       height: window.innerHeight,
-      background: 0x1a1a1a,
+      background: 0xffffff,
       antialias: true,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
