@@ -13,7 +13,7 @@ export default defineConfig({
 
   // 🧩 Fix worker & esbuild issues with @kixelated/hang
   optimizeDeps: {
-    exclude: ["@kixelated/hang"], // prevent pre-bundling breaking worker imports
+    exclude: ["@kixelated/hang",'@ffmpeg/ffmpeg', '@ffmpeg/util'], // prevent pre-bundling breaking worker imports
   },
 
   worker: {
@@ -26,5 +26,11 @@ export default defineConfig({
 
   build: {
     target: "esnext", // needed for WebTransport & AudioWorklet support
+  },
+  server: {
+    headers: {
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+    },
   },
 });
