@@ -27,5 +27,14 @@ export async function convertGifToMp4(file: File): Promise<Blob> {
   ])
 
   const data = await ffmpeg.readFile('out.mp4')
-  return new Blob([data.buffer], { type: 'video/mp4' })
+
+  if (typeof data === 'string') {
+    throw new Error('Unexpected ffmpeg output')
+  }
+
+  // ✅ FORCE real ArrayBuffer (no SharedArrayBuffer)
+  const uint8 = new Uint8Array(data)
+  const buffer = uint8.buffer.slice(0)
+
+  return new Blob([buffer], { type: 'video/mp4' })
 }
