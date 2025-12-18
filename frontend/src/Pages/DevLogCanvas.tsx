@@ -2,13 +2,24 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as PIXI from 'pixi.js';
 import { Viewport } from 'pixi-viewport';
-import { Image, Video, Type, File, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, Trash2 } from 'lucide-react';
+import {  Image as ImageIcon, Video, Type, File, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, Trash2 } from 'lucide-react';
 import { convertGifToMp4 } from '../utils/convertGifToMp4';
+import JSZip from 'jszip'
+
 
 // Types
+
+interface SpriteSheetState {
+  jsonUrl: string
+  imageUrl: string
+  animationName?: string
+  autoplay?: boolean
+  loop?: boolean
+}
+
 interface CanvasObject {
   id: string;
-  type: 'image' | 'video' | 'text' | 'file' | 'code';
+  type: 'image' | 'video' | 'text' | 'file' | 'code' | 'spritesheet';
   x: number;
   y: number;
   scaleX: number;
@@ -19,6 +30,7 @@ interface CanvasObject {
   textStyle?: TextStyleState; 
   filename?: string;
   code?: string;
+  spritesheet?: SpriteSheetState
 }
 
 interface SceneState {
@@ -132,7 +144,7 @@ const createDesignAPI = (viewport: Viewport, root: PIXI.Container) => {
     },
 
     image: async ({ x, y, url, width = 200 }: ImageArgs) => {
-      const tex = await PIXI.Assets.load(url)
+      const tex = PIXI.Texture.from(url)
       const s = new PIXI.Sprite(tex)
       s.width = width
       s.scale.y = s.scale.x
@@ -260,10 +272,8 @@ const runCode = (
     const target = objectsMapRef.current.get(selectedId);
     if (!target) return;
 
-    // Get bounds of the target content
-    const content = target.children[0] as PIXI.Container;
-    const bounds = content.getLocalBounds();
-    
+    const bounds = target.getLocalBounds()
+
     // Create a container for the gizmo that matches target transforms
     const gizmo = new PIXI.Container();
     gizmo.position.copyFrom(target.position);
@@ -381,6 +391,7 @@ const runCode = (
     if (obj) {
       obj.destroy({ children: true });
       objectsMapRef.current.delete(selectedId);
+      
       
       if (videoElementsRef.current.has(selectedId)) {
         const v = videoElementsRef.current.get(selectedId);
@@ -557,6 +568,139 @@ const runCode = (
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedId, editingText, deleteSelectedObject]);
+
+    const addSpriteSheet = async (
+    jsonUrl: string,
+    imageUrl: string,
+    options?: {
+      autoplay?: boolean
+      loop?: boolean
+      animationName?: string
+    }
+  ) => {
+    if (!viewportRef.current) return
+
+    const id = generateId()
+    const viewport = viewportRef.current
+
+      const json = await (await fetch(jsonUrl)).json()
+
+      // 🔍 DEBUG (keep for now)
+      console.log('Spritesheet JSON:', json)
+
+      // ✅ Minimal sanity check
+      if (!json || typeof json !== 'object') {
+        alert('Invalid spritesheet JSON')
+        return
+      }
+
+
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      await new Promise((resolve, reject) => {
+        img.onload = resolve
+        img.onerror = reject
+        img.src = imageUrl
+      })
+
+      // Create texture from the loaded image
+      const baseTexture = PIXI.Texture.from(img)
+      
+      // Update JSON meta to reference the texture
+      json.meta = json.meta || {}
+      json.meta.image = imageUrl
+
+      // Create spritesheet
+      const sheet = new PIXI.Spritesheet(baseTexture, json)
+      await sheet.parse()
+
+        // ✅ HANDLE NO animations case
+        let frames: PIXI.Texture[] = []
+
+        if (sheet.animations && Object.keys(sheet.animations).length > 0) {
+          const animName =
+            options?.animationName ?? Object.keys(sheet.animations)[0]
+          frames = sheet.animations[animName]
+        } else {
+          // 🔥 Fallback: build animation from all textures
+          frames = Object.values(sheet.textures)
+        }
+
+        if (!frames.length) {
+          alert('Spritesheet has no frames')
+          return
+        }
+
+       const anim = new PIXI.AnimatedSprite(frames)
+
+// center correctly
+anim.anchor.set(0.5)
+
+// ✅ control speed (VERY IMPORTANT)
+anim.animationSpeed = 0.1 // try 0.08 – 0.15
+
+anim.loop = options?.loop ?? true
+
+anim.stop()
+anim.gotoAndStop(0)
+
+
+const container = new PIXI.Container()
+container.addChild(anim)
+
+container.eventMode = 'static'
+container.cursor = 'pointer'
+
+// ▶️ Play on hover
+container.on('pointerover', () => {
+  if (!anim.playing) {
+    anim.gotoAndPlay(0)
+  }
+})
+
+// ⏸ Stop on hover out
+container.on('pointerout', () => {
+  anim.stop()
+  anim.gotoAndStop(0) // reset to first frame
+})
+
+
+        const worldPos = viewport.toWorld(
+          viewport.screenWidth / 2,
+          viewport.screenHeight / 2
+        )
+        container.position.set(worldPos.x, worldPos.y)
+
+        setupCommonInteractions(container, id)
+
+        viewport.addChild(container)
+        objectsMapRef.current.set(id, container)
+
+        setSceneState(prev => ({
+          ...prev,
+          objects: [
+            ...prev.objects,
+            {
+              id,
+              type: 'spritesheet',
+              x: container.x,
+              y: container.y,
+              scaleX: 1,
+              scaleY: 1,
+              rotation: 0,
+              spritesheet: {
+                jsonUrl,
+                imageUrl,
+                animationName: options?.animationName,
+                autoplay: options?.autoplay ?? true,
+                loop: options?.loop ?? true
+              }
+            }
+          ]
+        }))
+
+        setSelectedId(id)
+      }
 
   const generateId = () => `obj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -972,6 +1116,74 @@ const addText = useCallback(
     e.target.value = '';
   }, [addImage, addVideo, addFile]);
 
+  const handleSpriteUpload = async (
+  e: React.ChangeEvent<HTMLInputElement>
+) => {
+  const files = Array.from(e.target.files ?? [])
+  if (!files.length) return
+
+  // 🔹 ZIP upload
+  if (files.length === 1 && files[0].name.endsWith('.zip')) {
+    await handleSpriteZip(files[0])
+    e.target.value = ''
+    return
+  }
+
+  // 🔹 JSON + Image upload
+  const jsonFile = files.find(f => f.name.endsWith('.json'))
+  const imageFile = files.find(f => f.type.startsWith('image/'))
+
+  if (!jsonFile || !imageFile) {
+    alert('Sprite sheet requires JSON + image (or ZIP)')
+    return
+  }
+
+  await addSpriteSheet(
+    URL.createObjectURL(jsonFile),
+    URL.createObjectURL(imageFile),
+    { autoplay: true, loop: true }
+  )
+
+  e.target.value = ''
+}
+
+
+const handleSpriteZip = async (zipFile: File) => {
+  const zip = await JSZip.loadAsync(zipFile)
+
+  let jsonBlob: Blob | null = null
+  let imageBlob: Blob | null = null
+
+  await Promise.all(
+    Object.values(zip.files).map(async file => {
+      if (file.dir) return
+
+      if (file.name.endsWith('.json')) {
+        jsonBlob = await file.async('blob')
+      }
+
+      if (
+        file.name.endsWith('.png') ||
+        file.name.endsWith('.webp')
+      ) {
+        imageBlob = await file.async('blob')
+      }
+    })
+  )
+
+  if (!jsonBlob || !imageBlob) {
+    alert('ZIP must contain exactly one JSON and one image')
+    return
+  }
+
+  await addSpriteSheet(
+    URL.createObjectURL(jsonBlob),
+    URL.createObjectURL(imageBlob),
+    { autoplay: true, loop: true }
+  )
+}
+
+
 const applyTextStyle = (style: Partial<TextStyleState>) => {
   if (!selectedId) return
 
@@ -1041,7 +1253,18 @@ console.log("selected Text",selectedText)
             addFile(obj.filename);
           } else if (obj.type === 'code' && obj.code) {
             addCodeObject(obj.code)
-        }
+        }else if (obj.type === 'spritesheet' && obj.spritesheet) {
+  addSpriteSheet(
+    obj.spritesheet.jsonUrl,
+    obj.spritesheet.imageUrl,
+    {
+      autoplay: obj.spritesheet.autoplay,
+      loop: obj.spritesheet.loop,
+      animationName: obj.spritesheet.animationName
+    }
+  )
+}
+
 
         });
         
@@ -1203,8 +1426,22 @@ console.log("selected Text",selectedText)
 
       
       <div className="absolute top-4 left-4 flex gap-2 bg-gray-800 p-2 rounded-lg shadow-lg">
+        <label
+  className="cursor-pointer p-2 bg-pink-600 hover:bg-pink-700 rounded transition"
+  title="Add Sprite Animation"
+>
+  🎞
+  <input
+    type="file"
+    accept=".zip,.json,image/png,image/webp"
+    multiple
+    className="hidden"
+    onChange={handleSpriteUpload}
+  />
+</label>
+
         <label className="cursor-pointer p-2 bg-blue-600 hover:bg-blue-700 rounded transition" title="Add Image">
-          <Image size={20} className="text-white" />
+          <ImageIcon size={20} className="text-white" />
           <input
             type="file"
             accept="image/*"

@@ -28,6 +28,7 @@
     "fabric": "^6.9.0",
     "framer-motion": "^12.23.12",
     "html2canvas": "^1.4.1",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.533.0",
     "modern-screenshot": "^4.6.6",
     "pixi-viewport": "^6.0.3",
