@@ -1,284 +1,369 @@
-import React, { useState } from 'react';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import React, { useState, useRef, ChangeEvent } from 'react';
+import { X, Image as ImageIcon, DollarSign } from 'lucide-react';
+import '@google/model-viewer';
 
-interface AddPostProps {
+interface PostModalProps {
   onCancel: () => void;
 }
 
-const CreatePost = ({ onCancel }: AddPostProps) => {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-  const [gameTitle, setGameTitle] = useState<string>('');
-  const [description, setDescription] = useState<string>('');
-  const [isHeavyGame, setIsHeavyGame] = useState<boolean>(false);
-  const [gameFile, setGameFile] = useState<File | null>(null);
-  const [coverImage, setCoverImage] = useState<File | null>(null);
+interface Asset {
+  id: string;
+  file: File;        // actual file
+  previewUrl: string;
+  uploadedUrl?: string; // CloudFront URL after upload
+  name: string;
+  progress?: number;   // 0–100
+  status?: "pending" | "uploading" | "done" | "error";
+}
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      // Client-side validation for file type
-      if (file.type !== 'application/zip' && !file.name.endsWith('.zip')) {
-        toast.error("Please upload a valid .zip file!", {
-          position: "bottom-right",
-        });
-        setGameFile(null); // Clear the state
-        e.target.value = ''; // Reset the input field
-        return;
-      }
-      setGameFile(file);
-    }
-  };
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setCoverImage(e.target.files[0]);
-    }
-  };
+const PostModal: React.FC<PostModalProps> = ({ onCancel }) => {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [price, setPrice] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingMetadata, setIsSavingMetadata] = useState(false);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000"; // Ensure this is set in your .env file
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
 
-    if (!gameFile || !coverImage) {
-      toast.error("Both game zip and cover image are required!", {
-        position: "bottom-right",
+    const remainingSlots = 4 - assets.length;
+    const filesToProcess = Array.from(files).slice(0, remainingSlots);
+
+    const newAssets: Asset[] = [];
+
+    filesToProcess.forEach((file) => {
+      if (!file.name.endsWith(".glb")) return;
+
+      newAssets.push({
+        id: crypto.randomUUID(),
+        file,
+        previewUrl: URL.createObjectURL(file),
+        name: file.name,
       });
-      return;
-    }
-
-    const uploadingToast = toast.info("Uploading post, please wait...", {
-      position: "bottom-right",
-      autoClose: false,
-      closeButton: false,
-      draggable: false,
     });
 
-    const formData = new FormData();
-    formData.append("gameZip", gameFile);
-    formData.append("coverImage", coverImage);
-    formData.append("title", gameTitle);
-    formData.append("description", description);
-    formData.append("isHeavyGame", String(isHeavyGame));
+    if (newAssets.length) {
+      setAssets((prev) => [...prev, ...newAssets]);
+      if (assets.length === 0) setActiveIndex(0);
+    }
 
-    try {
-      const res = await fetch(`${BACKEND_URL}/api/gameupload`, {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
+    e.target.value = "";
+  };
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          toast.update(uploadingToast, {
-            render: "Game post created successfully! 🎉",
-            type: "success",
-            isLoading: false,
-            autoClose: 5000,
-            closeButton: true,
-          });
-          console.log("Saved post:", data.post);
-          onCancel(); // Close the form on success
-        } else {
-          toast.update(uploadingToast, {
-            render: "Failed to create post. 😞",
-            type: "error",
-            isLoading: false,
-            autoClose: 5000,
-            closeButton: true,
-          });
-        }
-      } else {
-        toast.update(uploadingToast, {
-          render: "Failed to create post. Server responded with an error.",
-          type: "error",
-          isLoading: false,
-          autoClose: 5000,
-          closeButton: true,
+  const uploadAssetToS3 = (
+    asset: Asset,
+    onProgress: (percent: number) => void
+  ): Promise<string> => {
+    return new Promise(async (resolve, reject) => {
+      try {
+        // 1. Get presigned URL
+        const res = await fetch(`${BACKEND_URL}/api/upload/presigned-url`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: asset.file.name,
+            fileType: asset.file.type || "model/gltf-binary",
+          }),
         });
+
+        if (!res.ok) throw new Error("Failed to get upload URL");
+
+        const { uploadUrl, fileUrl } = await res.json();
+
+        // 2. Upload with progress (XHR)
+        const xhr = new XMLHttpRequest();
+        xhr.open("PUT", uploadUrl, true);
+        xhr.setRequestHeader(
+          "Content-Type",
+          asset.file.type || "model/gltf-binary"
+        );
+
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable) {
+            const percent = Math.round((event.loaded / event.total) * 100);
+            onProgress(percent);
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            resolve(fileUrl);
+          } else {
+            reject(new Error("Upload failed"));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error("Upload error"));
+
+        xhr.send(asset.file);
+      } catch (err) {
+        reject(err);
       }
-    } catch (err) {
-      console.error("Submit error:", err);
-      toast.update(uploadingToast, {
-        render: "Something went wrong! Please try again.",
-        type: "error",
-        isLoading: false,
-        autoClose: 5000,
-        closeButton: true,
+    });
+  };
+
+  const handlePostSubmit = async () => {
+    if (isSubmitting) return; // Guard clause
+    setIsSubmitting(true);
+    try {
+      const updatedAssets = [...assets];
+
+      await Promise.all(
+        updatedAssets.map(async (asset, index) => {
+          updatedAssets[index].status = "uploading";
+          updatedAssets[index].progress = 0;
+          setAssets([...updatedAssets]);
+
+          const uploadedUrl = await uploadAssetToS3(asset, (percent) => {
+            updatedAssets[index].progress = percent;
+            setAssets([...updatedAssets]);
+          });
+
+          updatedAssets[index].uploadedUrl = uploadedUrl;
+          updatedAssets[index].status = "done";
+          updatedAssets[index].progress = 100;
+          setAssets([...updatedAssets]);
+        })
+      );
+      setIsSavingMetadata(true); // Trigger the "Fetching metadata" UI
+      // Now create post in DB
+      const response=await fetch(`${BACKEND_URL}/api/allposts`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "model_post",
+          title,
+          description,
+          price: Number(price),
+          assets: updatedAssets.map(a => ({
+            name: a.name,
+            url: a.uploadedUrl,
+          })),
+        }),
       });
+      if (!response.ok) throw new Error("Database save failed");
+      onCancel();
+    } catch (err) {
+      console.error("Post creation failed", err);
+    }
+  };
+
+
+  const removeAsset = (index: number) => {
+    const updated = assets.filter((_, i) => i !== index);
+    setAssets(updated);
+    // Adjust active index if we deleted the current one
+    if (activeIndex >= updated.length) {
+      setActiveIndex(Math.max(0, updated.length - 1));
     }
   };
 
   return (
-    <div className="min-h-screen text-white flex items-center justify-center py-12">
-      <ToastContainer />
-      <div className="bg-gray-900 bg-opacity-70 p-8 rounded-lg shadow-xl max-w-2xl w-full backdrop-blur-sm border border-[#3D7A6E]">
+    <div className="w-full max-w-2xl mx-auto bg-white dark:bg-black min-h-[75vh] rounded-2xl border border-gray-200 dark:border-zinc-800 flex flex-col overflow-hidden shadow-sm">
+
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 sticky top-0 bg-white/80 dark:bg-black/80 backdrop-blur-md z-30 border-b border-gray-100 dark:border-zinc-800">
+        <div className="flex items-center gap-6">
+          <button onClick={onCancel} className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-900 rounded-full transition-colors">
+            <X size={20} className="text-black dark:text-white" />
+          </button>
+          <h2 className="text-xl font-bold text-black dark:text-white">Compose 3D Bundle</h2>
+        </div>
         <button
-          type="button"
-          onClick={onCancel}
-          className="absolute top-4 right-4 text-gray-400 hover:text-red-500 
-          transition-colors duration-200"
+          onClick={handlePostSubmit}
+          disabled={!description || assets.length === 0 || isSubmitting}
+          className="bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-bold px-5 py-1.5 rounded-full transition shadow-sm"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          {isSubmitting ? "Posting..." : "Post"}
         </button>
 
-        <h2 className="text-3xl font-bold text-center mb-8 text-white">Create a Game Post</h2>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div>
-            <label htmlFor="gameTitle" className="block text-sm font-medium text-gray-200">
-              Game Title
-            </label>
+      </div>
+
+      <div className="flex flex-1 p-4 gap-4 overflow-y-auto custom-scrollbar">
+        {/* User Avatar */}
+        <div className="flex-shrink-0">
+          <div className="h-12 w-12 rounded-full bg-zinc-200 dark:bg-zinc-800 border border-zinc-700 flex items-center justify-center text-gray-400">
+            <ImageIcon size={20} />
+          </div>
+        </div>
+
+        <div className="flex-1 flex flex-col gap-4">
+          {/* Inputs Section */}
+          <div className="space-y-1">
             <input
               type="text"
-              id="gameTitle"
-              value={gameTitle}
-              onChange={(e) => setGameTitle(e.target.value)}
-              className="mt-1 block w-full px-4 py-2 bg-[#0A1714] border border-[#1F4D44] rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3D7A6E] focus:border-[#3D7A6E] text-white"
-              placeholder="e.g., The Last of Us Part II"
-              required
+              placeholder="Post Title"
+              className="w-full text-2xl font-bold bg-transparent border-none outline-none text-black dark:text-white placeholder-gray-500 focus:ring-0 p-0"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
             />
-          </div>
-
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-200">
-              Description
-            </label>
             <textarea
-              id="description"
-              rows={5}
+              placeholder="What's special about these models?"
+              className="w-full text-lg bg-transparent border-none outline-none text-black dark:text-white placeholder-gray-500 resize-none focus:ring-0 min-h-[100px] p-0 mt-2"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="mt-1 block w-full px-4 py-2 bg-[#0A1714] border border-[#1F4D44] rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#3D7A6E] focus:border-[#3D7A6E] text-white"
-              placeholder="Provide a detailed description of the game, its features, and system requirements."
-              required
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label htmlFor="gameFile" className="block text-sm font-medium text-gray-200">
-                Upload Game File (.zip)
-              </label>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-[#1F4D44] border-dashed rounded-md cursor-pointer hover:border-[#3D7A6E] transition-colors">
-                <input
-                  id="gameFile"
-                  name="gameFile"
-                  type="file"
-                  accept=".zip,application/zip"
-                  className="sr-only"
-                  onChange={handleFileChange}
+          {/* 3D Asset Management UI */}
+          {assets.length > 0 ? (
+            <div className="flex flex-col gap-3">
+              {/* Asset Selector Tabs */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                {assets.map((asset, index) => (
+                  <button
+                    key={asset.id}
+                    onClick={() => setActiveIndex(index)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all whitespace-nowrap ${activeIndex === index
+                      ? 'bg-sky-500 border-sky-500 text-white shadow-md'
+                      : 'bg-white dark:bg-zinc-900 border-gray-200 dark:border-zinc-700 text-gray-500 hover:border-sky-500'
+                      }`}
+                  >
+                    <span className="text-xs font-bold uppercase tracking-wider">Asset {index + 1}</span>
+                    <X
+                      size={14}
+                      className="hover:text-red-200 dark:hover:text-red-400 transition-colors"
+                      onClick={(e) => { e.stopPropagation(); removeAsset(index); }}
+                    />
+                  </button>
+                ))}
+
+                {assets.length < 4 && (
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="p-2 border-2 border-dashed border-gray-300 dark:border-zinc-700 rounded-full text-gray-400 hover:text-sky-500 hover:border-sky-500 transition"
+                    title="Add another asset"
+                  >
+                    <ImageIcon size={18} />
+                  </button>
+                )}
+              </div>
+
+              {/* Main Preview Area */}
+              <div className="relative rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-800 bg-gray-50 dark:bg-zinc-900/50 group">
+
+                {/* NOTE: backgroundColor: "transparent" added here 
+                  This makes the model sit directly on the container's dark bg 
+                */}
+                {/* @ts-ignore */}
+                <model-viewer
+                  src={assets[activeIndex].uploadedUrl || assets[activeIndex].previewUrl}
+                  camera-controls
+                  auto-rotate
+                  exposure="1.0"
+                  environment-image="neutral"
+                  shadow-intensity="1"
+                  // Added transparent background here
+                  style={{ width: "100%", height: "400px", backgroundColor: "transparent" }}
                 />
-                <label htmlFor="gameFile" className="text-center w-full">
-                  {gameFile ? (
-                    <p className="text-sm text-[#3D7A6E] truncate">{gameFile.name}</p>
-                  ) : (
-                    <>
-                      <svg
-                        className="mx-auto h-12 w-12 text-[#1F4D44]"
-                        stroke="currentColor"
-                        fill="none"
-                        viewBox="0 0 48 48"
-                        aria-hidden="true"
-                      >
-                        <path
-                          d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-8m32-8l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m-4-4l-4 4m4-4V28M8 32h8"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                      <span className="mt-2 block text-sm font-medium text-[#1F4D44]">
-                        Drag and drop or{' '}
-                        <span className="text-[#3D7A6E] hover:text-[#589C92]">
-                          browse
-                        </span>{' '}
-                        a .zip file
-                      </span>
-                    </>
-                  )}
-                </label>
+
+                <div className="absolute top-4 right-4 pointer-events-none bg-black/60 backdrop-blur-sm px-3 py-1 rounded-lg text-white text-[10px] font-bold uppercase tracking-wider">
+                  Previewing: {assets[activeIndex].name.substring(0, 15)}{assets[activeIndex].name.length > 15 ? '...' : ''}
+                </div>
               </div>
             </div>
-
-            <div>
-              <label htmlFor="coverImage" className="block text-sm font-medium text-gray-200">
-                Upload Cover Image
-              </label>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-[#1F4D44] border-dashed rounded-md cursor-pointer hover:border-[#3D7A6E] transition-colors">
-                <input
-                  id="coverImage"
-                  name="coverImage"
-                  type="file"
-                  accept="image/*"
-                  className="sr-only"
-                  onChange={handleImageChange}
-                />
-                <label htmlFor="coverImage" className="text-center w-full">
-                  {coverImage ? (
-                    <p className="text-sm text-[#3D7A6E] truncate">{coverImage.name}</p>
-                  ) : (
-                    <>
-                      <svg
-                        className="mx-auto h-12 w-12 text-[#1F4D44]"
-                        stroke="currentColor"
-                        fill="none"
-                        viewBox="0 0 48 48"
-                        aria-hidden="true"
-                      >
-                        <path
-                          d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-8m32-8l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m-4-4l-4 4m4-4V28M8 32h8"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                      <span className="mt-2 block text-sm font-medium text-[#1F4D44]">
-                        Drag and drop or{' '}
-                        <span className="text-[#3D7A6E] hover:text-[#589C92]">
-                          browse
-                        </span>{' '}
-                        an image
-                      </span>
-                    </>
-                  )}
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between pt-4">
-            <span className="text-sm font-medium text-gray-200">Is it a heavy game (over 1 GB)?</span>
+          ) : (
+            /* Upload Placeholder */
             <div
-              onClick={() => setIsHeavyGame(!isHeavyGame)}
-              className={`relative inline-block w-12 h-6 rounded-full cursor-pointer transition-colors duration-300 ${isHeavyGame ? 'bg-[#3D7A6E]' : 'bg-gray-700'}`}
+              onClick={() => fileInputRef.current?.click()}
+              className="border-2 border-dashed border-gray-200 dark:border-zinc-800 rounded-2xl py-16 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-zinc-900/30 transition-all group"
             >
-              <div
-                className={`absolute left-1 top-1 w-4 h-4 rounded-full transition-transform duration-300 transform ${isHeavyGame ? 'translate-x-6 bg-white' : 'translate-x-0 bg-gray-400'}`}
-              ></div>
+              <div className="p-3 rounded-full bg-sky-50 dark:bg-sky-900/20 text-sky-500 group-hover:scale-110 transition-transform">
+                <ImageIcon size={32} />
+              </div>
+              <p className="text-gray-500 font-medium">Upload up to 4 .glb assets</p>
             </div>
+          )}
+        </div>
+      </div>
+      {/* Enhanced Upload Progress Overlay */}
+      <div className="space-y-3 px-1 mt-2">
+        {/* Metadata Saving Overlay */}
+        {isSavingMetadata && (
+          <div className="mx-4 p-4 rounded-xl border border-sky-100 dark:border-sky-900/30 bg-sky-50/50 dark:bg-sky-900/10 flex items-center justify-center gap-3 animate-pulse">
+            <div className="w-5 h-5 border-2 border-sky-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm font-semibold text-sky-600 dark:text-sky-400">
+              Finalizing post & fetching metadata...
+            </span>
+          </div>
+        )}
+        {assets.map((asset) => (
+          asset.status === "uploading" && (
+            <div
+              key={asset.id}
+              className="p-3 rounded-xl border border-gray-100 dark:border-zinc-800 bg-gray-50/50 dark:bg-zinc-900/50 backdrop-blur-sm animate-in fade-in slide-in-from-bottom-2 duration-300"
+            >
+              <div className="flex justify-between items-center mb-2">
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <div className="flex-shrink-0 w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
+                  <span className="text-xs font-medium text-gray-700 dark:text-zinc-300 truncate">
+                    Uploading {asset.name}
+                  </span>
+                </div>
+                <span className="text-[10px] font-bold text-sky-500 tabular-nums">
+                  {asset.progress || 0}%
+                </span>
+              </div>
+
+              <div className="relative w-full h-1.5 bg-gray-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                {/* Progress Fill with Glow Effect */}
+                <div
+                  className="absolute top-0 left-0 h-full bg-sky-500 transition-all duration-300 ease-out rounded-full shadow-[0_0_8px_rgba(14,165,233,0.4)]"
+                  style={{ width: `${asset.progress || 0}%` }}
+                />
+              </div>
+            </div>
+          )
+        ))}
+      </div>
+      {/* Footer Tools */}
+      <div className="px-4 py-3 border-t border-gray-100 dark:border-zinc-800 bg-white dark:bg-black flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {/* Price Input Container */}
+          <div className="flex items-center bg-gray-100 dark:bg-zinc-900 rounded-full px-3 py-1.5 border border-transparent focus-within:border-sky-500 text-sky-500 transition-all">
+            <DollarSign size={16} />
+            <input
+              type="number"
+              placeholder="Price"
+              min="0"
+              className="bg-transparent border-none outline-none text-sm w-24 text-black dark:text-white placeholder-gray-500 focus:ring-0 ml-1 appearance-none"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+            />
           </div>
 
-          <div className="pt-6">
-            <button
-              type="submit"
-              className="w-full px-4 py-3 bg-[#3D7A6E] text-white font-semibold rounded-md shadow-lg hover:bg-[#589C92] transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#3D7A6E]"
-            >
-              Create Post
-            </button>
-          </div>
-        </form>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className={`p-2 rounded-full transition ${assets.length >= 4 ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed' : 'text-sky-500 hover:bg-sky-50 dark:hover:bg-sky-900/20'}`}
+            disabled={assets.length >= 4}
+            title="Add Asset"
+          >
+            <ImageIcon size={22} />
+          </button>
+        </div>
+
+        <div className={`text-xs font-bold ${assets.length === 4 ? 'text-orange-500' : 'text-gray-400 dark:text-gray-600'}`}>
+          {assets.length} / 4 Assets
+        </div>
       </div>
+
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+        accept=".glb"
+        multiple
+      />
     </div>
   );
 };
 
-export default CreatePost;
+export default PostModal;

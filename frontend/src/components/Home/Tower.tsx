@@ -71,7 +71,7 @@ useEffect(() => {
 ) : (
   users.map((activeUser) => {
     // --- Here is the console log you requested ---
-    console.log(activeUser);
+    // console.log(activeUser);
     // -------------------------------------------
 
     return (

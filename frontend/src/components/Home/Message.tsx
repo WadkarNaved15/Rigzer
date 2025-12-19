@@ -109,7 +109,7 @@ const MessagingComponent = () => {
           unreadCount: 0
         }));
         setUsers(formattedUsers);
-        console.log("Users:", formattedUsers);
+        // console.log("Users:", formattedUsers);
       } catch (err) {
         console.error("Error fetching users:", err);
       }
@@ -222,7 +222,7 @@ const MessagingComponent = () => {
   const handleUserClick = async (receiverId: string) => {
     try {
       setActiveChat(receiverId);
-      console.log("receiverId", receiverId);
+      // console.log("receiverId", receiverId);
       // Hit backend to create or get the chat
       const { data } = await axios.post(
         `${BACKEND_URL}/api/chat/start`,

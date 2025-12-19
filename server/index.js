@@ -13,6 +13,7 @@ import { Server } from "socket.io";
 // ROUTES
 import modelUploadRouter from "./routes/compression.js";
 import chatMediaUpload from "./routes/chatMediaUpload.js";
+import allPostRoutes from "./routes/allPosts.js";
 import gameStatus from "./routes/gameStatus.js"
 import authRoutes from "./routes/auth.js";
 import adRoutes from "./routes/adRoutes.js";
@@ -88,6 +89,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/devlogs", devlogsRoutes);
 app.use("/api/follow", followRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/allposts", allPostRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/me", meRoutes);
 app.use("/api/game", gameStatus);

@@ -93,8 +93,7 @@ const PostDetail = ({ post, onClose }: { post: PostProps; onClose: () => void })
                   1972 Datsun 240K GT
                 </h2>
                 <p className="text-gray-600 dark:text-gray-400 mt-2">
-                  High-quality 3D vehicle asset designed for real-time rendering
-                  and interactive previews.
+                  Elevate your project with this premium 3D vehicle asset, masterfully crafted for high-end realism and peak performance. Featuring precision geometry and high-fidelity textures, it is fully optimized for real-time rendering, VR/AR applications, and interactive digital twins. Achieve a perfect balance of visual detail and technical efficiency, ensuring seamless integration into any modern engine.
                 </p>
               </div>
 
@@ -123,7 +122,7 @@ const PostDetail = ({ post, onClose }: { post: PostProps; onClose: () => void })
 
                 {/* @ts-ignore */}
                 <model-viewer
-                  src="/models/full_gameready_city_buildings.glb"
+                  src="/models/model.glb"
                   alt="3D model"
                   auto-rotate
                   camera-controls
