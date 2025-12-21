@@ -65,7 +65,7 @@ const NormalPost: React.FC<NormalPostProps> = ({
 >
   
       <div className="p-4">
-        <PostHeader username={user.username} timestamp={timestamp} />
+        <PostHeader username={user.username} timestamp={timestamp} price={0}/>
 
         {description && (
           <p className="mb-4 text-gray-800 dark:text-gray-200">{description}</p>

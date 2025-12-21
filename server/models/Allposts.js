@@ -65,6 +65,12 @@ const ModelAssetSchema = new mongoose.Schema(
 
 const ModelPostSchema = new mongoose.Schema(
   {
+     title: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 120,
+    },
     price: { 
       type: Number, 
       required: true,

@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import mongoose from "mongoose";
 import cloudinary from "../cloudinaryConfig.js";
 import { MeiliSearch } from "meilisearch";
-import Post from "../models/Post.js";
+import Post from "../models/Allposts.js";
 import User from "../models/User.js";  // adjust path
 import authMiddleware from "../middlewares/authMiddleware.js";
 
@@ -78,18 +78,16 @@ router.get("/fetch_posts", async (req, res) => {
   try {
     const { cursor, limit = 10 } = req.query;
 
-    const query = cursor
-      ? { _id: { $lt: cursor } } // Get older posts than the given _id
-      : {};                      // No cursor = first page
+    const query = cursor ? { _id: { $lt: cursor } } : {};
 
     const posts = await Post.find(query)
-      .populate("user", "username email")
-      .sort({ _id: -1 }) // Sort newest first
-      .limit(parseInt(limit));
+      .populate("user", "username")
+      .sort({ _id: -1 })
+      .limit(Number(limit))
+      .lean(); // 🔥 IMPORTANT for performance
 
-      console.log("post length ",posts.length)
-
-    const nextCursor = posts.length > 0 ? posts[posts.length - 1]._id : null;
+    const nextCursor =
+      posts.length > 0 ? posts[posts.length - 1]._id : null;
 
     res.status(200).json({ posts, nextCursor });
   } catch (error) {
@@ -97,6 +95,7 @@ router.get("/fetch_posts", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch posts" });
   }
 });
+
 router.get("/filter_posts", async (req, res) => {
   try {
     const { query } = req.query;

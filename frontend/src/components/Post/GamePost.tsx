@@ -124,6 +124,7 @@ const GamePost: React.FC<GamePostProps> = ({
           <PostHeader
             username={user.username}
             timestamp={timestamp}
+            price={0}
           />
 
           {/* DESCRIPTION */}

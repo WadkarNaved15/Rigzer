@@ -178,7 +178,7 @@ const PostModal: React.FC<PostModalProps> = ({ onCancel }) => {
         </div>
         <button
           onClick={handlePostSubmit}
-          disabled={!description || assets.length === 0 || isSubmitting}
+          disabled={!title || !description || assets.length === 0 || isSubmitting}
           className="bg-sky-500 hover:bg-sky-600 disabled:opacity-50 text-white font-bold px-5 py-1.5 rounded-full transition shadow-sm"
         >
           {isSubmitting ? "Posting..." : "Post"}

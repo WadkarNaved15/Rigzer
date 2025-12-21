@@ -4,11 +4,13 @@ import { MoreHorizontal } from 'lucide-react';
 interface PostHeaderProps {
   username: string;
   timestamp: string;
+  price: number;
 }
 
 const PostHeader: React.FC<PostHeaderProps> = ({
   username,
   timestamp,
+  price
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -63,7 +65,7 @@ const PostHeader: React.FC<PostHeaderProps> = ({
           hover:text-black dark:hover:text-white
           "
         >
-          $25
+          ${price}
         </span>
 
 

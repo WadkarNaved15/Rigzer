@@ -634,6 +634,7 @@ const MessagingComponent = () => {
                             {msg.mediaType === "image" && (
                               <img
                                 src={msg.mediaUrl}
+                                crossOrigin="anonymous"
                                 alt="media"
                                 className="rounded-lg max-w-full mb-2"
                               />
@@ -643,6 +644,7 @@ const MessagingComponent = () => {
                             {msg.mediaType === "video" && (
                               <video
                                 src={msg.mediaUrl}
+                                crossOrigin="anonymous"
                                 controls
                                 className="rounded-lg max-w-full mb-2"
                               />

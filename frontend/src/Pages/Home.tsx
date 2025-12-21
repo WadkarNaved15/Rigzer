@@ -12,14 +12,14 @@ import { useFeed } from "../context/FeedContext";
 import Post from "../components/Post";
 import { useUser } from "../context/user";
 import axios from "axios";
-import type { PostProps } from "../types/Post";
+import type { ExePostProps, PostProps } from "../types/Post";
 import CircleLoader from "../components/Loader/CircleLoader";
 import TickerBar from "../components/Home/TickerBar";
 import UploadBox from "../components/Home/Upload";
 import { useSearch } from "../components/Home/SearchContext";
 import { ArrowLeft } from "lucide-react";
 import { useFeedback } from "../context/FeedbackProvider";
-
+import { useNavigate } from "react-router-dom";
 // Lazy-loaded components
 const ProfileCover = lazy(() => import("../components/Home/Profile"));
 const Billboard = lazy(() => import("../components/Home/Billboard"));
@@ -34,6 +34,7 @@ const Profile = lazy(() => import("../components/Profile/NewProfile"));
 function Home() {
   const { user } = useUser();
   const { open } = useFeedback();
+  const navigate = useNavigate();
   const BACKEND_URL =
     import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   // Feed state
@@ -112,7 +113,13 @@ function Home() {
     },
     [nextCursor, loading, hasMore, BACKEND_URL]
   );
-
+  const handleUploadClick = () => {
+  if (!user) {
+    navigate("/auth");
+    return;
+  }
+  setIsUploading(true);
+};
   // Fetch filtered posts
   const fetchFilteredPosts = useCallback(
     async (query: string) => {
@@ -187,7 +194,7 @@ function Home() {
               </Suspense>
             </div>
             <div className="sticky top-80">
-              <UploadBox onUploadClick={() => setIsUploading(true)} />
+              <UploadBox onUploadClick={handleUploadClick} />
             </div>
           </div>
 
@@ -208,7 +215,7 @@ function Home() {
             <div className="lg:col-span-10 min-h-[80vh] w-full">
               <Suspense fallback={null}>
                 <PostDetails
-                  post={selectedPost}
+                  post={selectedPost as ExePostProps}
                   onClose={() => {
                     setPostDetailsOpen(false);
                     setSelectedPost(null);
@@ -243,6 +250,7 @@ function Home() {
                       <Post key={post._id}
                         {...post}
                         onOpenDetails={() => {
+                          if (post.type !== "model_post") return;
                           setSelectedPost(post);
                           setPostDetailsOpen(true);
                         }}
@@ -257,6 +265,7 @@ function Home() {
                           <Post key={post._id}
                             {...post}
                             onOpenDetails={() => {
+                              if (post.type !== "model_post") return;
                               setSelectedPost(post);
                               setPostDetailsOpen(true);
                             }} />

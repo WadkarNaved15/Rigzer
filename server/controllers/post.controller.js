@@ -62,10 +62,10 @@ export const createPost = async (req, res) => {
     // 🔹 Create Post
     const post = await AllPost.create({
       user: req.user.id,
-      title,
       description,
       type: "model_post",
       modelPost: {
+        title,
         price,
         assets: processedAssets,
       },
