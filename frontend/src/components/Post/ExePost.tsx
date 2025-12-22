@@ -30,7 +30,6 @@ const ExePost: React.FC<ExePostProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   let viewStartTime = useRef<number | null>(null);
-  console.log("Model post:", modelPost);
   const modelUrl = modelPost?.assets?.[0]?.url;
   const price = modelPost?.price;
   // const handleGameStream = async () => {

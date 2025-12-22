@@ -22,7 +22,7 @@ import { useFeedback } from "../context/FeedbackProvider";
 import { useNavigate } from "react-router-dom";
 // Lazy-loaded components
 const ProfileCover = lazy(() => import("../components/Home/Profile"));
-const Billboard = lazy(() => import("../components/Home/Billboard"));
+import Billboard from "../components/Home/Billboard";
 const Right = lazy(() => import("../components/Home/Right"));
 const AddPost = lazy(() => import("../components/Home/AddPost"));
 const Music = lazy(() => import("../components/Music"));
@@ -114,12 +114,12 @@ function Home() {
     [nextCursor, loading, hasMore, BACKEND_URL]
   );
   const handleUploadClick = () => {
-  if (!user) {
-    navigate("/auth");
-    return;
-  }
-  setIsUploading(true);
-};
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+    setIsUploading(true);
+  };
   // Fetch filtered posts
   const fetchFilteredPosts = useCallback(
     async (query: string) => {
@@ -289,10 +289,12 @@ function Home() {
 
               {/* Billboard */}
               <div className="lg:col-span-4 hidden lg:block h-full">
-                <div className="sticky top-24 h-[500px]">
-                  <Suspense fallback={null}>
-                    <Billboard />
-                  </Suspense>
+                <div className="sticky top-24">
+                  <div className="h-[500px] overflow-hidden">
+                    <Suspense fallback={null}>
+                      <Billboard /> 
+                    </Suspense>
+                  </div>
                 </div>
               </div>
             </>
