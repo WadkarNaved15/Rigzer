@@ -26,7 +26,7 @@ import Billboard from "../components/Home/Billboard";
 const Right = lazy(() => import("../components/Home/Right"));
 const AddPost = lazy(() => import("../components/Home/AddPost"));
 const Music = lazy(() => import("../components/Music"));
-const PostModal = lazy(() => import("../components/Home/NewPost"));
+const PostModal = lazy(() => import("../components/PostModal"));
 const MessagingComponent = lazy(() => import("../components/Home/Message"));
 const PostDetails = lazy(() => import("../Pages/PostDetail"));
 const Profile = lazy(() => import("../components/Profile/NewProfile"));
