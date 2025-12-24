@@ -133,16 +133,17 @@ const NormalPost: React.FC<NormalPostProps> = ({
                 {assets[currentIndex].type === "video" ? (
                   <video
                     controls
-                    className="w-full h-full object-contain"
+                    className="w-full h-full object-contain bg-black"
                     src={assets[currentIndex].url}
                   />
                 ) : (
                   <img
                     src={assets[currentIndex].url}
                     alt={assets[currentIndex].name}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain bg-black"
                     loading="lazy"
                   />
+
                 )}
 
                 {/* LEFT ARROW */}
