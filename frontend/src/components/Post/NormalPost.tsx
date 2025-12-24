@@ -120,7 +120,7 @@ const NormalPost: React.FC<NormalPostProps> = ({
 
           {/* MEDIA */}
           {/* MEDIA CAROUSEL */}
-          <div className="relative overflow-hidden w-full h-[400px] rounded-xl bg-gray-100 dark:bg-gray-700">
+          <div className="relative overflow-hidden w-full max-h-[500px] rounded-xl bg-black flex items-center justify-center">
             {assets.length > 0 ? (
               <>
                 {/* --- ADDED: ASSET COUNTER --- */}
@@ -133,14 +133,14 @@ const NormalPost: React.FC<NormalPostProps> = ({
                 {assets[currentIndex].type === "video" ? (
                   <video
                     controls
-                    className="w-full h-full object-contain bg-black"
+                    className="max-h-[500px] w-auto object-contain"
                     src={assets[currentIndex].url}
                   />
                 ) : (
                   <img
                     src={assets[currentIndex].url}
                     alt={assets[currentIndex].name}
-                    className="w-full h-full object-contain bg-black"
+                    className="max-h-[500px] w-auto object-contain"
                     loading="lazy"
                   />
 
