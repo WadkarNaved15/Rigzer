@@ -123,6 +123,12 @@ const NormalPost: React.FC<NormalPostProps> = ({
           <div className="relative overflow-hidden w-full h-[400px] rounded-xl bg-gray-100 dark:bg-gray-700">
             {assets.length > 0 ? (
               <>
+                {/* --- ADDED: ASSET COUNTER --- */}
+                {hasMultipleAssets && (
+                  <div className="absolute top-3 right-3 z-10 bg-black/60 text-white px-2 py-1 rounded-md text-xs font-medium backdrop-blur-sm">
+                    {currentIndex + 1} / {assets.length}
+                  </div>
+                )}
                 {/* MEDIA */}
                 {assets[currentIndex].type === "video" ? (
                   <video
@@ -178,8 +184,8 @@ const NormalPost: React.FC<NormalPostProps> = ({
                       <span
                         key={index}
                         className={`h-2 w-2 rounded-full ${index === currentIndex
-                            ? "bg-white"
-                            : "bg-white/50"
+                          ? "bg-white"
+                          : "bg-white/50"
                           }`}
                       />
                     ))}
