@@ -1,13 +1,16 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { MoreHorizontal } from 'lucide-react';
+import { PostProps } from '../../types/Post';
 
 interface PostHeaderProps {
   username: string;
   timestamp: string;
+  type: 'normal_post' | 'model_post' | 'game_post';
   price: number;
 }
 
 const PostHeader: React.FC<PostHeaderProps> = ({
+  type,
   username,
   timestamp,
   price
@@ -55,18 +58,18 @@ const PostHeader: React.FC<PostHeaderProps> = ({
       <div className="flex items-center">
 
         {/* PRICE */}
-        <span
-          className="
-          text-sm font-semibold text-[#5799EF]
-          p-2 rounded-full 
-          bg-[#5799EF]/20 
-          transition-all duration-200
-          cursor-pointer
-          hover:text-black dark:hover:text-white
-          "
-        >
-          ${price}
-        </span>
+         {type === 'model_post' && typeof price === 'number' && (
+          <span
+            className="
+              text-sm font-semibold text-[#5799EF]
+              px-3 py-1 rounded-full 
+              bg-[#5799EF]/20 
+              transition-all duration-200
+            "
+          >
+            ${price}
+          </span>
+        )}
 
 
         {/* MENU BUTTON */}

@@ -104,9 +104,8 @@ const MediaPostForm: React.FC<PostModalProps> = ({ onCancel }) => {
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          type: "media_post",
+          type: "normal_post",
           description,
-          price: Number(price),
           assets: updatedAssets.map(a => ({ name: a.name, url: a.uploadedUrl, type: a.type })),
         }),
       });

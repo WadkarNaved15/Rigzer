@@ -177,6 +177,7 @@ const ExePost: React.FC<ExePostProps> = ({
             username={user.username}
             timestamp={timestamp}
             price={price ?? 0}
+            type='model_post'
           />
 
           {/* DESCRIPTION */}

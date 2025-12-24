@@ -57,6 +57,11 @@ export interface ModelMetadata {
     z: number;
   };
 }
+export interface NormalPostAsset {
+  name: string;
+  url: string;
+  type: "image" | "video";
+}
 
 export interface ModelAsset {
   name: string;
@@ -90,7 +95,9 @@ interface CommonPostFields {
 // Specific post types
 export interface NormalPostProps extends CommonPostFields {
   type: 'normal_post';
-  gameUrl?: string; // Optional for normal
+  normalPost: {
+    assets: NormalPostAsset[];
+  };
 }
 
 export interface GamePostProps extends CommonPostFields {

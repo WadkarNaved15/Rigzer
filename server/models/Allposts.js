@@ -91,20 +91,21 @@ const ModelPostSchema = new mongoose.Schema(
 );
 const NormalPostSchema = new mongoose.Schema(
   {
-    media: [
+    assets: [
       {
-        url: { type: String, required: true },
-        type: { 
-          type: String, 
-          enum: ["image", "video"], 
-          required: true 
+        name: String,
+        url: String,
+        type: {
+          type: String, // "image" | "video"
+          enum: ["image", "video"],
+          required: true,
         },
-        thumbnail: { type: String }, // Useful for video previews
-      }
-    ]
+      },
+    ],
   },
   { _id: false }
 );
+
 const GamePostSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
