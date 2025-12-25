@@ -30,7 +30,12 @@ const CanvasObjectSchema = new mongoose.Schema({
   },
   
   // For files
-  filename: { type: String },
+  file: {
+  name: { type: String, required: true },
+  url: { type: String, required: true }, // S3 key
+  size: Number,
+  mimeType: String
+}
   
   // For code objects
   code: { type: String },

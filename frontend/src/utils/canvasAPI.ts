@@ -30,8 +30,8 @@ export interface CanvasObject {
     file?: {
     name: string
     url: string
-    size?: number
-    mimeType?: string
+    size?: number | undefined
+    mimeType?: string | undefined
   }
 
   spritesheet?: {

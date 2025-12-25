@@ -2,9 +2,8 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as PIXI from 'pixi.js';
 import { Viewport } from 'pixi-viewport';
-import {  Image as ImageIcon, Video, Type, File, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, Trash2 } from 'lucide-react';
+import {  Image as ImageIcon, Video, Type, File, Save, ZoomIn, ZoomOut, Maximize2, Trash2 } from 'lucide-react';
 import JSZip from 'jszip'
-import { LottieSprite } from "@qva/pixi-lottie";
 import canvasAPI ,{type SceneState} from '../utils/canvasAPI';
 import { useUser } from '../context/user';
 
@@ -20,16 +19,9 @@ interface SpriteSheetState {
   loop?: boolean
 }
 
-interface LottieState {
-  jsonUrl: string
-  autoplay?: boolean
-  loop?: boolean
-}
-
-
 interface CanvasObject {
   id: string;
-  type: 'image' | 'video' | 'text' | 'file' | 'code' | 'spritesheet' | 'lottie';
+  type: 'image' | 'video' | 'text' | 'file' | 'code' | 'spritesheet' ;
   x: number;
   y: number;
   scaleX: number;
@@ -46,7 +38,6 @@ interface CanvasObject {
 }
   code?: string;
   spritesheet?: SpriteSheetState;
-  lottie?: LottieState;
 }
 interface CodeObjectRuntime {
   container: PIXI.Container
@@ -79,7 +70,7 @@ const InfiniteCanvas: React.FC = () => {
   const videoElementsRef = useRef<Map<string, HTMLVideoElement>>(new Map());
   const codeRuntimeRef = useRef<Map<string, CodeObjectRuntime>>(new Map())
   const [sceneId, setSceneId] = useState<string | null>(null)
-  const { user, loading } = useUser()
+  const { user } = useUser()
   const [isPublishing, setIsPublishing] = useState(false)
 
 
@@ -101,10 +92,13 @@ const [viewMode, setViewMode] = useState<ViewMode>('editor');
     cameraY: 0,
     cameraZoom: 1
   });
-  const selectedText = React.useMemo(
-  () => sceneState.objects.find(o => o.id === selectedId && o.type === 'text'),
-  [sceneState.objects, selectedId]
-)
+ const selectedText = React.useMemo<CanvasObject | null>(() => {
+  const obj = sceneState.objects.find(
+    o => o.id === selectedId && o.type === 'text'
+  )
+  return obj ?? null
+}, [sceneState.objects, selectedId])
+
 
   
   const [editingText, setEditingText] = useState<{
@@ -416,7 +410,10 @@ const onUp = () => {
   if (!dragging) return
 
   dragging = false
-  viewportRef.current!.pause = false
+const viewport = viewportRef.current
+if (viewport) {
+  viewport.pause = false
+}
 
   viewportRef.current!.off('pointermove', onMove)
   viewportRef.current!.off('pointerup', onUp)
@@ -637,77 +634,6 @@ const onUp = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedId, editingText, deleteSelectedObject]);
-
-const addLottieAnimation = async (
-  jsonUrl: string,
-  options?: {
-    autoplay?: boolean
-    loop?: boolean
-  }
-) => {
-  if (!viewportRef.current) return
-
-  const id = generateId()
-  const viewport = viewportRef.current
-
-  // ✅ Load RAW binary (THIS IS THE KEY)
-  const buffer = await (await fetch(jsonUrl)).arrayBuffer()
-
-  const lottie = new LottieSprite({
-    asset: new Uint8Array(buffer), // ✅ CORRECT FORMAT
-    autoplay: options?.autoplay ?? true,
-    loop: options?.loop ?? true,
-    width: 200,
-    height: 200,
-    speed: 1
-  })
-
-  lottie.anchor.set(0.5)
-
-  const container = new PIXI.Container()
-  container.addChild(lottie)
-
-  const worldPos = viewport.toWorld(
-    viewport.screenWidth / 2,
-    viewport.screenHeight / 2
-  )
-  container.position.set(worldPos.x, worldPos.y)
-
-  container.eventMode = 'static'
-  container.cursor = 'pointer'
-
-  container.on('pointerover', () => lottie.play())
-  container.on('pointerout', () => lottie.stop())
-
-  setupCommonInteractions(container, id)
-
-  viewport.addChild(container)
-  objectsMapRef.current.set(id, container)
-
-  setSceneState(prev => ({
-    ...prev,
-    objects: [
-      ...prev.objects,
-      {
-        id,
-        type: 'lottie',
-        x: container.x,
-        y: container.y,
-        scaleX: 1,
-        scaleY: 1,
-        rotation: 0,
-        lottie: {
-          jsonUrl,
-          autoplay: options?.autoplay ?? true,
-          loop: options?.loop ?? true
-        }
-      }
-    ]
-  }))
-
-  setSelectedId(id)
-}
-
 
 
     const addSpriteSheet = async (
@@ -1286,24 +1212,6 @@ const handleFileUpload = useCallback(
 )
 
 
-  const handleLottieUpload = async (
-  e: React.ChangeEvent<HTMLInputElement>
-) => {
-  const file = e.target.files?.[0]
-  if (!file) return
-
-  if (!file.name.endsWith('.json')) {
-    alert('Please upload a Lottie .json file')
-    return
-  }
-
-  const url = URL.createObjectURL(file)
-  await addLottieAnimation(url, { autoplay: true, loop: true })
-
-  e.target.value = ''
-}
-
-
   const handleSpriteUpload = async (
   e: React.ChangeEvent<HTMLInputElement>
 ) => {
@@ -1394,7 +1302,7 @@ const applyTextStyle = (style: Partial<TextStyleState>) => {
     ...prev,
     objects: prev.objects.map(o =>
       o.id === selectedId
-        ? { ...o, textStyle: { ...o.textStyle, ...style } }
+        ? { ...o, textStyle: { ...(o.textStyle ?? {}), ...style }}
         : o
     )
   }))
@@ -1452,65 +1360,6 @@ const saveScene = useCallback(async () => {
     alert(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }, [sceneState]);
-
-
-
-const loadSceneFromAPI = useCallback(async (sceneId: string) => {
-  try {
-    const { scene } = await canvasAPI.getScene(sceneId)
-
-    // cleanup existing scene
-    objectsMapRef.current.forEach(o => o.destroy({ children: true }))
-    objectsMapRef.current.clear()
-    videoElementsRef.current.forEach(v => {
-      v.pause()
-      v.src = ''
-    })
-    videoElementsRef.current.clear()
-
-    // rebuild scene
-    for (const obj of scene.objects) {
-      switch (obj.type) {
-        case 'image': {
-  if (!obj.source) break
-  const id = await addImage(obj.source)
-  applyTransform(id, obj)
-  break
-}
-        case 'video':
-          obj.source && addVideo(obj.source)
-          break
-        case 'text':
-          obj.text && addText(obj.text)
-          break
-        case 'file':
-          obj.file && addFile(obj.file)
-          break
-        case 'code':
-          obj.code && addCodeObject(obj.code)
-          break
-        case 'spritesheet':
-          obj.spritesheet &&
-            addSpriteSheet(
-              obj.spritesheet.jsonUrl,
-              obj.spritesheet.imageUrl,
-              obj.spritesheet
-            )
-          break
-        case 'lottie':
-          obj.lottie &&
-            addLottieAnimation(obj.lottie.jsonUrl, obj.lottie)
-          break
-      }
-    }
-
-    viewportRef.current?.moveCenter(scene.cameraX, scene.cameraY)
-    viewportRef.current?.setZoom(scene.cameraZoom)
-  } catch (err) {
-    console.error(err)
-    alert('Failed to load scene')
-  }
-}, [])
 
 
   const zoomBy = (factor: number) => {
@@ -1716,7 +1565,7 @@ const handleFinalPublish = async () => {
             <label className="block text-sm mb-1">Tags</label>
             <input
               id="pub-tags"
-              placeholder="art, pixi, lottie"
+              placeholder="art, pixi"
               className="w-full p-4 rounded-xl bg-white/5 border border-white/10"
             />
           </div>
@@ -1877,19 +1726,7 @@ const handleFinalPublish = async () => {
 
       
       <div className="absolute top-4 left-4 flex gap-2 bg-gray-800 p-2 rounded-lg shadow-lg">
-      <label
-  className="cursor-pointer p-2 bg-orange-600 hover:bg-orange-700 rounded transition"
-  title="Add Lottie Animation"
->
-  🎨
-  <input
-    type="file"
-    accept=".json"
-    className="hidden"
-    onChange={handleLottieUpload}
-  />
-</label>
-
+     
         <label
   className="cursor-pointer p-2 bg-pink-600 hover:bg-pink-700 rounded transition"
   title="Add Sprite Animation"
@@ -1988,17 +1825,7 @@ return () => stop()
         >
           <Save size={20} className="text-white" />
         </button>
-        
-        <button
-  onClick={() => {
-    const sceneId = prompt('Enter Scene ID')
-    if (sceneId) loadSceneFromAPI(sceneId)
-  }}
-  className="p-2 bg-gray-600 hover:bg-gray-700 rounded transition"
-  title="Load Scene"
->
-  <FolderOpen size={20} className="text-white" />
-</button>
+      
 
       </div>
       

@@ -39,7 +39,19 @@ interface DevlogData {
   cameraZoom: number;
 }
 
-const IndividualDevlogViewer: React.FC = () => {
+interface TextStyleState {
+  fontFamily?: string
+  fontSize?: number
+  fill?: number | string
+  fontWeight?: 'normal' | 'bold'
+  fontStyle?: 'normal' | 'italic'
+  align?: 'left' | 'center' | 'right'
+  letterSpacing?: number
+  lineHeight?: number
+}
+
+
+const DevlogViewer: React.FC = () => {
   const { devlogId } = useParams<{ devlogId: string }>();
   const canvasRef = useRef<HTMLDivElement>(null);
   const pixiAppRef = useRef<PIXI.Application | null>(null);
@@ -530,4 +542,4 @@ container.on('destroyed', () => {
   );
 };
 
-export default IndividualDevlogViewer;
+export default DevlogViewer;
