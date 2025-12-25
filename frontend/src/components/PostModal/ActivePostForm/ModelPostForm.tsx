@@ -171,9 +171,9 @@ const PostModal: React.FC<PostModalProps> = ({ onCancel }) => {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 sticky top-0 bg-white/80 dark:bg-black/80 backdrop-blur-md z-30 border-b border-gray-100 dark:border-zinc-800">
         <div className="flex items-center gap-6">
-          <button onClick={onCancel} className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-900 rounded-full transition-colors">
+          {/* <button onClick={onCancel} className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-900 rounded-full transition-colors">
             <X size={20} className="text-black dark:text-white" />
-          </button>
+          </button> */}
           <h2 className="text-xl font-bold text-black dark:text-white">Compose 3D Bundle</h2>
         </div>
         <button

@@ -17,12 +17,11 @@ const Fallback = () => (
 
 export const Post: React.FC<PostWrapperProps> = (props) => {
   const { type } = props;
-
   const RenderedPost = (() => {
     switch (type) {
       case "game_post":
         return GamePost as React.ComponentType<PostWrapperProps>;
-      case "exe_post":
+      case "model_post":
         return ExePost as React.ComponentType<PostWrapperProps>;
       default:
         return NormalPost as React.ComponentType<PostWrapperProps>;

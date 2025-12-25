@@ -12,21 +12,21 @@ import { useFeed } from "../context/FeedContext";
 import Post from "../components/Post";
 import { useUser } from "../context/user";
 import axios from "axios";
-import type { PostProps } from "../types/Post";
+import type { ExePostProps, PostProps } from "../types/Post";
 import CircleLoader from "../components/Loader/CircleLoader";
 import TickerBar from "../components/Home/TickerBar";
 import UploadBox from "../components/Home/Upload";
 import { useSearch } from "../components/Home/SearchContext";
 import { ArrowLeft } from "lucide-react";
 import { useFeedback } from "../context/FeedbackProvider";
-
+import { useNavigate } from "react-router-dom";
 // Lazy-loaded components
 const ProfileCover = lazy(() => import("../components/Home/Profile"));
-const Billboard = lazy(() => import("../components/Home/Billboard"));
+import Billboard from "../components/Home/Billboard";
 const Right = lazy(() => import("../components/Home/Right"));
 const AddPost = lazy(() => import("../components/Home/AddPost"));
 const Music = lazy(() => import("../components/Music"));
-const PostModal = lazy(() => import("../components/Home/NewPost"));
+const PostModal = lazy(() => import("../components/PostModal"));
 const MessagingComponent = lazy(() => import("../components/Home/Message"));
 const PostDetails = lazy(() => import("../Pages/PostDetail"));
 const Profile = lazy(() => import("../components/Profile/NewProfile"));
@@ -34,6 +34,7 @@ const Profile = lazy(() => import("../components/Profile/NewProfile"));
 function Home() {
   const { user } = useUser();
   const { open } = useFeedback();
+  const navigate = useNavigate();
   const BACKEND_URL =
     import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   // Feed state
@@ -112,7 +113,13 @@ function Home() {
     },
     [nextCursor, loading, hasMore, BACKEND_URL]
   );
-
+  const handleUploadClick = () => {
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+    setIsUploading(true);
+  };
   // Fetch filtered posts
   const fetchFilteredPosts = useCallback(
     async (query: string) => {
@@ -187,7 +194,7 @@ function Home() {
               </Suspense>
             </div>
             <div className="sticky top-80">
-              <UploadBox onUploadClick={() => setIsUploading(true)} />
+              <UploadBox onUploadClick={handleUploadClick} />
             </div>
           </div>
 
@@ -208,7 +215,7 @@ function Home() {
             <div className="lg:col-span-10 min-h-[80vh] w-full">
               <Suspense fallback={null}>
                 <PostDetails
-                  post={selectedPost}
+                  post={selectedPost as ExePostProps}
                   onClose={() => {
                     setPostDetailsOpen(false);
                     setSelectedPost(null);
@@ -243,6 +250,7 @@ function Home() {
                       <Post key={post._id}
                         {...post}
                         onOpenDetails={() => {
+                          if (post.type !== "model_post") return;
                           setSelectedPost(post);
                           setPostDetailsOpen(true);
                         }}
@@ -257,6 +265,7 @@ function Home() {
                           <Post key={post._id}
                             {...post}
                             onOpenDetails={() => {
+                              if (post.type !== "model_post") return;
                               setSelectedPost(post);
                               setPostDetailsOpen(true);
                             }} />
@@ -280,10 +289,12 @@ function Home() {
 
               {/* Billboard */}
               <div className="lg:col-span-4 hidden lg:block h-full">
-                <div className="sticky top-24 h-[500px]">
-                  <Suspense fallback={null}>
-                    <Billboard />
-                  </Suspense>
+                <div className="sticky top-24">
+                  <div className="h-[500px] overflow-hidden">
+                    <Suspense fallback={null}>
+                      <Billboard /> 
+                    </Suspense>
+                  </div>
                 </div>
               </div>
             </>

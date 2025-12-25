@@ -11,9 +11,10 @@ import { useNavigate, useLocation } from "react-router-dom";
 const ExePost: React.FC<ExePostProps> = ({
   user,
   description,
-  gameUrl,
+  // gameUrl,
   onOpenDetails,
   createdAt,
+  modelPost,
   detailed = false,
   comments = 0,
   _id,
@@ -29,26 +30,27 @@ const ExePost: React.FC<ExePostProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   let viewStartTime = useRef<number | null>(null);
-  console.log("user", user);
-  const handleGameStream = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await axios.post(`${BACKEND_URL}/api/gameRoutes/start_game`, {
-        gameUrl,
-      });
+  const modelUrl = modelPost?.assets?.[0]?.url;
+  const price = modelPost?.price;
+  // const handleGameStream = async () => {
+  //   setLoading(true);
+  //   setError(null);
+  //   try {
+  //     const response = await axios.post(`${BACKEND_URL}/api/gameRoutes/start_game`, {
+  //       gameUrl,
+  //     });
 
-      if (response.status !== 200) {
-        throw new Error(`Server error: ${response.statusText}`);
-      }
+  //     if (response.status !== 200) {
+  //       throw new Error(`Server error: ${response.statusText}`);
+  //     }
 
-      console.log("Game stream started:", response.data);
-    } catch (err: any) {
-      setError(err.message || "Unknown error");
-    } finally {
-      setLoading(false);
-    }
-  };
+  //     console.log("Game stream started:", response.data);
+  //   } catch (err: any) {
+  //     setError(err.message || "Unknown error");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
   const getRelativeTime = (date: string | Date) => {
     const now = new Date();
     const created = new Date(date);
@@ -135,19 +137,19 @@ const ExePost: React.FC<ExePostProps> = ({
     return () => observer.disconnect();
   }, []);
   return (
-  //   
-  <article
-  ref={postRef}
-  onClick={(e) => {
-    if (detailed) return;
+    //   
+    <article
+      ref={postRef}
+      onClick={(e) => {
+        if (detailed) return;
 
-    // prevent interaction clicks
-    if ((e.target as HTMLElement).closest("button")) return;
+        // prevent interaction clicks
+        if ((e.target as HTMLElement).closest("button")) return;
 
-    // 🔥 OPEN DETAILS IN HOME (NO ROUTING)
-    onOpenDetails?.();
-  }}
-  className="
+        // 🔥 OPEN DETAILS IN HOME (NO ROUTING)
+        onOpenDetails?.();
+      }}
+      className="
     relative w-full 
     border border-gray-200 dark:border-gray-700
     bg-white dark:bg-black
@@ -155,7 +157,7 @@ const ExePost: React.FC<ExePostProps> = ({
     transition-colors duration-200
     cursor-pointer
   "
->
+    >
 
       <div className="flex gap-3 p-4">
 
@@ -174,6 +176,8 @@ const ExePost: React.FC<ExePostProps> = ({
           <PostHeader
             username={user.username}
             timestamp={timestamp}
+            price={price ?? 0}
+            type='model_post'
           />
 
           {/* DESCRIPTION */}
@@ -184,16 +188,22 @@ const ExePost: React.FC<ExePostProps> = ({
           )}
 
           {/* 3D MODEL */}
-          <div className="flex justify-center relative overflow-hidden w-full h-[400px] rounded-xl">
+          {modelUrl && (
+             <div className="flex justify-center relative overflow-hidden w-full h-[400px] rounded-xl">
             {/* @ts-ignore */}
             <model-viewer
-              src="/models/full_gameready_city_buildings.glb"
-              alt="3D model"
-              auto-rotate
+              src={modelUrl}
               camera-controls
+              auto-rotate
+              exposure="1.2"
+              environment-image="neutral"
+              shadow-intensity="1"
               style={{ width: "600px", height: "400px" }}
             />
+
           </div>
+          )}
+
           {/* Post Interactions */}
           <PostInteractions
             likes={likesCount}

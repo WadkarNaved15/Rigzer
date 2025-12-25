@@ -109,7 +109,7 @@ const MessagingComponent = () => {
           unreadCount: 0
         }));
         setUsers(formattedUsers);
-        console.log("Users:", formattedUsers);
+        // console.log("Users:", formattedUsers);
       } catch (err) {
         console.error("Error fetching users:", err);
       }
@@ -222,7 +222,7 @@ const MessagingComponent = () => {
   const handleUserClick = async (receiverId: string) => {
     try {
       setActiveChat(receiverId);
-      console.log("receiverId", receiverId);
+      // console.log("receiverId", receiverId);
       // Hit backend to create or get the chat
       const { data } = await axios.post(
         `${BACKEND_URL}/api/chat/start`,
@@ -634,6 +634,7 @@ const MessagingComponent = () => {
                             {msg.mediaType === "image" && (
                               <img
                                 src={msg.mediaUrl}
+                                crossOrigin="anonymous"
                                 alt="media"
                                 className="rounded-lg max-w-full mb-2"
                               />
@@ -643,6 +644,7 @@ const MessagingComponent = () => {
                             {msg.mediaType === "video" && (
                               <video
                                 src={msg.mediaUrl}
+                                crossOrigin="anonymous"
                                 controls
                                 className="rounded-lg max-w-full mb-2"
                               />
