@@ -36,6 +36,7 @@ import wishListRoutes from "./routes/wishListRoutes.js";
 import Message from "./models/Message.js";
 import searchRoutes from "./routes/searchRoutes.js";
 import followRoutes from "./routes/followRoutes.js";
+import canvasRoutes from "./routes/canvasRoutes.js";
 
 dotenv.config();
 
@@ -49,6 +50,9 @@ const corsWhitelist = [
   "https://xn--tlay-0ra.com",
   process.env.FRONTEND_URL
 ];
+
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 app.use(
   cors({
@@ -106,6 +110,7 @@ app.use("/api/games", gameFetch);
 app.use("/api/metadata", metadataRoutes);
 app.use("/api/comments", commentRoutes);
 app.use("/api/search", searchRoutes);
+app.use("/api/canvas", canvasRoutes);
 
 // HTTP SERVER
 const server = http.createServer(app);

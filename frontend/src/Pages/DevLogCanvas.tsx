@@ -3,8 +3,11 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as PIXI from 'pixi.js';
 import { Viewport } from 'pixi-viewport';
 import {  Image as ImageIcon, Video, Type, File, Save, FolderOpen, ZoomIn, ZoomOut, Maximize2, Trash2 } from 'lucide-react';
-import { convertGifToMp4 } from '../utils/convertGifToMp4';
 import JSZip from 'jszip'
+import { LottieSprite } from "@qva/pixi-lottie";
+import canvasAPI ,{type SceneState} from '../utils/canvasAPI';
+import { useUser } from '../context/user';
+
 
 
 // Types
@@ -17,9 +20,16 @@ interface SpriteSheetState {
   loop?: boolean
 }
 
+interface LottieState {
+  jsonUrl: string
+  autoplay?: boolean
+  loop?: boolean
+}
+
+
 interface CanvasObject {
   id: string;
-  type: 'image' | 'video' | 'text' | 'file' | 'code' | 'spritesheet';
+  type: 'image' | 'video' | 'text' | 'file' | 'code' | 'spritesheet' | 'lottie';
   x: number;
   y: number;
   scaleX: number;
@@ -28,18 +38,16 @@ interface CanvasObject {
   source?: string;
   text?: string;
   textStyle?: TextStyleState; 
-  filename?: string;
+  file?: {
+  name: string
+  url: string        // blob OR S3 key
+  size?: number
+  mimeType?: string
+}
   code?: string;
-  spritesheet?: SpriteSheetState
+  spritesheet?: SpriteSheetState;
+  lottie?: LottieState;
 }
-
-interface SceneState {
-  objects: CanvasObject[];
-  cameraX: number;
-  cameraY: number;
-  cameraZoom: number;
-}
-
 interface CodeObjectRuntime {
   container: PIXI.Container
   cleanup?: () => void
@@ -60,6 +68,7 @@ interface TextStyleState {
 // Constants
 const SELECTION_COLOR = 0x3b82f6; // Blue
 const HANDLE_COLOR = 0xffffff;
+const CLOUD_FRONT = import.meta.env.VITE_AWS_DEVLOGS_CANVAS_CLOUDFRONT
 
 // Infinite Canvas Component
 const InfiniteCanvas: React.FC = () => {
@@ -69,6 +78,15 @@ const InfiniteCanvas: React.FC = () => {
   const objectsMapRef = useRef<Map<string, PIXI.Container>>(new Map());
   const videoElementsRef = useRef<Map<string, HTMLVideoElement>>(new Map());
   const codeRuntimeRef = useRef<Map<string, CodeObjectRuntime>>(new Map())
+  const [sceneId, setSceneId] = useState<string | null>(null)
+  const { user, loading } = useUser()
+  const [isPublishing, setIsPublishing] = useState(false)
+
+
+// 1. Add a new state for the UI 'mode'
+type ViewMode = 'editor' | 'publishing';
+const [viewMode, setViewMode] = useState<ViewMode>('editor');
+
 
 
   // Selection Refs & State
@@ -101,6 +119,23 @@ const [codeDraft, setCodeDraft] = useState<string>('')
 // track which code object is being edited
 const [editingCodeId, setEditingCodeId] = useState<string | null>(null)
 
+const [thumbnailKey, setThumbnailKey] = useState<string | null>(null)
+const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null)
+
+
+const [uploadProgress, setUploadProgress] = useState<{
+  visible: boolean
+  label: string
+  percent: number
+}>({
+  visible: false,
+  label: '',
+  percent: 0
+})
+
+
+
+
 type RectArgs = {
   x: number
   y: number
@@ -122,6 +157,28 @@ type ImageArgs = {
   y: number
   url: string
   width?: number
+}
+
+
+const handleThumbnailUpload = async (
+  e: React.ChangeEvent<HTMLInputElement>
+) => {
+  const file = e.target.files?.[0]
+  if (!file) return
+
+  if (!file.type.startsWith('image/')) {
+    alert('Please upload an image file')
+    return
+  }
+
+  // Preview (local only)
+  setThumbnailPreview(URL.createObjectURL(file))
+
+  // Upload to S3
+  const key = await canvasAPI.uploadFile(file, 'thumbnail')
+  setThumbnailKey(key)
+
+  e.target.value = ''
 }
 
 
@@ -355,14 +412,19 @@ const runCode = (
         }
         updateObjectState(selectedId);
       };
+const onUp = () => {
+  if (!dragging) return
 
-      const onUp = () => {
-        if(dragging) {
-          dragging = false;
-          viewportRef.current!.pause = false;
-          updateSelectionGizmo();
-        }
-      };
+  dragging = false
+  viewportRef.current!.pause = false
+
+  viewportRef.current!.off('pointermove', onMove)
+  viewportRef.current!.off('pointerup', onUp)
+  viewportRef.current!.off('pointerupoutside', onUp)
+
+  updateSelectionGizmo()
+}
+
 
       viewportRef.current!.on('pointermove', onMove);
       viewportRef.current!.on('pointerup', onUp);
@@ -470,6 +532,13 @@ const runCode = (
   }, [selectedId, updateSelectionGizmo]);
 
   useEffect(() => {
+  if (user?.id) {
+    canvasAPI.setUserId(user.id)
+  }
+}, [user])
+
+
+  useEffect(() => {
     if (!canvasRef.current) return;
 
     let destroyed = false;
@@ -568,6 +637,78 @@ const runCode = (
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedId, editingText, deleteSelectedObject]);
+
+const addLottieAnimation = async (
+  jsonUrl: string,
+  options?: {
+    autoplay?: boolean
+    loop?: boolean
+  }
+) => {
+  if (!viewportRef.current) return
+
+  const id = generateId()
+  const viewport = viewportRef.current
+
+  // ✅ Load RAW binary (THIS IS THE KEY)
+  const buffer = await (await fetch(jsonUrl)).arrayBuffer()
+
+  const lottie = new LottieSprite({
+    asset: new Uint8Array(buffer), // ✅ CORRECT FORMAT
+    autoplay: options?.autoplay ?? true,
+    loop: options?.loop ?? true,
+    width: 200,
+    height: 200,
+    speed: 1
+  })
+
+  lottie.anchor.set(0.5)
+
+  const container = new PIXI.Container()
+  container.addChild(lottie)
+
+  const worldPos = viewport.toWorld(
+    viewport.screenWidth / 2,
+    viewport.screenHeight / 2
+  )
+  container.position.set(worldPos.x, worldPos.y)
+
+  container.eventMode = 'static'
+  container.cursor = 'pointer'
+
+  container.on('pointerover', () => lottie.play())
+  container.on('pointerout', () => lottie.stop())
+
+  setupCommonInteractions(container, id)
+
+  viewport.addChild(container)
+  objectsMapRef.current.set(id, container)
+
+  setSceneState(prev => ({
+    ...prev,
+    objects: [
+      ...prev.objects,
+      {
+        id,
+        type: 'lottie',
+        x: container.x,
+        y: container.y,
+        scaleX: 1,
+        scaleY: 1,
+        rotation: 0,
+        lottie: {
+          jsonUrl,
+          autoplay: options?.autoplay ?? true,
+          loop: options?.loop ?? true
+        }
+      }
+    ]
+  }))
+
+  setSelectedId(id)
+}
+
+
 
     const addSpriteSheet = async (
     jsonUrl: string,
@@ -747,6 +888,7 @@ container.on('pointerout', () => {
         }]
       }));
       setSelectedId(id);
+      return id;
     } catch (error) {
       console.error('Failed to load image:', error);
     }
@@ -930,7 +1072,12 @@ const addText = useCallback(
 )
 
 
-  const addFile = useCallback((filename: string) => {
+  const addFile = useCallback((file: {
+  name: string
+  url: string
+  size?: number
+  mimeType?: string
+}) => {
     if (!viewportRef.current) return;
 
     const id = generateId();
@@ -968,7 +1115,7 @@ const addText = useCallback(
       lines.lineTo(115, 40 + i * 12);
     }
     
-    const ext = filename.split('.').pop()?.toUpperCase() || 'FILE';
+    const ext = file.name.split('.').pop()?.toUpperCase() || 'FILE';
     const extBadge = new PIXI.Graphics();
     extBadge.beginFill(0xff6b6b);
     extBadge.drawRoundedRect(50, 125, 60, 25, 5);
@@ -984,7 +1131,7 @@ const addText = useCallback(
     extText.anchor.set(0.5);
     extText.position.set(80, 137.5);
     
-    const displayName = filename.length > 20 ? filename.substring(0, 17) + '...' : filename;
+    const displayName = file.name.length > 20 ? file.name.substring(0, 17) + '...' : file.name;
     const nameText = new PIXI.Text(displayName, {
       fontFamily: 'Arial',
       fontSize: 13,
@@ -1006,20 +1153,34 @@ const addText = useCallback(
     
     viewport.addChild(container);
     objectsMapRef.current.set(id, container);
+
+    container.on('pointertap', () => {
+  if (!file.url) return
+
+  // if S3 key → backend should resolve to signed URL
+  window.open(
+  file.url.startsWith('http')
+    ? file.url
+    : `${CLOUD_FRONT}/${file.url}`,
+  '_blank'
+)
+})
+
     
-    setSceneState(prev => ({
-      ...prev,
-      objects: [...prev.objects, {
-        id,
-        type: 'file',
-        x: container.x,
-        y: container.y,
-        scaleX: container.scale.x,
-        scaleY: container.scale.y,
-        rotation: container.rotation,
-        filename
-      }]
-    }));
+setSceneState(prev => ({
+  ...prev,
+  objects: [...prev.objects, {
+    id,
+    type: 'file',
+    x: container.x,
+    y: container.y,
+    scaleX: container.scale.x,
+    scaleY: container.scale.y,
+    rotation: container.rotation,
+    file
+  }]
+}))
+
     setSelectedId(id);
   }, [setupCommonInteractions]);
 
@@ -1085,36 +1246,63 @@ const addText = useCallback(
   setSelectedId(id)
 }, [setupCommonInteractions])
 
+const applyTransform = (id: string, obj: CanvasObject) => {
+  const c = objectsMapRef.current.get(id)
+  if (!c) return
 
-  const handleFileUpload = useCallback(async(e: React.ChangeEvent<HTMLInputElement>, type: 'image' | 'video' | 'file') => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // ✅ GIF → convert → VIDEO
-   if (file.type === 'image/gif') {
-  try {
-    const mp4Blob = await convertGifToMp4(file)
-    const url = URL.createObjectURL(mp4Blob)
-    addVideo(url)
-  } catch (error) {
-    console.error('Failed to convert GIF to MP4:', error)
-  }
-  return
+  c.position.set(obj.x, obj.y)
+  c.scale.set(obj.scaleX, obj.scaleY)
+  c.rotation = obj.rotation
 }
 
-    
-    const url = URL.createObjectURL(file);
-    
+
+
+const handleFileUpload = useCallback(
+  async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: 'image' | 'video' | 'file'
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const url = URL.createObjectURL(file)
+
     if (type === 'image') {
-      addImage(url);
+      addImage(url)
     } else if (type === 'video') {
-      addVideo(url);
+      addVideo(url)
     } else {
-      addFile(file.name);
+      addFile({
+        name: file.name,
+        url,
+        size: file.size,
+        mimeType: file.type
+      })
     }
-    
-    e.target.value = '';
-  }, [addImage, addVideo, addFile]);
+
+    e.target.value = ''
+  },
+  [addImage, addVideo, addFile]
+)
+
+
+  const handleLottieUpload = async (
+  e: React.ChangeEvent<HTMLInputElement>
+) => {
+  const file = e.target.files?.[0]
+  if (!file) return
+
+  if (!file.name.endsWith('.json')) {
+    alert('Please upload a Lottie .json file')
+    return
+  }
+
+  const url = URL.createObjectURL(file)
+  await addLottieAnimation(url, { autoplay: true, loop: true })
+
+  e.target.value = ''
+}
+
 
   const handleSpriteUpload = async (
   e: React.ChangeEvent<HTMLInputElement>
@@ -1212,73 +1400,118 @@ const applyTextStyle = (style: Partial<TextStyleState>) => {
   }))
 }
 
-console.log("selected Text",selectedText)
+const saveScene = useCallback(async () => {
+  setUploadProgress({
+    visible: true,
+    label: 'Uploading canvas assets...',
+    percent: 0
+  });
 
-  const saveScene = useCallback(() => {
-    const json = JSON.stringify(sceneState, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `canvas_scene_${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [sceneState]);
+  try {
+    // 1. Upload assets and scene structure
+    const data = await canvasAPI.uploadCanvasOnly(
+      sceneState,
+      (p, stage) => setUploadProgress(v => ({
+        ...v,
+        percent: p,
+        label: stage || v.label
+      }))
+    );
 
-  const loadScene = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const loaded: SceneState = JSON.parse(ev.target?.result as string);
-        
-        objectsMapRef.current.forEach(obj => obj.destroy({ children: true }));
-        objectsMapRef.current.clear();
-        videoElementsRef.current.forEach(video => {
-          video.pause();
-          video.src = '';
-        });
-        videoElementsRef.current.clear();
-        
-        loaded.objects.forEach(obj => {
-          if (obj.type === 'image' && obj.source) {
-            addImage(obj.source);
-          } else if (obj.type === 'video' && obj.source) {
-            addVideo(obj.source);
-          } else if (obj.type === 'text' && obj.text) {
-            addText(obj.text);
-          } else if (obj.type === 'file' && obj.filename) {
-            addFile(obj.filename);
-          } else if (obj.type === 'code' && obj.code) {
-            addCodeObject(obj.code)
-        }else if (obj.type === 'spritesheet' && obj.spritesheet) {
-  addSpriteSheet(
-    obj.spritesheet.jsonUrl,
-    obj.spritesheet.imageUrl,
-    {
-      autoplay: obj.spritesheet.autoplay,
-      loop: obj.spritesheet.loop,
-      animationName: obj.spritesheet.animationName
+    if (!data || !data.sceneId) {
+      throw new Error("No sceneId returned from server");
     }
-  )
-}
 
+    console.log("Successfully uploaded. Scene ID:", data.sceneId);
+    setSceneId(data.sceneId);
 
-        });
-        
-        if (viewportRef.current) {
-          viewportRef.current.moveCenter(loaded.cameraX, loaded.cameraY);
-          viewportRef.current.setZoom(loaded.cameraZoom);
-        }
-      } catch (err) {
-        console.error('Failed to load scene:', err);
+    // 2. Generate preview for the publishing page
+    const app = pixiAppRef.current;
+    const viewport = viewportRef.current;
+
+    if (app && viewport) {
+      // ✅ FIX: Pass the viewport as the target to extract
+      // Pixi v8 extract.canvas requires a target (Container or Texture)
+      const canvas = app.renderer.extract.canvas({
+        target: viewport,
+      });
+
+      // Convert the ICanvas to a data URL for the preview
+      if (canvas && typeof canvas.toDataURL === 'function') {
+        setThumbnailPreview(canvas.toDataURL('image/png'));
       }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  }, [addImage, addVideo, addText, addFile]);
+    }
+
+    // 3. Clear progress and switch view
+    setUploadProgress({ visible: false, label: '', percent: 0 });
+    setViewMode('publishing');
+
+  } catch (error) {
+    console.error('Save error details:', error);
+    setUploadProgress({ visible: false, label: '', percent: 0 });
+    alert(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}, [sceneState]);
+
+
+
+const loadSceneFromAPI = useCallback(async (sceneId: string) => {
+  try {
+    const { scene } = await canvasAPI.getScene(sceneId)
+
+    // cleanup existing scene
+    objectsMapRef.current.forEach(o => o.destroy({ children: true }))
+    objectsMapRef.current.clear()
+    videoElementsRef.current.forEach(v => {
+      v.pause()
+      v.src = ''
+    })
+    videoElementsRef.current.clear()
+
+    // rebuild scene
+    for (const obj of scene.objects) {
+      switch (obj.type) {
+        case 'image': {
+  if (!obj.source) break
+  const id = await addImage(obj.source)
+  applyTransform(id, obj)
+  break
+}
+        case 'video':
+          obj.source && addVideo(obj.source)
+          break
+        case 'text':
+          obj.text && addText(obj.text)
+          break
+        case 'file':
+          obj.file && addFile(obj.file)
+          break
+        case 'code':
+          obj.code && addCodeObject(obj.code)
+          break
+        case 'spritesheet':
+          obj.spritesheet &&
+            addSpriteSheet(
+              obj.spritesheet.jsonUrl,
+              obj.spritesheet.imageUrl,
+              obj.spritesheet
+            )
+          break
+        case 'lottie':
+          obj.lottie &&
+            addLottieAnimation(obj.lottie.jsonUrl, obj.lottie)
+          break
+      }
+    }
+
+    viewportRef.current?.moveCenter(scene.cameraX, scene.cameraY)
+    viewportRef.current?.setZoom(scene.cameraZoom)
+  } catch (err) {
+    console.error(err)
+    alert('Failed to load scene')
+  }
+}, [])
+
 
   const zoomBy = (factor: number) => {
     const viewport = viewportRef.current;
@@ -1300,6 +1533,97 @@ console.log("selected Text",selectedText)
     viewportRef.current?.setZoom(1);
   };
 
+
+const handleFinalPublish = async () => {
+  if (isPublishing) return
+
+  setIsPublishing(true)
+  setUploadProgress({
+    visible: true,
+    label: 'Publishing canvas...',
+    percent: 0
+  })
+
+  try {
+    const title =
+      (document.getElementById('pub-title') as HTMLInputElement)?.value ||
+      'Untitled'
+
+    const description =
+      (document.getElementById('pub-desc') as HTMLTextAreaElement)?.value || ''
+
+    const tags =
+      (document.getElementById('pub-tags') as HTMLInputElement)?.value
+        ?.split(',')
+        .map(t => t.trim())
+        .filter(Boolean) || []
+
+    // 1️⃣ Upload canvas
+    const { sceneId } = await canvasAPI.uploadCanvasOnly(
+      sceneState,
+      (p, stage) =>
+        setUploadProgress(v => ({
+          ...v,
+          percent: p,
+          label: stage || v.label
+        }))
+    )
+
+    if (!sceneId) throw new Error('Scene upload failed')
+
+    // 2️⃣ Thumbnail
+    let finalThumbKey = thumbnailKey
+
+    if (!finalThumbKey) {
+      const app = pixiAppRef.current
+      const viewport = viewportRef.current
+
+      if (app && viewport) {
+        const canvas = app.renderer.extract.canvas({ target: viewport })
+        const blob = await new Promise<Blob>(
+          r => canvas.toBlob(b => r(b!), 'image/png')
+        )
+
+        finalThumbKey = await canvasAPI.uploadFile(
+          new File([blob], 'thumbnail.png', { type: 'image/png' }),
+          'thumbnail'
+        )
+      }
+    }
+
+    if (!finalThumbKey) throw new Error('Thumbnail generation failed')
+
+    // 3️⃣ Meta + publish
+    setUploadProgress(v => ({ ...v, label: 'Finalizing publish...', percent: 95 }))
+
+    await canvasAPI.updateSceneMeta(sceneId, {
+      title,
+      description,
+      tags,
+      isPublic: true
+    })
+
+    await canvasAPI.publishScene(sceneId, finalThumbKey)
+
+    // 4️⃣ Reset
+    setUploadProgress({ visible: false, label: '', percent: 0 })
+    setThumbnailKey(null)
+    setThumbnailPreview(null)
+    setSceneId(null)
+    setViewMode('editor')
+    setIsPublishing(false)
+
+    alert('🎉 Published Successfully!')
+  } catch (err) {
+    console.error(err)
+    setUploadProgress({ visible: false, label: '', percent: 0 })
+    setIsPublishing(false)
+    alert(err instanceof Error ? err.message : 'Publish failed')
+  }
+}
+
+
+
   return (
     <div className="relative w-full h-screen overflow-hidden bg-gray-900">
       <div
@@ -1310,6 +1634,133 @@ console.log("selected Text",selectedText)
           overscrollBehavior: 'none'
         }}
       />
+
+  {viewMode === 'publishing' && (
+  <div className="fixed inset-0 z-[10000] bg-[#050505] text-white flex flex-col">
+
+    {/* Header */}
+    <header className="flex items-center justify-between px-8 py-6 border-b border-white/10">
+     <button
+  disabled={isPublishing}
+  onClick={() => setViewMode('editor')}
+  className={`${
+    isPublishing ? 'opacity-50 cursor-not-allowed' : 'hover:text-white'
+  } text-gray-400 transition`}
+>
+  ← Back to Editor
+</button>
+
+
+      <h1 className="text-xl font-bold">Publish Canvas</h1>
+    </header>
+
+    {/* Content */}
+    <main className="flex-1 overflow-auto px-12 py-10">
+      <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12">
+
+        {/* LEFT — Thumbnail */}
+        <div className="space-y-4">
+          <h3 className="text-sm font-semibold uppercase text-gray-400">
+            Thumbnail
+          </h3>
+
+          <div className="aspect-video rounded-2xl overflow-hidden bg-gray-900 border border-white/10">
+            {thumbnailPreview ? (
+              <img
+                src={thumbnailPreview}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-600">
+                No preview
+              </div>
+            )}
+          </div>
+
+          <label className="inline-flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl hover:bg-white/10 cursor-pointer">
+            <ImageIcon size={18} />
+            Upload Custom Thumbnail
+            <input
+              type="file"
+              hidden
+              accept="image/*"
+              onChange={handleThumbnailUpload}
+            />
+          </label>
+        </div>
+
+        {/* RIGHT — Details */}
+        <div className="space-y-6">
+
+          <div>
+            <label className="block text-sm mb-1">Title</label>
+            <input
+              id="pub-title"
+              placeholder="Awesome Canvas"
+              className="w-full p-4 rounded-xl bg-white/5 border border-white/10"
+            />
+          </div>
+
+          <div>
+  <label className="block text-sm mb-1">Description</label>
+  <textarea
+    id="pub-desc"
+    placeholder="Describe your canvas"
+    className="w-full p-4 rounded-xl bg-white/5 border border-white/10 resize-none"
+    rows={4}
+  />
+</div>
+
+
+          <div>
+            <label className="block text-sm mb-1">Tags</label>
+            <input
+              id="pub-tags"
+              placeholder="art, pixi, lottie"
+              className="w-full p-4 rounded-xl bg-white/5 border border-white/10"
+            />
+          </div>
+
+          <button
+  onClick={handleFinalPublish}
+  disabled={isPublishing}
+  className={`w-full py-4 rounded-xl font-bold text-lg transition ${
+    isPublishing
+      ? 'bg-gray-600 cursor-not-allowed'
+      : 'bg-green-600 hover:bg-green-500'
+  }`}
+>
+  {isPublishing ? 'Publishing…' : 'Publish'}
+</button>
+
+
+        </div>
+      </div>
+    </main>
+  </div>
+)}
+
+      {uploadProgress.visible && (
+  <div className="absolute inset-0 bg-black/70 z-[9999] flex items-center justify-center">
+    <div className="bg-gray-900 p-6 rounded-xl w-80 text-white">
+      <div className="mb-2 font-semibold">
+        {uploadProgress.label}
+      </div>
+
+      <div className="w-full bg-gray-700 h-2 rounded overflow-hidden">
+        <div
+          className="bg-indigo-500 h-full transition-all"
+          style={{ width: `${uploadProgress.percent}%` }}
+        />
+      </div>
+
+      <div className="text-right text-xs mt-1">
+        {uploadProgress.percent}%
+      </div>
+    </div>
+  </div>
+)}
+
 
       {showCodeEditor && (
   <div className="absolute inset-0 bg-black/60 z-50 flex items-center justify-center">
@@ -1426,6 +1877,19 @@ console.log("selected Text",selectedText)
 
       
       <div className="absolute top-4 left-4 flex gap-2 bg-gray-800 p-2 rounded-lg shadow-lg">
+      <label
+  className="cursor-pointer p-2 bg-orange-600 hover:bg-orange-700 rounded transition"
+  title="Add Lottie Animation"
+>
+  🎨
+  <input
+    type="file"
+    accept=".json"
+    className="hidden"
+    onChange={handleLottieUpload}
+  />
+</label>
+
         <label
   className="cursor-pointer p-2 bg-pink-600 hover:bg-pink-700 rounded transition"
   title="Add Sprite Animation"
@@ -1525,15 +1989,17 @@ return () => stop()
           <Save size={20} className="text-white" />
         </button>
         
-        <label className="cursor-pointer p-2 bg-gray-600 hover:bg-gray-700 rounded transition" title="Load Scene">
-          <FolderOpen size={20} className="text-white" />
-          <input
-            type="file"
-            accept=".json"
-            className="hidden"
-            onChange={loadScene}
-          />
-        </label>
+        <button
+  onClick={() => {
+    const sceneId = prompt('Enter Scene ID')
+    if (sceneId) loadSceneFromAPI(sceneId)
+  }}
+  className="p-2 bg-gray-600 hover:bg-gray-700 rounded transition"
+  title="Load Scene"
+>
+  <FolderOpen size={20} className="text-white" />
+</button>
+
       </div>
       
       {/* Camera Controls */}
