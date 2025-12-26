@@ -45,39 +45,39 @@ class CanvasAPI {
 
   /* ------------------ Upload ------------------ */
 
-  async uploadFile(file: File, objectType: string = 'misc'): Promise<string> {
-    const contentType = file.type || 'application/octet-stream'
+async uploadFile(
+  data: Blob,
+  objectType: string = 'misc',
+  fileName = 'upload.bin'
+): Promise<string> {
+  const contentType = data.type || 'application/octet-stream'
 
-    const uploadUrlResponse = await fetch(
-      `${API_BASE_URL}/api/canvas/getUploadUrl?` +
-        new URLSearchParams({
-          fileName: file.name,
-          fileType: contentType,
-          objectType,
-        })
-    )
+  const uploadUrlResponse = await fetch(
+    `${API_BASE_URL}/api/canvas/getUploadUrl?` +
+      new URLSearchParams({
+        fileName,
+        fileType: contentType,
+        objectType,
+      })
+  )
 
-    if (!uploadUrlResponse.ok) {
-      throw new Error('Failed to get upload URL')
-    }
-
-    const { uploadUrl, key } = await uploadUrlResponse.json()
-
-    const uploadResponse = await fetch(uploadUrl, {
-      method: 'PUT',
-      body: file,
-      headers: {
-        'Content-Type': contentType,
-      },
-    })
-
-    if (!uploadResponse.ok) {
-      const text = await uploadResponse.text()
-      throw new Error(`S3 upload failed (${uploadResponse.status}): ${text}`)
-    }
-
-    return key
+  if (!uploadUrlResponse.ok) {
+    throw new Error('Failed to get upload URL')
   }
+
+  const { uploadUrl, key } = await uploadUrlResponse.json()
+
+  await fetch(uploadUrl, {
+    method: 'PUT',
+    body: data,
+    headers: {
+      'Content-Type': contentType,
+    },
+  })
+
+  return key
+}
+
 
   /* ------------------ Scenes ------------------ */
 
@@ -256,85 +256,83 @@ class CanvasAPI {
     return res.json()
   }
 
-  private async processObjectsForUpload(
-    sceneState: SceneState,
-    onProgress?: (percent: number, stage?: string) => void
-  ): Promise<CanvasObject[]> {
-    const processedObjects: CanvasObject[] = []
-    const uploadTasks: (() => Promise<void>)[] = []
+ private async processObjectsForUpload(
+  sceneState: SceneState,
+  onProgress?: (percent: number, stage?: string) => void
+): Promise<CanvasObject[]> {
+  const processedObjects: CanvasObject[] = []
+  const uploadTasks: (() => Promise<void>)[] = []
 
-    for (const obj of sceneState.objects) {
-      const processed: CanvasObject = { ...obj }
+  for (const obj of sceneState.objects) {
+    const processed: CanvasObject = { ...obj }
 
-      /* IMAGE / VIDEO */
-      if (obj.source?.startsWith('blob:')) {
-        const blob = await fetch(obj.source).then((r) => r.blob())
-        const file = new File([blob], `${obj.type}_${obj.id}`, {
-          type: blob.type || 'application/octet-stream',
-        })
-
-        uploadTasks.push(async () => {
-          processed.source = await this.uploadFile(file, obj.type)
-        })
-      }
-
-      /* FILE */
-      if (obj.type === 'file' && obj.file?.url?.startsWith('blob:')) {
-        const blob = await fetch(obj.file.url).then((r) => r.blob())
-        const file = new File([blob], obj.file.name, {
-          type: obj.file.mimeType || blob.type,
-        })
-
-        uploadTasks.push(async () => {
-          // FIXED: Ensured name is treated as non-null
-          processed.file = {
-            ...obj.file!,
-            name: obj.file!.name,
-            url: await this.uploadFile(file, 'file'),
-          }
-        })
-      }
-
-      /* SPRITESHEET */
-      if (obj.spritesheet) {
-        processed.spritesheet = { ...obj.spritesheet }
-
-        if (obj.spritesheet.jsonUrl?.startsWith('blob:')) {
-          const b = await fetch(obj.spritesheet.jsonUrl).then((r) => r.blob())
-          uploadTasks.push(async () => {
-            processed.spritesheet!.jsonUrl = await this.uploadFile(
-              new File([b], `${obj.id}.json`, { type: 'application/json' }),
-              'spritesheet'
-            )
-          })
-        }
-
-        if (obj.spritesheet.imageUrl?.startsWith('blob:')) {
-          const b = await fetch(obj.spritesheet.imageUrl).then((r) => r.blob())
-          uploadTasks.push(async () => {
-            processed.spritesheet!.imageUrl = await this.uploadFile(
-              new File([b], `${obj.id}.png`, { type: 'image/png' }),
-              'spritesheet'
-            )
-          })
-        }
-      }
-
-      processedObjects.push(processed)
+    /* IMAGE / VIDEO */
+    if (obj.source?.startsWith('blob:')) {
+      const blob = await fetch(obj.source).then((r) => r.blob())
+      // Pass blob directly, and use the name as the 3rd argument
+      uploadTasks.push(async () => {
+        processed.source = await this.uploadFile(blob, obj.type, `${obj.type}_${obj.id}`)
+      })
     }
 
-    const total = uploadTasks.length
-    let completed = 0
+    /* FILE */
+    if (obj.type === 'file' && obj.file?.url?.startsWith('blob:')) {
+      const blob = await fetch(obj.file.url).then((r) => r.blob())
+      const fileName = obj.file.name;
 
-    for (const task of uploadTasks) {
-      await task()
-      completed++
-      onProgress?.(Math.round((completed / Math.max(total, 1)) * 90), 'Uploading assets')
+      uploadTasks.push(async () => {
+        processed.file = {
+          ...obj.file!,
+          name: fileName,
+          url: await this.uploadFile(blob, 'file', fileName),
+        }
+      })
     }
 
-    return processedObjects
+    /* SPRITESHEET */
+    if (obj.spritesheet) {
+      processed.spritesheet = { ...obj.spritesheet }
+
+      if (obj.spritesheet.jsonUrl?.startsWith('blob:')) {
+        const b = await fetch(obj.spritesheet.jsonUrl).then((r) => r.blob())
+        uploadTasks.push(async () => {
+          processed.spritesheet!.jsonUrl = await this.uploadFile(
+            b, 
+            'spritesheet', 
+            `${obj.id}.json`
+          )
+        })
+      }
+
+      if (obj.spritesheet.imageUrl?.startsWith('blob:')) {
+        const b = await fetch(obj.spritesheet.imageUrl).then((r) => r.blob())
+        uploadTasks.push(async () => {
+          processed.spritesheet!.imageUrl = await this.uploadFile(
+            b, 
+            'spritesheet', 
+            `${obj.id}.png`
+          )
+        })
+      }
+    }
+
+    processedObjects.push(processed)
   }
 
+  const total = uploadTasks.length
+  let completed = 0
+
+  for (const task of uploadTasks) {
+    await task()
+    completed++
+    onProgress?.(
+      Math.round((completed / Math.max(total, 1)) * 90),
+      'Uploading assets'
+    )
+  }
+
+  return processedObjects
+}
   /* ------------------ Save Canvas ------------------ */
 
   async saveCanvas(

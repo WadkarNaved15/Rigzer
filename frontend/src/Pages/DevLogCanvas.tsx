@@ -1179,35 +1179,29 @@ const handleFinalPublish = async () => {
 
     // 2️⃣ Thumbnail
     let finalThumbKey = thumbnailKey
+// ... inside handleFinalPublish
+if (!finalThumbKey) {
+  const app = pixiAppRef.current;
+  const viewport = viewportRef.current;
 
-    if (!finalThumbKey) {
-      const app = pixiAppRef.current
-      const viewport = viewportRef.current
-
-      if (app && viewport) {
-        const canvas = app.renderer.extract.canvas({ target: viewport })
-        const blob = await new Promise<Blob>((resolve, reject) => {
-  if (!canvas.toBlob) {
-    reject(new Error('toBlob not supported'))
-    return
-  }
-
-  canvas.toBlob(b => {
-    if (!b) reject(new Error('Blob creation failed'))
-    else resolve(b)
-  }, 'image/png')
-})
-
-const file = new File(
-  [blob],
-  'thumbnail.png',
-  { type: 'image/png' } as FilePropertyBag
-)
-
-
-        finalThumbKey = await canvasAPI.uploadFile(file, 'thumbnail')
+  if (app && viewport) {
+    const canvas = app.renderer.extract.canvas({ target: viewport });
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      if (!canvas.toBlob) {
+        reject(new Error('toBlob not supported'));
+        return;
       }
-    }
+      canvas.toBlob(b => {
+        if (!b) reject(new Error('Blob creation failed'));
+        else resolve(b);
+      }, 'image/png');
+    });
+
+    // ✅ FIXED: Pass the blob directly to uploadFile. 
+    // No need for 'new File()' which was causing the TS error.
+    finalThumbKey = await canvasAPI.uploadFile(blob, 'thumbnail', 'thumbnail.png');
+  }
+}
 
     if (!finalThumbKey) throw new Error('Thumbnail generation failed')
 
