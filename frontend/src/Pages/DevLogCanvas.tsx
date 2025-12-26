@@ -26,6 +26,8 @@ const InfiniteCanvas: React.FC = () => {
   const videoElementsRef = useRef<Map<string, HTMLVideoElement>>(new Map());
   const { user } = useUser()
   const [isPublishing, setIsPublishing] = useState(false)
+  const [sceneId, setSceneId] = useState<string | null>(null)
+
 
 
 // 1. Add a new state for the UI 'mode'
@@ -1085,10 +1087,12 @@ const saveScene = useCallback(async () => {
       }))
     );
 
+
     if (!data || !data.sceneId) {
       throw new Error("No sceneId returned from server");
     }
 
+    setSceneId(data.sceneId)
 
     // 2. Generate preview for the publishing page
     const app = pixiAppRef.current;
@@ -1142,6 +1146,10 @@ const saveScene = useCallback(async () => {
 
 const handleFinalPublish = async () => {
   if (isPublishing) return
+  if (!sceneId) {
+    alert('No scene to publish')
+    return
+  }
 
   setIsPublishing(true)
   setUploadProgress({
@@ -1164,49 +1172,45 @@ const handleFinalPublish = async () => {
         .map(t => t.trim())
         .filter(Boolean) || []
 
-    // 1️⃣ Upload canvas
-    const { sceneId } = await canvasAPI.uploadCanvasOnly(
-      sceneState,
-      (p, stage) =>
-        setUploadProgress(v => ({
-          ...v,
-          percent: p,
-          label: stage || v.label
-        }))
-    )
+    /* ---------------- Thumbnail ---------------- */
 
-    if (!sceneId) throw new Error('Scene upload failed')
-
-    // 2️⃣ Thumbnail
     let finalThumbKey = thumbnailKey
-// ... inside handleFinalPublish
-if (!finalThumbKey) {
-  const app = pixiAppRef.current;
-  const viewport = viewportRef.current;
 
-  if (app && viewport) {
-    const canvas = app.renderer.extract.canvas({ target: viewport });
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      if (!canvas.toBlob) {
-        reject(new Error('toBlob not supported'));
-        return;
+    if (!finalThumbKey) {
+      const app = pixiAppRef.current
+      const viewport = viewportRef.current
+
+      if (!app || !viewport) {
+        throw new Error('Renderer not ready')
       }
-      canvas.toBlob(b => {
-        if (!b) reject(new Error('Blob creation failed'));
-        else resolve(b);
-      }, 'image/png');
-    });
 
-    // ✅ FIXED: Pass the blob directly to uploadFile. 
-    // No need for 'new File()' which was causing the TS error.
-    finalThumbKey = await canvasAPI.uploadFile(blob, 'thumbnail', 'thumbnail.png');
-  }
-}
+      const canvas = app.renderer.extract.canvas({ target: viewport })
 
-    if (!finalThumbKey) throw new Error('Thumbnail generation failed')
+      const blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(b => {
+          if (!b) reject(new Error('Thumbnail creation failed'))
+          else resolve(b)
+        }, 'image/png')
+      })
 
-    // 3️⃣ Meta + publish
-    setUploadProgress(v => ({ ...v, label: 'Finalizing publish...', percent: 95 }))
+      finalThumbKey = await canvasAPI.uploadFile(
+        blob,
+        'thumbnail',
+        'thumbnail.png'
+      )
+    }
+
+    if (!finalThumbKey) {
+      throw new Error('Thumbnail upload failed')
+    }
+
+    /* ---------------- Meta + Publish ---------------- */
+
+    setUploadProgress({
+      visible: true,
+      label: 'Finalizing publish...',
+      percent: 95
+    })
 
     await canvasAPI.updateSceneMeta(sceneId, {
       title,
@@ -1217,12 +1221,13 @@ if (!finalThumbKey) {
 
     await canvasAPI.publishScene(sceneId, finalThumbKey)
 
-    // 4️⃣ Reset
+    /* ---------------- Cleanup ---------------- */
+
     setUploadProgress({ visible: false, label: '', percent: 0 })
     setThumbnailKey(null)
     setThumbnailPreview(null)
-    setViewMode('editor')
     setIsPublishing(false)
+    setViewMode('editor')
 
     alert('🎉 Published Successfully!')
   } catch (err) {
