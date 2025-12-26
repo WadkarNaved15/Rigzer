@@ -193,6 +193,7 @@ const ExePost: React.FC<ExePostProps> = ({
             {/* @ts-ignore */}
             <model-viewer
               src={modelUrl}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
               camera-controls
               auto-rotate
               exposure="1.2"
@@ -212,7 +213,7 @@ const ExePost: React.FC<ExePostProps> = ({
             onLike={handleLike}
             isWishlisted={isWishlisted}
             onWishlist={handleWishlist}
-            onCommentToggle={() => setShowComments(!showComments)} // ✅ toggle
+            onCommentToggle={() => onOpenDetails?.()} // ✅ toggle
           />
 
           {/* Comment Section (shown only if showComments is true) */}

@@ -103,7 +103,7 @@ app.use("/api/upload", uploadRoutes);
 app.use("/api/media/upload", chatMediaUpload);
 app.use("/api/wishlist", wishListRoutes);
 app.use("/api/gameRoutes", gameRoutes);
-app.use("/api/interactions", interactionRoutes);
+// app.use("/api/interactions", interactionRoutes);
 app.use("/api/feedback", feedBackRoutes);
 app.use("/api/recommend", recommendationRoutes);
 app.use("/api/compression", modelUploadRouter);
