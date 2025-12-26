@@ -1186,12 +1186,17 @@ const handleFinalPublish = async () => {
 
       const canvas = app.renderer.extract.canvas({ target: viewport })
 
-      const blob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob(b => {
-          if (!b) reject(new Error('Thumbnail creation failed'))
-          else resolve(b)
-        }, 'image/png')
-      })
+   const blob = await new Promise<Blob>((resolve, reject) => {
+  canvas?.toBlob?.(b => {
+    if (!b) reject(new Error("Thumbnail creation failed"))
+    else resolve(b)
+  }, "image/png")
+
+  if (!canvas || !canvas.toBlob) {
+    reject(new Error("Canvas toBlob not supported"))
+  }
+})
+
 
       finalThumbKey = await canvasAPI.uploadFile(
         blob,
