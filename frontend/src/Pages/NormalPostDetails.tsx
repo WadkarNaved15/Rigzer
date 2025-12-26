@@ -21,7 +21,7 @@ const NormalPostDetails: React.FC<NormalPostDetailsProps> = ({
         className="flex items-center gap-2 px-4 py-3 text-blue-500 hover:text-blue-600 border-b"
       >
         <ArrowLeft size={18} />
-        Back to feed
+        Post
       </button>
 
       {/* 🧩 Post */}
