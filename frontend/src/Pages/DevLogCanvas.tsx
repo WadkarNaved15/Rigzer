@@ -4,56 +4,12 @@ import * as PIXI from 'pixi.js';
 import { Viewport } from 'pixi-viewport';
 import {  Image as ImageIcon, Video, Type, File, Save, ZoomIn, ZoomOut, Maximize2, Trash2 } from 'lucide-react';
 import JSZip from 'jszip'
-import canvasAPI ,{type SceneState} from '../utils/canvasAPI';
+import canvasAPI from '../utils/canvasAPI';
 import { useUser } from '../context/user';
-
-
-
-// Types
-
-interface SpriteSheetState {
-  jsonUrl: string
-  imageUrl: string
-  animationName?: string
-  autoplay?: boolean
-  loop?: boolean
-}
-
-interface CanvasObject {
-  id: string;
-  type: 'image' | 'video' | 'text' | 'file' | 'code' | 'spritesheet' ;
-  x: number;
-  y: number;
-  scaleX: number;
-  scaleY: number;
-  rotation: number;
-  source?: string;
-  text?: string;
-  textStyle?: TextStyleState; 
-  file?: {
-  name: string
-  url: string        // blob OR S3 key
-  size?: number
-  mimeType?: string
-}
-  code?: string;
-  spritesheet?: SpriteSheetState;
-}
-interface CodeObjectRuntime {
-  container: PIXI.Container
-  cleanup?: () => void
-}
-
-interface TextStyleState {
-  fontFamily?: string
-  fontSize?: number
-  fill?: number | string
-  fontWeight?: 'normal' | 'bold'
-  fontStyle?: 'normal' | 'italic'
-  align?: 'left' | 'center' | 'right'
-  letterSpacing?: number
-  lineHeight?: number
-}
+import type {
+  CanvasObject,
+  SceneState,
+  TextStyleState} from '../types/canvas';
 
 
 // Constants
@@ -68,8 +24,6 @@ const InfiniteCanvas: React.FC = () => {
   const viewportRef = useRef<Viewport | null>(null);
   const objectsMapRef = useRef<Map<string, PIXI.Container>>(new Map());
   const videoElementsRef = useRef<Map<string, HTMLVideoElement>>(new Map());
-  const codeRuntimeRef = useRef<Map<string, CodeObjectRuntime>>(new Map())
-  const [sceneId, setSceneId] = useState<string | null>(null)
   const { user } = useUser()
   const [isPublishing, setIsPublishing] = useState(false)
 
@@ -107,11 +61,7 @@ const [viewMode, setViewMode] = useState<ViewMode>('editor');
     y: number;
     text: string;
   } | null>(null);
-  const [showCodeEditor, setShowCodeEditor] = useState(false)
-const [codeDraft, setCodeDraft] = useState<string>('')
 
-// track which code object is being edited
-const [editingCodeId, setEditingCodeId] = useState<string | null>(null)
 
 const [thumbnailKey, setThumbnailKey] = useState<string | null>(null)
 const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(null)
@@ -127,31 +77,6 @@ const [uploadProgress, setUploadProgress] = useState<{
   percent: 0
 })
 
-
-
-
-type RectArgs = {
-  x: number
-  y: number
-  w: number
-  h: number
-  color?: number
-}
-
-type TextArgs = {
-  x: number
-  y: number
-  text: string
-  size?: number
-  color?: number
-}
-
-type ImageArgs = {
-  x: number
-  y: number
-  url: string
-  width?: number
-}
 
 
 const handleThumbnailUpload = async (
@@ -177,46 +102,6 @@ const handleThumbnailUpload = async (
 
 
 
-const createDesignAPI = (viewport: Viewport, root: PIXI.Container) => {
-  return {
-    rect({ x, y, w, h, color = 0x000000 }: RectArgs) {
-      const g = new PIXI.Graphics()
-      g.beginFill(color).drawRect(0, 0, w, h).endFill()
-      g.position.set(x, y)
-      root.addChild(g)
-      return g
-    },
-
-    text({ x, y, text, size = 24, color = 0x000000 }: TextArgs) {
-      const t = new PIXI.Text(text, { fontSize: size, fill: color })
-      t.position.set(x, y)
-      root.addChild(t)
-      return t
-    },
-
-    image: async ({ x, y, url, width = 200 }: ImageArgs) => {
-      const tex = PIXI.Texture.from(url)
-      const s = new PIXI.Sprite(tex)
-      s.width = width
-      s.scale.y = s.scale.x
-      s.position.set(x, y)
-      root.addChild(s)
-      return s
-    },
-
-    animate(fn: (delta: number) => void) {
-  const ticker = pixiAppRef.current?.ticker
-  if (!ticker) return () => {}
-
-  const cb = (t: PIXI.Ticker) => fn(t.deltaTime)
-
-  ticker.add(cb)
-  return () => ticker.remove(cb)
-}
-
-  }
-}
-
 const createPixiText = (text: string, style?: TextStyleState) => {
   return new PIXI.Text(text, new PIXI.TextStyle({
     fontFamily: style?.fontFamily ?? 'Arial',
@@ -230,66 +115,6 @@ const createPixiText = (text: string, style?: TextStyleState) => {
   }))
 }
 
-
-
-const applyCode = () => {
-  if (!codeDraft.trim()) return
-
-  // Editing existing code object
-  if (editingCodeId) {
-    const runtime = codeRuntimeRef.current.get(editingCodeId)
-    runtime?.cleanup?.()
-
-    const container = runtime?.container
-    if (!container || !viewportRef.current) return
-
-    container.removeChildren()
-
-    const api = createDesignAPI(viewportRef.current, container)
-
-    let cleanupFn: (() => void) | undefined
-    runCode(codeDraft, api, fn => (cleanupFn = fn))
-
-    codeRuntimeRef.current.set(editingCodeId, {
-      container,
-      cleanup: cleanupFn
-    })
-
-    setSceneState(prev => ({
-      ...prev,
-      objects: prev.objects.map(o =>
-        o.id === editingCodeId ? { ...o, code: codeDraft } : o
-      )
-    }))
-  }
-  // Creating new code object
-  else {
-    addCodeObject(codeDraft)
-  }
-
-  setShowCodeEditor(false)
-  setEditingCodeId(null)
-}
-
-
-
-const runCode = (
-  code: string,
-  api: any,
-  onCleanup: (fn?: () => void) => void
-) => {
-  try {
-    const fn = new Function(
-      'design',
-      `"use strict";\n${code}`
-    )
-
-    const cleanup = fn(api)
-    onCleanup(cleanup)
-  } catch (e) {
-    console.error('Code error:', e)
-  }
-}
 
  const updateObjectState = useCallback((id: string) => {
     const obj = objectsMapRef.current.get(id);
@@ -457,10 +282,6 @@ if (viewport) {
         v?.pause();
         videoElementsRef.current.delete(selectedId);
       }
-      if (codeRuntimeRef.current.has(selectedId)) {
-        codeRuntimeRef.current.get(selectedId)?.cleanup?.()
-        codeRuntimeRef.current.delete(selectedId)
-      }
     }
 
     setSceneState(prev => ({
@@ -479,16 +300,6 @@ if (viewport) {
     let dragging = false;
     let dragStart = { x: 0, y: 0 };
 
-    container.on('pointertap', () => {
-  if (container === objectsMapRef.current.get(id)) {
-    const obj = sceneState.objects.find(o => o.id === id)
-    if (obj?.type === 'code' && obj.code) {
-      setEditingCodeId(id)
-      setCodeDraft(obj.code)
-      setShowCodeEditor(true)
-    }
-  }
-})
 
 
     container.on('pointerdown', (e: any) => {
@@ -1129,58 +940,6 @@ setSceneState(prev => ({
     setEditingText(null);
   }, [editingText]);
 
-  const addCodeObject = useCallback((code: string) => {
-  if (!viewportRef.current) return
-
-  const id = generateId()
-  const viewport = viewportRef.current
-
-  const container = new PIXI.Container()
-  viewport.addChild(container)
-
-  setupCommonInteractions(container, id)
-
-  const api = createDesignAPI(viewport, container)
-
-  let cleanupFn: (() => void) | undefined
-
-  runCode(code, api, (cleanup) => {
-    cleanupFn = cleanup
-  })
-
-  codeRuntimeRef.current.set(id, {
-    container,
-    cleanup: cleanupFn
-  })
-
-  objectsMapRef.current.set(id, container)
-
-  setSceneState(prev => ({
-    ...prev,
-    objects: [...prev.objects, {
-      id,
-      type: 'code',
-      x: container.x,
-      y: container.y,
-      scaleX: 1,
-      scaleY: 1,
-      rotation: 0,
-      code
-    }]
-  }))
-
-  setSelectedId(id)
-}, [setupCommonInteractions])
-
-const applyTransform = (id: string, obj: CanvasObject) => {
-  const c = objectsMapRef.current.get(id)
-  if (!c) return
-
-  c.position.set(obj.x, obj.y)
-  c.scale.set(obj.scaleX, obj.scaleY)
-  c.rotation = obj.rotation
-}
-
 
 
 const handleFileUpload = useCallback(
@@ -1330,8 +1089,6 @@ const saveScene = useCallback(async () => {
       throw new Error("No sceneId returned from server");
     }
 
-    console.log("Successfully uploaded. Scene ID:", data.sceneId);
-    setSceneId(data.sceneId);
 
     // 2. Generate preview for the publishing page
     const app = pixiAppRef.current;
@@ -1429,14 +1186,26 @@ const handleFinalPublish = async () => {
 
       if (app && viewport) {
         const canvas = app.renderer.extract.canvas({ target: viewport })
-        const blob = await new Promise<Blob>(
-          r => canvas.toBlob(b => r(b!), 'image/png')
-        )
+        const blob = await new Promise<Blob>((resolve, reject) => {
+  if (!canvas.toBlob) {
+    reject(new Error('toBlob not supported'))
+    return
+  }
 
-        finalThumbKey = await canvasAPI.uploadFile(
-          new File([blob], 'thumbnail.png', { type: 'image/png' }),
-          'thumbnail'
-        )
+  canvas.toBlob(b => {
+    if (!b) reject(new Error('Blob creation failed'))
+    else resolve(b)
+  }, 'image/png')
+})
+
+const file = new File(
+  [blob],
+  'thumbnail.png',
+  { type: 'image/png' } as FilePropertyBag
+)
+
+
+        finalThumbKey = await canvasAPI.uploadFile(file, 'thumbnail')
       }
     }
 
@@ -1458,7 +1227,6 @@ const handleFinalPublish = async () => {
     setUploadProgress({ visible: false, label: '', percent: 0 })
     setThumbnailKey(null)
     setThumbnailPreview(null)
-    setSceneId(null)
     setViewMode('editor')
     setIsPublishing(false)
 
@@ -1611,38 +1379,6 @@ const handleFinalPublish = async () => {
 )}
 
 
-      {showCodeEditor && (
-  <div className="absolute inset-0 bg-black/60 z-50 flex items-center justify-center">
-    <div className="bg-gray-900 w-[700px] h-[500px] rounded-lg shadow-xl flex flex-col">
-      
-      <div className="px-4 py-2 border-b border-gray-700 text-white font-semibold">
-        Code Editor
-      </div>
-
-      <textarea
-        value={codeDraft}
-        onChange={e => setCodeDraft(e.target.value)}
-        className="flex-1 bg-black text-green-400 font-mono p-4 resize-none outline-none"
-        spellCheck={false}
-      />
-
-      <div className="flex justify-end gap-2 p-3 border-t border-gray-700">
-        <button
-          onClick={() => setShowCodeEditor(false)}
-          className="px-4 py-2 bg-gray-700 rounded"
-        >
-          Cancel
-        </button>
-        <button
-          onClick={applyCode}
-          className="px-4 py-2 bg-indigo-600 rounded"
-        >
-          Run Code
-        </button>
-      </div>
-    </div>
-  </div>
-)}
 
       {selectedText && (
   <div className="absolute top-20 left-4 bg-gray-800 p-3 rounded-lg shadow-lg z-50 text-white w-56">
@@ -1769,34 +1505,7 @@ const handleFinalPublish = async () => {
           <Type size={20} className="text-white" />
         </button>
 
-        <button
-  onClick={() => {
-    setEditingCodeId(null)
-    setCodeDraft(`
-// Example:
-const box = design.rect({
-  x: 0,
-  y: 0,
-  w: 200,
-  h: 200,
-  color: 0xff0000
-})
-
-let r = 0
-const stop = design.animate((d) => {
-  r += 0.01 * d
-  box.rotation = r
-})
-
-return () => stop()
-`)
-    setShowCodeEditor(true)
-  }}
-  className="p-2 bg-indigo-600 hover:bg-indigo-700 rounded transition"
-  title="Add Code"
->
-  {"</>"} {/* or a Code icon */}
-</button>
+ 
 
         
         <label className="cursor-pointer p-2 bg-yellow-600 hover:bg-yellow-700 rounded transition" title="Add File">

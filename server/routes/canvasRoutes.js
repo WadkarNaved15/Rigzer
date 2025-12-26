@@ -419,10 +419,6 @@ router.put("/:id", async (req, res) => {
           ...obj.spritesheet,
           jsonUrl: stripCloudFront(obj.spritesheet.jsonUrl),
           imageUrl: stripCloudFront(obj.spritesheet.imageUrl)
-        },
-        lottie: obj.lottie && {
-          ...obj.lottie,
-          jsonUrl: stripCloudFront(obj.lottie.jsonUrl)
         }
       }));
     }
@@ -472,7 +468,6 @@ scene.objects.forEach(obj => {
   if (obj.source) keysToDelete.push(extractS3Key(obj.source));
   if (obj.spritesheet?.jsonUrl) keysToDelete.push(extractS3Key(obj.spritesheet.jsonUrl));
   if (obj.spritesheet?.imageUrl) keysToDelete.push(extractS3Key(obj.spritesheet.imageUrl));
-  if (obj.lottie?.jsonUrl) keysToDelete.push(extractS3Key(obj.lottie.jsonUrl));
 });
 
 if (scene.thumbnail) keysToDelete.push(extractS3Key(scene.thumbnail));

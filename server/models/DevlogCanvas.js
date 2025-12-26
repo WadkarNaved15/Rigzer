@@ -2,60 +2,54 @@ import mongoose from "mongoose";
 
 const CanvasObjectSchema = new mongoose.Schema({
   id: { type: String, required: true },
+
   type: {
     type: String,
-    enum: ['image', 'video', 'text', 'file', 'code', 'spritesheet', 'lottie'],
+    enum: ['image', 'video', 'text', 'file', 'spritesheet'],
     required: true
   },
-  x: { type: Number, required: true },
-  y: { type: Number, required: true },
-  scaleX: { type: Number, required: true },
-  scaleY: { type: Number, required: true },
-  rotation: { type: Number, required: true },
-  
-  // For images and videos
-  source: { type: String }, // S3 key or URL
-  
-  // For text
-  text: { type: String },
+
+  x: Number,
+  y: Number,
+  scaleX: Number,
+  scaleY: Number,
+  rotation: Number,
+
+  // Image / Video
+  source: String,
+
+  // Text
+  text: String,
   textStyle: {
     fontFamily: String,
     fontSize: Number,
-    fill: mongoose.Schema.Types.Mixed, // Can be number or string
+    fill: mongoose.Schema.Types.Mixed,
     fontWeight: { type: String, enum: ['normal', 'bold'] },
     fontStyle: { type: String, enum: ['normal', 'italic'] },
     align: { type: String, enum: ['left', 'center', 'right'] },
     letterSpacing: Number,
     lineHeight: Number
   },
-  
-  // For files
+
+  // File
   file: {
-  name: { type: String, required: true },
-  url: { type: String, required: true }, // S3 key
-  size: Number,
-  mimeType: String
-}
-  
-  // For code objects
-  code: { type: String },
-  
-  // For spritesheets
+    name: String,
+    url: String,
+    size: Number,
+    mimeType: String
+  },
+
+  // Spritesheet
   spritesheet: {
-    jsonUrl: String, // S3 key
-    imageUrl: String, // S3 key
+    jsonUrl: String,
+    imageUrl: String,
     animationName: String,
     autoplay: Boolean,
     loop: Boolean
-  },
-  
-  // For Lottie animations
-  lottie: {
-    jsonUrl: String, // S3 key
-    autoplay: Boolean,
-    loop: Boolean
   }
+
 }, { _id: false });
+
 
 const CanvasSceneSchema = new mongoose.Schema({
   userId: {
