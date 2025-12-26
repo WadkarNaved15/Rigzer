@@ -199,23 +199,31 @@ function Home() {
             </div>
           </div>
 
-          {/* Center + Right */}
-          {isUploading ? (
+          {/* Upload */}
+          {isUploading && (
             <div className="lg:col-span-10 flex justify-center min-h-[80vh] w-full">
               <Suspense fallback={null}>
                 <PostModal onCancel={() => setIsUploading(false)} />
               </Suspense>
             </div>
-          ) : profileOpen ? (
+          )}
+
+          {/* Profile */}
+          {profileOpen && !isUploading && (
             <div className="lg:col-span-10 flex justify-center min-h-[80vh] w-full">
               <Suspense fallback={null}>
                 <Profile setProfileOpen={setProfileOpen} />
               </Suspense>
             </div>
-          ) : postDetailsOpen && selectedPost ? (
-            <div className="lg:col-span-10 min-h-[80vh] w-full">
-              <Suspense fallback={null}>
-                {selectedPost.type === "model_post" ? (
+          )}
+
+          {/* MODEL POST → replace center + right */}
+          {postDetailsOpen &&
+            selectedPost?.type === "model_post" &&
+            !isUploading &&
+            !profileOpen && (
+              <div className="lg:col-span-10 min-h-[80vh] w-full">
+                <Suspense fallback={null}>
                   <PostDetails
                     post={selectedPost as ExePostProps}
                     onClose={() => {
@@ -223,23 +231,30 @@ function Home() {
                       setSelectedPost(null);
                     }}
                   />
-                ) : (
-                  <NormalPostDetails
-                    post={selectedPost as NormalPostProps}
-                    BACKEND_URL={BACKEND_URL}
-                    onClose={() => {
-                      setPostDetailsOpen(false);
-                      setSelectedPost(null);
-                    }}
-                  />
-                )}
-              </Suspense>
-            </div>
-          ) : (
-            <>
-              {/* Center Feed */}
+                </Suspense>
+              </div>
+            )}
+
+          {/* CENTER */}
+          {!isUploading &&
+            !profileOpen &&
+            !(postDetailsOpen && selectedPost?.type === "model_post") && (
               <div className="lg:col-span-6 flex flex-col items-center justify-start min-h-[80vh] w-full">
-                {showFilteredFeed ? (
+                {/* NORMAL POST → center only */}
+                {postDetailsOpen &&
+                  selectedPost &&
+                  selectedPost.type !== "model_post" ? (
+                  <Suspense fallback={null}>
+                    <NormalPostDetails
+                      post={selectedPost as NormalPostProps}
+                      BACKEND_URL={BACKEND_URL}
+                      onClose={() => {
+                        setPostDetailsOpen(false);
+                        setSelectedPost(null);
+                      }}
+                    />
+                  </Suspense>
+                ) : showFilteredFeed ? (
                   <div className="w-full mt-4 flex flex-col">
                     <button
                       onClick={() => {
@@ -259,13 +274,13 @@ function Home() {
                       </div>
                     )}
                     {filteredPosts.map((post) => (
-                      <Post key={post._id}
+                      <Post
+                        key={post._id}
                         {...post}
                         onOpenDetails={() => {
                           setSelectedPost(post);
                           setPostDetailsOpen(true);
                         }}
-
                       />
                     ))}
                   </div>
@@ -274,7 +289,8 @@ function Home() {
                     {mainPosts.length > 0 && (
                       <div className="w-full mt-4 flex flex-col">
                         {mainPosts.map((post) => (
-                          <Post key={post._id}
+                          <Post
+                            key={post._id}
                             {...post}
                             onOpenDetails={() => {
                               setSelectedPost(post);
@@ -284,22 +300,29 @@ function Home() {
                         ))}
                       </div>
                     )}
+
                     {loading && mainPosts.length === 0 && (
                       <div className="w-full flex justify-center mt-4">
                         <CircleLoader />
                       </div>
                     )}
+
                     {!hasMore && mainPosts.length > 0 && (
                       <div className="text-gray-400 dark:text-gray-500 mt-4">
                         You've reached the end.
                       </div>
                     )}
+
                     <div ref={loaderRef} className="h-10 w-full" />
                   </>
                 )}
               </div>
+            )}
 
-              {/* Billboard */}
+          {/* RIGHT SIDEBAR (hidden only for model post) */}
+          {!isUploading &&
+            !profileOpen &&
+            !(postDetailsOpen && selectedPost?.type === "model_post") && (
               <div className="lg:col-span-4 hidden lg:block h-full">
                 <div className="sticky top-24">
                   <div className="h-[500px] overflow-hidden">
@@ -309,20 +332,16 @@ function Home() {
                   </div>
                 </div>
               </div>
-            </>
-          )}
+            )}
         </div>
       </main>
 
-      {/* Footer components */}
       <Suspense fallback={null}>
         <MessagingComponent />
       </Suspense>
-      {/* <Suspense fallback={null}>
-        <Music />
-      </Suspense> */}
     </div>
   );
+
 }
 
 export default Home;
