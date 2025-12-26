@@ -124,7 +124,7 @@ const NormalPost: React.FC<NormalPostProps> = ({
 
           {/* MEDIA */}
           {/* MEDIA CAROUSEL */}
-          <div className="relative overflow-hidden w-full max-h-[500px] rounded-xl bg-black flex items-center justify-center">
+          <div className="relative overflow-hidden w-full max-h-[500px] rounded-xl bg-black flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
             {assets.length > 0 ? (
               <>
                 {/* --- ADDED: ASSET COUNTER --- */}
@@ -153,7 +153,10 @@ const NormalPost: React.FC<NormalPostProps> = ({
                 {/* LEFT ARROW */}
                 {hasMultipleAssets && (
                   <button
-                    onClick={goPrev}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      goPrev();
+                    }}
                     className="
             absolute left-2 top-1/2 -translate-y-1/2
             bg-black/50 text-white
@@ -169,7 +172,10 @@ const NormalPost: React.FC<NormalPostProps> = ({
                 {/* RIGHT ARROW */}
                 {hasMultipleAssets && (
                   <button
-                    onClick={goNext}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      goNext();
+                    }}
                     className="
             absolute right-2 top-1/2 -translate-y-1/2
             bg-black/50 text-white
@@ -184,7 +190,7 @@ const NormalPost: React.FC<NormalPostProps> = ({
 
                 {/* DOT INDICATORS */}
                 {hasMultipleAssets && (
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1">
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1" onClick={(e) => e.stopPropagation()}>
                     {assets.map((_, index) => (
                       <span
                         key={index}

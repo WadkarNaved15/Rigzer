@@ -58,7 +58,7 @@ const PostHeader: React.FC<PostHeaderProps> = ({
       <div className="flex items-center">
 
         {/* PRICE */}
-         {type === 'model_post' && typeof price === 'number' && (
+        {type === 'model_post' && typeof price === 'number' && (
           <span
             className="
               text-sm font-semibold text-[#5799EF]
@@ -80,7 +80,10 @@ const PostHeader: React.FC<PostHeaderProps> = ({
               dark:text-gray-400 
               hover:text-black dark:hover:text-white
             "
-            onClick={toggleMenu}
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleMenu();
+            }}
             aria-label="More options"
           >
             <MoreHorizontal className="h-5 w-5" />
