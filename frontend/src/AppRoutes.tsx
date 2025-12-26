@@ -12,7 +12,7 @@ const GameShowcase = lazy(() => import("./Pages/GameShowcase"));
 const UploadGame = lazy(() => import("./Pages/UploadGame"));
 const DevLogs = lazy(() => import("./Pages/DevLogs"));
 const DevLogsView = lazy(() => import("./Pages/DevLogViewPage"));
-const DevLogCanvas = lazy(() => import("./Pages/DevLogCanvas"));
+const DevLogCanvas = lazy(() => import("./Pages/DevlogCanvas"));
 const DevlogViewer = lazy(() => import("./Pages/DevlogViewer"));
 const Puck = lazy(() => import("./Pages/Puck"));
 

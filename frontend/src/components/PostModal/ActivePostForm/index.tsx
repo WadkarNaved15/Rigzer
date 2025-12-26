@@ -1,6 +1,6 @@
 // postModal/ActivePostForm/index.tsx
 import MediaPostForm from "./MediaPostForm";
-import TextPostForm from "./TextPostForm";
+import GamePostForm from "./GamePostForm";
 import ModelPostForm from "./ModelPostForm"
 // later: import ModelPostForm from "./ModelPostForm";
 
@@ -12,7 +12,7 @@ const postFormRegistry: Record<
 > = {
   model: ModelPostForm,
   media: MediaPostForm,
-  game: TextPostForm,
+  game: GamePostForm,
 };
 
 const ActivePostForm = ({
