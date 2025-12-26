@@ -10,6 +10,8 @@ const NormalPost: React.FC<NormalPostProps> = ({
   _id,
   user,
   description,
+  onOpenDetails,
+  disableInteractions,
   normalPost,
   createdAt,
   comments = 0,
@@ -87,10 +89,12 @@ const NormalPost: React.FC<NormalPostProps> = ({
   return (
     <article
       ref={postRef}
+      onClick={onOpenDetails}
       className="
         relative w-full 
         border border-gray-200 dark:border-gray-700
         bg-white dark:bg-black
+        cursor-pointer
         hover:bg-[#F7F9F9] dark:hover:bg-[#16181C]
         transition-colors duration-200
       "
@@ -202,15 +206,20 @@ const NormalPost: React.FC<NormalPostProps> = ({
 
 
           {/* INTERACTIONS */}
-          <PostInteractions
-            likes={likesCount}
-            comments={comments}
-            isLiked={isLiked}
-            isWishlisted={isWishlisted}
-            onLike={handleLike}
-            onWishlist={handleWishlist}
-            onCommentToggle={() => setShowComments(!showComments)}
-          />
+          <div
+            onClick={(e) => e.stopPropagation()}
+          >
+            <PostInteractions
+              likes={likesCount}
+              comments={comments}
+              isLiked={isLiked}
+              isWishlisted={isWishlisted}
+              onLike={handleLike}
+              onWishlist={handleWishlist}
+              onCommentToggle={() => onOpenDetails?.()}
+            />
+          </div>
+
 
           {/* COMMENTS */}
           {showComments && (

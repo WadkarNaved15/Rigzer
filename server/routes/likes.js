@@ -1,7 +1,6 @@
 import express from 'express';
 import Like from '../models/Like.js';
-import Post from '../models/Post.js';
-import { updateInteraction } from "../helper/interactionController.js";
+// import { updateInteraction } from "../helper/interactionController.js";
 import authMiddleware from '../middlewares/authMiddleware.js';
 
 const router = express.Router();
@@ -20,7 +19,7 @@ router.post('/', authMiddleware, async (req, res) => {
     const like = new Like({ post: postId, user: userId });
     await like.save();
     // UPDATE USER INTERACTION
-    await updateInteraction(userId, postId, { liked: true });
+    // await updateInteraction(userId, postId, { liked: true });
     res.status(200).json({ message: 'Post liked successfully' });
   } catch (err) {
     console.error(err);
@@ -35,8 +34,8 @@ router.delete('/', authMiddleware, async (req, res) => {
     const like = await Like.findOneAndDelete({ post: postId, user: userId });
 
     if (!like) return res.status(404).json({ message: 'Like not found' });
-    // UPDATE USER INTERACTION
-    await updateInteraction(userId, postId, { liked: false });
+    // // UPDATE USER INTERACTION
+    // await updateInteraction(userId, postId, { liked: false });
     res.status(200).json({ message: 'Post unliked successfully' });
   } catch (err) {
     console.error(err);

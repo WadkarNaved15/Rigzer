@@ -87,6 +87,7 @@ interface CommonPostFields {
   onOpenDetails?: () => void;
   createdAt: string;
   updatedAt: string;
+  disableInteractions?: boolean;
   likes?: number;
   detailed?: boolean;
   comments?: number;

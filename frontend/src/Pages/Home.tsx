@@ -10,9 +10,10 @@ import {
 import { Header } from "../components/Header";
 import { useFeed } from "../context/FeedContext";
 import Post from "../components/Post";
+const NormalPostDetails = lazy(() => import("../Pages/NormalPostDetails"));
 import { useUser } from "../context/user";
 import axios from "axios";
-import type { ExePostProps, PostProps } from "../types/Post";
+import type { ExePostProps, PostProps, NormalPostProps } from "../types/Post";
 import CircleLoader from "../components/Loader/CircleLoader";
 import TickerBar from "../components/Home/TickerBar";
 import UploadBox from "../components/Home/Upload";
@@ -214,13 +215,24 @@ function Home() {
           ) : postDetailsOpen && selectedPost ? (
             <div className="lg:col-span-10 min-h-[80vh] w-full">
               <Suspense fallback={null}>
-                <PostDetails
-                  post={selectedPost as ExePostProps}
-                  onClose={() => {
-                    setPostDetailsOpen(false);
-                    setSelectedPost(null);
-                  }}
-                />
+                {selectedPost.type === "model_post" ? (
+                  <PostDetails
+                    post={selectedPost as ExePostProps}
+                    onClose={() => {
+                      setPostDetailsOpen(false);
+                      setSelectedPost(null);
+                    }}
+                  />
+                ) : (
+                  <NormalPostDetails
+                    post={selectedPost as NormalPostProps}
+                    BACKEND_URL={BACKEND_URL}
+                    onClose={() => {
+                      setPostDetailsOpen(false);
+                      setSelectedPost(null);
+                    }}
+                  />
+                )}
               </Suspense>
             </div>
           ) : (
@@ -250,10 +262,10 @@ function Home() {
                       <Post key={post._id}
                         {...post}
                         onOpenDetails={() => {
-                          if (post.type !== "model_post") return;
                           setSelectedPost(post);
                           setPostDetailsOpen(true);
                         }}
+
                       />
                     ))}
                   </div>
@@ -265,10 +277,10 @@ function Home() {
                           <Post key={post._id}
                             {...post}
                             onOpenDetails={() => {
-                              if (post.type !== "model_post") return;
                               setSelectedPost(post);
                               setPostDetailsOpen(true);
-                            }} />
+                            }}
+                          />
                         ))}
                       </div>
                     )}
@@ -292,7 +304,7 @@ function Home() {
                 <div className="sticky top-24">
                   <div className="h-[500px] overflow-hidden">
                     <Suspense fallback={null}>
-                      <Billboard /> 
+                      <Billboard />
                     </Suspense>
                   </div>
                 </div>

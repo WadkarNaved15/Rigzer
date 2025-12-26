@@ -8,27 +8,26 @@ const PostModalPage = ({ onCancel }: { onCancel: () => void }) => {
   const [postType, setPostType] = useState<PostType>("model");
 
   return (
-    // Change: Changed background to match the form and removed py-8 px-4
-    <div className="w-full min-h-screen bg-white dark:bg-black">
-      <div className="max-w-2xl mx-auto flex flex-col">
-        
-        {/* Header container - Removed rounded-t and borders to make it seamless */}
-        <div className="bg-white dark:bg-black border-b border-gray-100 dark:border-zinc-800">
-          <PostTypeHeader 
-            active={postType} 
-            onChange={setPostType} 
-            onCancel={onCancel}
-          />
-        </div>
+    <div className="w-full min-h-screen bg-white dark:bg-black flex flex-row">
+      
+      {/* Sidebar - Tightened width to bring icons closer to form */}
+      <aside className="w-16 md:w-20 flex flex-col items-center py-6 sticky top-0 h-screen bg-white dark:bg-black">
+        <PostTypeHeader 
+          active={postType} 
+          onChange={setPostType} 
+          onCancel={onCancel}
+        />
+      </aside>
 
-        {/* Form container - Removed border and shadow-sm for a flat, clean look */}
-        <div className="flex-1 bg-white dark:bg-black overflow-hidden relative">
+      {/* Main Content - Reduced left padding (pl-4) to close the gap */}
+      <main className="flex-1 overflow-y-auto bg-white dark:bg-black">
+        <div className="max-w-2xl ml-0 mr-auto py-8 pl-4 pr-8">
           <ActivePostForm
             postType={postType}
             onCancel={onCancel}
           />
         </div>
-      </div>
+      </main>
     </div>
   );
 };

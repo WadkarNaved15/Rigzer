@@ -1,6 +1,6 @@
 import express from "express";
 import Comment from "../models/Comment.js";
-import { updateInteraction } from "../helper/interactionController.js";
+// import { updateInteraction } from "../helper/interactionController.js";
 import authMiddleware from "../middlewares/authMiddleware.js"; // assuming same middleware as likes
 
 const router = express.Router();
@@ -16,7 +16,7 @@ router.post("/", authMiddleware, async (req, res) => {
     const comment = new Comment({ post: postId, user: userId, text });
     await comment.save();
     // UPDATE USER INTERACTION
-    await updateInteraction(userId, postId, { commented: true });
+    // await updateInteraction(userId, postId, { commented: true });
     const populatedComment = await comment.populate("user", "username");
     res.status(201).json(populatedComment);
   } catch (error) {
