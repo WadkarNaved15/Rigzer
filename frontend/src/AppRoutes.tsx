@@ -13,6 +13,7 @@ const UploadGame = lazy(() => import("./Pages/UploadGame"));
 const DevLogs = lazy(() => import("./Pages/DevLogs"));
 const DevLogsView = lazy(() => import("./Pages/DevLogViewPage"));
 const DevLogCanvas = lazy(() => import("./Pages/DevLogCanvas"));
+const DevlogViewer = lazy(() => import("./Pages/DevlogViewer"));
 const Puck = lazy(() => import("./Pages/Puck"));
 
 // Components
@@ -44,6 +45,7 @@ export default function AppRoutes() {
           <Route path="/devlogs" element={<DevLogs />} />
           <Route path="/devlogs/view/:id" element={<DevLogsView />} />
           <Route path="/devlogCanvas" element={<DevLogCanvas />} />
+          <Route path="/devlogviewer/:devlogId" element={<DevlogViewer />} />
           <Route path="/models" element={<ModelViewer />} />
           <Route path="/gameshow" element={<GameShowcase />} />
           <Route path="/gameupload" element={<UploadGame />} />
