@@ -116,6 +116,24 @@ router.get("/filter_posts", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+// routes/posts.js
+// routes/posts.js
+router.get("/user_posts/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const posts = await Post.find({ user: userId })
+      .populate("user", "username")
+      .sort({ _id: -1 })
+      .lean();
+
+    res.status(200).json({ posts });
+  } catch (err) {
+    console.error("Error fetching user posts:", err);
+    res.status(500).json({ error: "Failed to fetch user posts" });
+  }
+});
+
 
 
 export default router;
