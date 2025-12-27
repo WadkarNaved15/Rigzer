@@ -49,18 +49,17 @@ const MediaPostForm: React.FC<PostModalProps> = ({ onCancel }) => {
     e.target.value = "";
   };
 
-  const uploadAssetToS3 = (asset: Asset, onProgress: (percent: number) => void): Promise<string> => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/upload/presigned-url`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileName: asset.file.name,
-            fileType: asset.file.type,
-            category: asset.type,  // "image" | "video"
-          }),
-        });
+const uploadAssetToS3 = async (asset: Asset, onProgress: (percent: number) => void): Promise<string> => {
+    // 1. Get the presigned URL
+    const res = await fetch(`${BACKEND_URL}/api/upload/presigned-url`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        fileName: asset.file.name,
+        fileType: asset.file.type,
+        category: asset.type, // "image" | "video"
+      }),
+    });
 
     if (!res.ok) throw new Error("Failed to get upload URL");
     const { uploadUrl, fileUrl } = await res.json();

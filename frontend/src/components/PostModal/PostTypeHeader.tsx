@@ -2,12 +2,12 @@ import React from 'react';
 import { X, Box, Image as ImageIcon, Gamepad2, Terminal} from 'lucide-react';
 import { POST_TYPES, PostType } from "../../types/postTypes";
 
+
 interface PostTypeHeaderProps {
   active: PostType;
   onChange: (t: PostType) => void;
   onCancel: () => void;
 }
-
 // Icon Map updated to handle 'game' instead of 'text'
 const ICON_MAP: Record<string, React.ReactNode> = {
   model: <Box size={22} />,
