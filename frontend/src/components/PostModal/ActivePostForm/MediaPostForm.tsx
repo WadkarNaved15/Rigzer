@@ -58,6 +58,7 @@ const MediaPostForm: React.FC<PostModalProps> = ({ onCancel }) => {
           body: JSON.stringify({
             fileName: asset.file.name,
             fileType: asset.file.type,
+            category: asset.type,  // "image" | "video"
           }),
         });
 

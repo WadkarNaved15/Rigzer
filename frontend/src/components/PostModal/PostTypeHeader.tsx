@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Box, Image as ImageIcon, Gamepad2 } from 'lucide-react';
+import { X, Box, Image as ImageIcon, Gamepad2, Terminal} from 'lucide-react';
 import { POST_TYPES, PostType } from "../../types/postTypes";
 
 interface PostTypeHeaderProps {
@@ -12,7 +12,8 @@ interface PostTypeHeaderProps {
 const ICON_MAP: Record<string, React.ReactNode> = {
   model: <Box size={22} />,
   media: <ImageIcon size={22} />,
-  game: <Gamepad2 size={22} />, // Represents the Game Post form
+  game: <Gamepad2 size={22} />, 
+  devlog: <Terminal size={22} />, 
 };
 
 const PostTypeHeader: React.FC<PostTypeHeaderProps> = ({
