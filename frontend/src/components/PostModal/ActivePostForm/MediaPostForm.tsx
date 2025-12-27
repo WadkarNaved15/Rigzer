@@ -62,23 +62,31 @@ const MediaPostForm: React.FC<PostModalProps> = ({ onCancel }) => {
           }),
         });
 
-        if (!res.ok) throw new Error("Failed to get upload URL");
-        const { uploadUrl, fileUrl } = await res.json();
+    if (!res.ok) throw new Error("Failed to get upload URL");
+    const { uploadUrl, fileUrl } = await res.json();
 
-        const xhr = new XMLHttpRequest();
-        xhr.open("PUT", uploadUrl, true);
-        xhr.setRequestHeader("Content-Type", asset.file.type);
+    // 2. Wrap XHR in a Promise only for the part that actually needs a callback (progress tracking)
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", uploadUrl, true);
+      xhr.setRequestHeader("Content-Type", asset.file.type);
 
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            onProgress(Math.round((event.loaded / event.total) * 100));
-          }
-        };
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          onProgress(Math.round((event.loaded / event.total) * 100));
+        }
+      };
 
-        xhr.onload = () => xhr.status === 200 ? resolve(fileUrl) : reject();
-        xhr.onerror = () => reject();
-        xhr.send(asset.file);
-      } catch (err) { reject(err); }
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          resolve(fileUrl);
+        } else {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Network error during upload"));
+      xhr.send(asset.file);
     });
   };
 

@@ -2,7 +2,7 @@
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import MediaPostForm from "./MediaPostForm";
-import TextPostForm from "./TextPostForm";
+import GamePostForm from "./GamePostForm";
 import ModelPostForm from "./ModelPostForm";
 import { PostType } from "../../../types/postTypes";
 
@@ -12,7 +12,7 @@ const postFormRegistry: Record<
 > = {
   model: ModelPostForm,
   media: MediaPostForm,
-  game: TextPostForm,
+  game: GamePostForm,
   devlog: () => null // Registry needs a component, even if empty
 };
 
