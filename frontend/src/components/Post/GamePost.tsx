@@ -5,149 +5,151 @@ import { useLikes } from '../../hooks/useLikes';
 import { useWishlist } from '../../hooks/useWishlist';
 import { Link } from 'react-router-dom';
 import PostInteractions from './PostInteractions';
-import type { GamePostProps } from '../../types/Post'; // Assuming you have a type definition for PostProps
-
-
+import { Play, Gamepad2, Sparkles } from 'lucide-react';
+import type { GamePostProps } from '../../types/Post';
 
 const GamePost: React.FC<GamePostProps> = ({
   user,
   description,
-  gameUrl,
   createdAt,
   comments = 0,
   _id,
+  gamePost, 
   avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
 }) => {
   const timestamp = useMemo(() => new Date(createdAt).toLocaleString(), [createdAt]);
   const postRef = useRef(null);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-  const [showComments, setShowComments] = useState(false); // ✅ toggle comment section
+  const [showComments, setShowComments] = useState(false);
   const { likesCount, isLiked, handleLike } = useLikes(_id, BACKEND_URL);
   const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
   let viewStartTime = useRef<number | null>(null);
-  const handleStartGame = async () => {
-    try {
-      await fetch(`${BACKEND_URL}/api/interactions/played-demo`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postId: _id })
-      });
-    } catch (err) {
-      console.error("Failed to update view", err);
-    }
-  };
-  // API: Start view session
+
+  /* ---------------- Analytics Logic ---------------- */
   const startViewing = async () => {
     viewStartTime.current = Date.now();
-
-    await fetch(`${BACKEND_URL}/api/interactions/playtime-start`, {
+    fetch(`${BACKEND_URL}/api/interactions/playtime-start`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ postId: _id })
-    });
+    }).catch(() => {});
   };
 
-  // API: End view session & send duration
   const stopViewing = async () => {
     if (!viewStartTime.current) return;
-
-    const duration = Math.floor((Date.now() - viewStartTime.current) / 1000); // seconds
+    const duration = Math.floor((Date.now() - viewStartTime.current) / 1000);
     viewStartTime.current = null;
-
-    await fetch(`${BACKEND_URL}/api/interactions/playtime-end`, {
+    fetch(`${BACKEND_URL}/api/interactions/playtime-end`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ postId: _id, duration })
-    });
-  };
-  const markViewed = async () => {
-    try {
-      await fetch(`${BACKEND_URL}/api/interactions/view`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postId: _id })
-      });
-    } catch (err) {
-      console.error("Failed to update view", err);
-    }
+    }).catch(() => {});
   };
 
-  // Detect when post becomes visible
+  const markViewed = async () => {
+    fetch(`${BACKEND_URL}/api/interactions/view`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postId: _id })
+    }).catch(() => {});
+  };
+
+  const handleStartGame = async () => {
+    fetch(`${BACKEND_URL}/api/interactions/played-demo`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postId: _id })
+    }).catch(() => {});
+  };
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          startViewing(); // start tracking
+          startViewing();
           markViewed();
-        }
-        else {
-          stopViewing(); // stop tracking
+        } else {
+          stopViewing();
         }
       },
       { threshold: 0.5 }
     );
-
     if (postRef.current) observer.observe(postRef.current);
-
     return () => observer.disconnect();
   }, []);
+
   return (
     <article
       ref={postRef}
-      className="
-    relative w-full 
-    border border-gray-200 dark:border-gray-700
-    bg-white dark:bg-black
-    hover:bg-[#F7F9F9] dark:hover:bg-[#16181C]
-    transition-colors duration-200
-    cursor-pointer
-  "
+      className="relative w-full border border-gray-200 dark:border-zinc-800 bg-white dark:bg-black hover:bg-gray-50/50 dark:hover:bg-zinc-900/20 transition-colors duration-200"
     >
       <div className="flex gap-3 p-4">
+        {/* User Avatar */}
+        <img src={avatarUrl} alt={user.username} className="h-10 w-10 rounded-full object-cover mt-1" />
 
-        {/* LEFT COLUMN — Avatar stays here */}
-        <img
-          src={avatarUrl}
-          alt={user.username}
-          className="h-10 w-10 rounded-full object-cover mt-1"
-        />
-
-        {/* RIGHT COLUMN — Header + content */}
         <div className="flex flex-col flex-1 min-w-0">
-
-
-          {/* Username + Date + Menu + Price */}
           <PostHeader
             type='game_post'
             username={user.username}
             timestamp={timestamp}
-            price={0}
+            price={gamePost?.price || 0}
           />
 
-          {/* DESCRIPTION */}
           {description && (
-            <p className="text-gray-800 dark:text-gray-200 mt-2 mb-4">
+            <p className="text-gray-800 dark:text-gray-200 mt-2 mb-4 leading-relaxed whitespace-pre-wrap">
               {description}
             </p>
           )}
 
-          {/* Game Preview */}
-          <div className="relative overflow-hidden bg-gray-100 dark:bg-gray-700 h-[400px] rounded-xl">
-            <div className="flex flex-col items-center justify-center h-full space-y-4">
-              <Link to='/stream'><button
-                onClick={handleStartGame}
-                // disabled={!gameUrl}
-                className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-all"
-              >
-                {/* {gameUrl ? 'Start Game' : 'Game Not Available'} */} Start Game
-              </button></Link>
+          {/* SIMPLIFIED GAME CARD - Focus on Instant Play */}
+          {gamePost && (
+            <div className="group relative rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 mb-4 transition-all hover:border-sky-500/50">
+              
+              {/* Visual Background Decor */}
+              <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 via-transparent to-purple-500/10 opacity-50" />
+              
+              <div className="relative p-8 flex flex-col items-center justify-center text-center">
+                {/* Game Branding */}
+                <div className="w-16 h-16 bg-white dark:bg-black rounded-2xl shadow-xl flex items-center justify-center mb-4 border border-gray-100 dark:border-zinc-800 group-hover:scale-110 transition-transform duration-300">
+                  <Gamepad2 className="text-sky-500 w-8 h-8" />
+                </div>
+
+                <h3 className="text-2xl font-black text-black dark:text-white tracking-tight">
+                  {gamePost.gameName}
+                </h3>
+                
+                <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-200 dark:bg-zinc-800 px-2 py-0.5 rounded">
+                      v{gamePost.version}
+                    </span>
+                    <div className="flex items-center gap-1 text-[10px] font-bold text-sky-500 uppercase tracking-widest">
+                        <Sparkles size={10} />
+                        Instant Stream
+                    </div>
+                </div>
+
+                {/* Call to Action */}
+                <Link to='/stream' className="mt-8 w-full max-w-xs">
+                  <button
+                    onClick={handleStartGame}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-sky-500 hover:bg-sky-600 text-white font-black rounded-xl transition-all shadow-lg shadow-sky-500/20 active:scale-[0.98]"
+                  >
+                    <Play size={18} fill="currentColor" />
+                    PLAY NOW
+                  </button>
+                </Link>
+
+                <p className="text-[10px] text-gray-500 dark:text-zinc-500 mt-4 font-medium italic">
+                  No download required • Powered by our Cloud Instances
+                </p>
+              </div>
             </div>
-          </div>
-          {/* Post Interactions */}
+          )}
+
           <PostInteractions
             likes={likesCount}
             comments={comments}
@@ -155,15 +157,12 @@ const GamePost: React.FC<GamePostProps> = ({
             onLike={handleLike}
             isWishlisted={isWishlisted}
             onWishlist={handleWishlist}
-            onCommentToggle={() => setShowComments(!showComments)} // ✅ toggle
+            onCommentToggle={() => setShowComments(!showComments)}
           />
 
-          {/* Comment Section (shown only if showComments is true) */}
           {showComments && <CommentSection postId={_id} BACKEND_URL={BACKEND_URL} />}
         </div>
-
       </div>
-
     </article>
   );
 };
