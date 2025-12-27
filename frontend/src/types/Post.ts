@@ -101,9 +101,36 @@ export interface NormalPostProps extends CommonPostFields {
   };
 }
 
+export interface GameSystemRequirements {
+  ramGB?: number | null;
+  cpuCores?: number | null;
+  gpuRequired?: boolean;
+}
+
+export interface GameFile {
+  name: string;
+  url: string;
+  size: number;
+}
+
+export interface GamePost {
+  gameName: string;
+  version: string;
+  description: string;
+  platform: 'windows'; // locked for now
+  buildType: 'windows_exe' | 'windows_zip';
+  startPath: string; // ⭐ EXECUTION ENTRY
+  engine?: string;
+  runMode: 'sandboxed';
+  price: number;
+
+  systemRequirements?: GameSystemRequirements;
+  file: GameFile;
+}
+
 export interface GamePostProps extends CommonPostFields {
   type: 'game_post';
-  gameUrl: string;
+  gamePost: GamePost;
 }
 
 export interface ExePostProps extends CommonPostFields {

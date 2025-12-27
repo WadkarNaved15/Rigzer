@@ -36,6 +36,7 @@ const GamePostForm: React.FC<PostModalProps> = ({ onCancel }) => {
   const [asset, setAsset] = useState<GameAsset | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSavingMetadata, setIsSavingMetadata] = useState(false)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const BACKEND_URL =
@@ -58,44 +59,66 @@ const GamePostForm: React.FC<PostModalProps> = ({ onCancel }) => {
   }
 
   /* ---------------- Upload ---------------- */
-  const uploadGameToS3 = (
-    asset: GameAsset,
-    onProgress: (p: number) => void
-  ): Promise<string> => {
-    return fetch(`${BACKEND_URL}/api/upload/presigned-url`, {
+const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB per chunk
+
+const uploadGameToS3 = async (
+  asset: GameAsset,
+  onProgress: (p: number) => void
+): Promise<string> => {
+  // 1. Start Multipart Upload
+  const startRes = await fetch(`${BACKEND_URL}/api/upload/game/start-multipart`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fileName: asset.file.name, fileType: asset.file.type }),
+  });
+  const { uploadId, key } = await startRes.json();
+
+  const totalChunks = Math.ceil(asset.file.size / CHUNK_SIZE);
+  const uploadedParts: { ETag: string; PartNumber: number }[] = [];
+
+  // 2. Upload Chunks sequentially (or in small parallel batches)
+  for (let i = 0; i < totalChunks; i++) {
+    const partNumber = i + 1;
+    const start = i * CHUNK_SIZE;
+    const end = Math.min(start + CHUNK_SIZE, asset.file.size);
+    const chunk = asset.file.slice(start, end);
+
+    // Get Presigned URL for this specific part
+    const urlRes = await fetch(`${BACKEND_URL}/api/upload/game/get-part-url`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        fileName: asset.file.name,
-        fileType: asset.file.type
-      })
-    })
-      .then(res => {
-        if (!res.ok) throw new Error('Presign failed')
-        return res.json()
-      })
-      .then(({ uploadUrl, fileUrl }) => {
-        return new Promise<string>((resolve, reject) => {
-          const xhr = new XMLHttpRequest()
-          xhr.open('PUT', uploadUrl, true)
-          xhr.setRequestHeader('Content-Type', asset.file.type)
+      body: JSON.stringify({ uploadId, key, partNumber }),
+    });
+    const { uploadUrl } = await urlRes.json();
 
-          xhr.upload.onprogress = e => {
-            if (e.lengthComputable) {
-              onProgress(Math.round((e.loaded / e.total) * 100))
-            }
-          }
+    // Upload the chunk directly to S3
+    const uploadRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      body: chunk,
+    });
 
-          xhr.onload = () =>
-            xhr.status === 200
-              ? resolve(fileUrl)
-              : reject(new Error('Upload failed'))
+    if (!uploadRes.ok) throw new Error(`Chunk ${partNumber} failed`);
 
-          xhr.onerror = () => reject(new Error('Network error'))
-          xhr.send(asset.file)
-        })
-      })
+    // S3 returns an ETag in the headers which is REQUIRED to complete the upload
+    const etag = uploadRes.headers.get('ETag');
+    if (!etag) throw new Error('No ETag returned');
+
+    uploadedParts.push({ ETag: etag.replace(/"/g, ''), PartNumber: partNumber });
+    
+    // Update Progress
+    onProgress(Math.round(((i + 1) / totalChunks) * 100));
   }
+
+  // 3. Complete Multipart Upload
+  const completeRes = await fetch(`${BACKEND_URL}/api/upload/game/complete-multipart`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uploadId, key, parts: uploadedParts }),
+  });
+
+  const { fileUrl } = await completeRes.json();
+  return fileUrl;
+};
 
   /* ---------------- Submit ---------------- */
   const handlePostSubmit = async () => {
@@ -117,47 +140,61 @@ const GamePostForm: React.FC<PostModalProps> = ({ onCancel }) => {
 
       setIsSavingMetadata(true)
 
-      const res = await fetch(`${BACKEND_URL}/api/allposts`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'game_post',
-          game: {
-            gameName,
-            version,
-            description,
-            platform,
-            buildType,
-            startPath,
-            engine,
-            runMode: 'sandboxed',
-            price: Number(price),
-            systemRequirements: {
-              ramGB: ramGB ? Number(ramGB) : null,
-              cpuCores: cpuCores ? Number(cpuCores) : null,
-              gpuRequired: requiresGPU
-            },
-            file: {
-              name: asset.name,
-              url: uploadedUrl,
-              size: asset.size
-            }
-          }
-        })
-      })
+const response = await fetch(`${BACKEND_URL}/api/allposts`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      type: 'game_post',
+      description, 
+      game: {
+        gameName,
+        version,
+        platform,
+        buildType,
+        startPath,
+        engine,
+        runMode: 'sandboxed',
+        price: Number(price) || 0,
+        systemRequirements: {
+          ramGB: ramGB ? Number(ramGB) : null,
+          cpuCores: cpuCores ? Number(cpuCores) : null,
+          gpuRequired: requiresGPU
+        },
+        file: {
+          name: asset.name,
+          url: uploadedUrl,
+          size: asset.size
+        }
+      }
+    })
+  });
 
-      if (!res.ok) throw new Error('Post failed')
-      onCancel()
-    } catch (err) {
-      console.error(err)
-      setIsSubmitting(false)
-    }
+  const data = await response.json();
+
+  if (!response.ok) {
+    // This catches 400, 401, 500 errors and uses the message from your controller
+    throw new Error(data.message || 'An unexpected error occurred while saving the post');
+  }
+
+  onCancel(); // Success!
+} catch (err: any) {
+  console.error("Submission Error:", err);
+  // Optional: Set an error state to show in the UI
+  setErrorMessage(err.message); 
+  setIsSubmitting(false);
+}
   }
 
   /* ---------------- UI ---------------- */
   return (
     <div className="w-full max-w-xl mx-auto bg-black min-h-[75vh] rounded-2xl border border-zinc-800 flex flex-col overflow-hidden text-zinc-100">
+    {errorMessage && (
+  <div className="mx-4 mt-2 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-500 text-sm flex items-center justify-between">
+    <span>{errorMessage}</span>
+    <X className="w-4 h-4 cursor-pointer" onClick={() => setErrorMessage(null)} />
+  </div>
+)}
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
         <h2 className="text-xl font-bold">Upload Game</h2>
