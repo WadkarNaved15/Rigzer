@@ -11,11 +11,11 @@ interface ProfilePageProps {
   setProfileOpen: (open: boolean) => void;
 }
 const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-const [userPosts, setUserPosts] = useState<PostProps[]>([]);
-const [loadingPosts, setLoadingPosts] = useState(false);
-const { user } = useUser();
-useEffect(() => {
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const [userPosts, setUserPosts] = useState<PostProps[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const { user } = useUser();
+  useEffect(() => {
     if (!user?.id) return;
 
     const fetchUserPosts = async () => {
@@ -167,58 +167,99 @@ useEffect(() => {
       {/* Two Component Cards Section */}
       {/* <div className="bg-gray-200 dark:bg-gray-900 py-12"> */}
       <div className=" mx-auto ">
-        <div className="grid md:grid-cols-2 gap-8">
-          <div className="mx-auto mt-8 w-full">
-            <h2 className="text-2xl font-semibold mb-4 dark:text-[#3D7A6E]">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-7 flex flex-col items-center w-full">
+            {/* <h2 className="text-2xl font-semibold mb-4 dark:text-[#3D7A6E] self-start">
               Your Posts
-            </h2>
+            </h2> */}
 
-            {loadingPosts && (
-              <div className="text-gray-400">Loading your posts...</div>
-            )}
+            {loadingPosts && <div className="text-gray-400">Loading your posts...</div>}
 
             {!loadingPosts && userPosts.length === 0 && (
-              <div className="text-gray-400">
-                You haven’t uploaded any posts yet.
-              </div>
+              <div className="text-gray-400">You haven’t uploaded any posts yet.</div>
             )}
 
-            <div className="flex flex-col gap-6">
+            <div className="w-full flex flex-col gap-6">
               {userPosts.map((post) => (
                 <Post
                   key={post._id}
                   {...post}
-                  onOpenDetails={() => {
-                    // optional: open post detail modal
-                  }}
+                  onOpenDetails={() => { }}
                 />
               ))}
             </div>
           </div>
 
 
+
           {/* Right Card - Support & Donations */}
-          <div className="bg-gray-200 dark:bg-gray-900 rounded-lg p-6">
-            <h2 className="text-2xl font-bold mb-6 dark:text-[#3D7A6E]">Support Morgan's Causes</h2>
-            <div className="space-y-6">
-              {[
-                { title: "Environmental Initiative", color: "green", desc: "Support Morgan Freeman's bee sanctuary and environmental conservation efforts.", btn: "Donate to Bee Sanctuary" },
-                { title: "Education Fund", color: "blue", desc: "Contribute to scholarship programs for aspiring actors and filmmakers.", btn: "Support Education" },
-                { title: "Hurricane Relief", color: "red", desc: "Help rebuild communities affected by natural disasters.", btn: "Emergency Relief Fund" },
-                { title: "Fan Club", color: "yellow", desc: "Join the official Morgan Freeman fan community for exclusive content and updates.", btn: "Join Fan Club - $9.99/month" },
-              ].map((item, idx) => (
-                <div key={idx} className={`${idx !== 3 ? "" : "border-t border-gray-400 dark:border-gray-600"} pt-6`}>
-                  <h3 className="font-semibold mb-3">{item.title}</h3>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">{item.desc}</p>
-                  <button
-                    className={`bg-${item.color}-600 text-white px-4 py-2 rounded hover:bg-${item.color}-700 w-full`}
-                  >
-                    {item.btn}
-                  </button>
+          <div className="lg:col-span-5 hidden lg:block">
+            <div className="sticky top-24">
+              <div className="bg-gray-200 dark:bg-gray-900 rounded-2xl p-6">
+                <h2 className="text-2xl font-bold mb-6 dark:text-[#3D7A6E]">
+                  Support Morgan&apos;s Causes
+                </h2>
+
+                <div className="space-y-6">
+                  {[
+                    {
+                      title: "Environmental Initiative",
+                      desc: "Support Morgan Freeman's bee sanctuary and environmental conservation efforts.",
+                      btn: "Donate to Bee Sanctuary",
+                      btnClass: "bg-green-600 hover:bg-green-700 text-white",
+                    },
+                    {
+                      title: "Education Fund",
+                      desc: "Contribute to scholarship programs for aspiring actors and filmmakers.",
+                      btn: "Support Education",
+                      btnClass: "bg-blue-600 hover:bg-blue-700 text-white",
+                    },
+                    {
+                      title: "Hurricane Relief",
+                      desc: "Help rebuild communities affected by natural disasters.",
+                      btn: "Emergency Relief Fund",
+                      btnClass: "bg-red-600 hover:bg-red-700 text-white",
+                    },
+                    {
+                      title: "Fan Club",
+                      desc: "Join the official Morgan Freeman fan community for exclusive content and updates.",
+                      btn: "Join Fan Club – $9.99/month",
+                      btnClass: "bg-yellow-500 hover:bg-yellow-600 text-black",
+                      divider: true,
+                    },
+                  ].map((item, idx) => (
+                    <div
+                      key={idx}
+                      className={`pt-6 ${item.divider
+                          ? "border-t border-gray-300 dark:border-gray-700"
+                          : ""
+                        }`}
+                    >
+                      <h3 className="font-semibold mb-3">
+                        {item.title}
+                      </h3>
+
+                      <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
+                        {item.desc}
+                      </p>
+
+                      <button
+                        className={`
+                w-full px-4 py-2 rounded-lg font-medium
+                transition-colors
+                ${item.btnClass}
+              `}
+                      >
+                        {item.btn}
+                      </button>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
             </div>
           </div>
+
+
         </div>
       </div>
     </div>
