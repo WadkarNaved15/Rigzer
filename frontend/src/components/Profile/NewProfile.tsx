@@ -193,71 +193,71 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
 
 
           {/* Right Card - Support & Donations */}
+          {/* Right Column – natural document scroll */}
           <div className="lg:col-span-5 hidden lg:block">
-            <div className="sticky top-24">
-              <div className="bg-gray-200 dark:bg-gray-900 rounded-2xl p-6">
-                <h2 className="text-2xl font-bold mb-6 dark:text-[#3D7A6E]">
-                  Support Morgan&apos;s Causes
-                </h2>
+            <div className="bg-gray-200 dark:bg-gray-900 rounded-2xl p-6 w-full">
+              <h2 className="text-2xl font-bold mb-6 dark:text-[#3D7A6E]">
+                Support Morgan&apos;s Causes
+              </h2>
 
-                <div className="space-y-6">
-                  {[
-                    {
-                      title: "Environmental Initiative",
-                      desc: "Support Morgan Freeman's bee sanctuary and environmental conservation efforts.",
-                      btn: "Donate to Bee Sanctuary",
-                      btnClass: "bg-green-600 hover:bg-green-700 text-white",
-                    },
-                    {
-                      title: "Education Fund",
-                      desc: "Contribute to scholarship programs for aspiring actors and filmmakers.",
-                      btn: "Support Education",
-                      btnClass: "bg-blue-600 hover:bg-blue-700 text-white",
-                    },
-                    {
-                      title: "Hurricane Relief",
-                      desc: "Help rebuild communities affected by natural disasters.",
-                      btn: "Emergency Relief Fund",
-                      btnClass: "bg-red-600 hover:bg-red-700 text-white",
-                    },
-                    {
-                      title: "Fan Club",
-                      desc: "Join the official Morgan Freeman fan community for exclusive content and updates.",
-                      btn: "Join Fan Club – $9.99/month",
-                      btnClass: "bg-yellow-500 hover:bg-yellow-600 text-black",
-                      divider: true,
-                    },
-                  ].map((item, idx) => (
-                    <div
-                      key={idx}
-                      className={`pt-6 ${item.divider
-                          ? "border-t border-gray-300 dark:border-gray-700"
-                          : ""
-                        }`}
+              <div className="space-y-6">
+                {[
+                  {
+                    title: "Environmental Initiative",
+                    desc: "Support Morgan Freeman's bee sanctuary and environmental conservation efforts.",
+                    btn: "Donate to Bee Sanctuary",
+                    btnClass: "bg-green-600 hover:bg-green-700 text-white",
+                  },
+                  {
+                    title: "Education Fund",
+                    desc: "Contribute to scholarship programs for aspiring actors and filmmakers.",
+                    btn: "Support Education",
+                    btnClass: "bg-blue-600 hover:bg-blue-700 text-white",
+                  },
+                  {
+                    title: "Hurricane Relief",
+                    desc: "Help rebuild communities affected by natural disasters.",
+                    btn: "Emergency Relief Fund",
+                    btnClass: "bg-red-600 hover:bg-red-700 text-white",
+                  },
+                  {
+                    title: "Fan Club",
+                    desc: "Join the official Morgan Freeman fan community for exclusive content and updates.",
+                    btn: "Join Fan Club – $9.99/month",
+                    btnClass: "bg-yellow-500 hover:bg-yellow-600 text-black",
+                    divider: true,
+                  },
+                ].map((item, idx) => (
+                  <div
+                    key={idx}
+                    className={`pt-6 ${item.divider
+                        ? "border-t border-gray-300 dark:border-gray-700"
+                        : ""
+                      }`}
+                  >
+                    <h3 className="font-semibold mb-3">
+                      {item.title}
+                    </h3>
+
+                    <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
+                      {item.desc}
+                    </p>
+
+                    <button
+                      className={`
+              w-full px-4 py-2 rounded-lg font-medium
+              transition-colors
+              ${item.btnClass}
+            `}
                     >
-                      <h3 className="font-semibold mb-3">
-                        {item.title}
-                      </h3>
-
-                      <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
-                        {item.desc}
-                      </p>
-
-                      <button
-                        className={`
-                w-full px-4 py-2 rounded-lg font-medium
-                transition-colors
-                ${item.btnClass}
-              `}
-                      >
-                        {item.btn}
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                      {item.btn}
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
+
 
 
         </div>
