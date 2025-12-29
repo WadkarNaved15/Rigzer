@@ -207,14 +207,13 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
           ) : (
             <>
               {/* LEFT COLUMN */}
-              <div ref={leftRef} className="lg:col-span-7 flex flex-col items-center w-full">
+              <div className="lg:col-span-7 flex flex-col w-full">
                 {loadingPosts && <div className="text-gray-400">Loading your posts...</div>}
 
                 {!loadingPosts && userPosts.length === 0 && (
                   <div className="text-gray-400">You haven’t uploaded any posts yet.</div>
                 )}
 
-                <div className="w-full">
                   {postDetailsOpen && selectedPost ? (
                     <Suspense fallback={null}>
                       <NormalPostDetails
@@ -227,7 +226,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
                       />
                     </Suspense>
                   ) : (
-                    <div className="flex flex-col gap-6">
+                    <div className="flex flex-col">
                       {userPosts.map((post) => (
                         <Post
                           key={post._id}
@@ -240,7 +239,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
                       ))}
                     </div>
                   )}
-                </div>
+                
               </div>
 
               {/* RIGHT COLUMN — ONLY FOR NON-MODEL POSTS */}
