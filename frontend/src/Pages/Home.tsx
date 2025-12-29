@@ -183,7 +183,7 @@ function Home() {
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-black">
       <Header />
-      <TickerBar />
+      {/* <TickerBar /> */}
 
       <main className="max-w-7xl mx-auto pl-2 sm:pl-4 lg:pl-6 pr-4 sm:pr-6 lg:pr-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">

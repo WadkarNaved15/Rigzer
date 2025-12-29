@@ -4,6 +4,10 @@ import FollowButton from "../FollowButton";
 import FollowersList from "../FollowersList";
 import { useEffect, useState, useRef, useLayoutEffect } from "react";
 import Post from "../Post";
+import { Suspense, lazy } from "react";
+import type { ExePostProps, NormalPostProps } from "../../types/Post";
+const NormalPostDetails = lazy(() => import("../../Pages/NormalPostDetails"));
+const PostDetails = lazy(() => import("../../Pages/PostDetail"));
 import type { PostProps } from "../../types/Post";
 import { useUser } from "../../context/user";
 import axios from "axios";
@@ -14,6 +18,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [userPosts, setUserPosts] = useState<PostProps[]>([]);
   const leftRef = useRef<HTMLDivElement>(null);
+  const [postDetailsOpen, setPostDetailsOpen] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<PostProps | null>(null);
   const rightRef = useRef<HTMLDivElement>(null);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const { user } = useUser();
@@ -56,28 +62,38 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
         {/* Header Section */}
         <div className="flex justify-start items-start">
           <div>
-            <h1 className="text-2xl font-light mb-2">
-              John Developer
-              <span className="text-gray-500 dark:text-gray-400 text-xl ml-2">(I)</span>
-            </h1>
-            <div className="flex space-x-4 mb-2 text-gray-600 dark:text-gray-400">
+            {/* Container for Name and Buttons */}
+            <div className="flex items-center gap-6 mb-3">
+              {/* Name - Large and Bold */}
+              <h1 className="text-4xl font-extrabold tracking-tight flex items-baseline">
+                John Developer
+              </h1>
+
+              {/* Buttons - Using flex and self-center for pixel-perfect alignment */}
+              <div className="flex items-center gap-2 pt-1">
+                <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full text-sm font-bold transition-all shadow-sm active:scale-95">
+                  Follow
+                </button>
+                <button className="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-black dark:text-white px-6 py-2 rounded-full text-sm font-bold transition-all shadow-sm active:scale-95 border border-transparent dark:border-gray-700">
+                  Message
+                </button>
+              </div>
+            </div>
+
+            {/* Roles / Subtitle */}
+            <div className="flex items-center space-x-4 mb-2 text-gray-600 dark:text-gray-400 font-medium">
               <span>Game Designer</span>
-              <span>•</span>
+              <span className="text-xs opacity-50">•</span>
               <span>Software Engineer</span>
-              <span>•</span>
+              <span className="text-xs opacity-50">•</span>
               <span>3D Artist</span>
             </div>
           </div>
-          <div className="ml-16">
+
+          {/* Followers List remains on the right */}
+          <div className="ml-16 pt-2">
             <FollowersList userId={user?.id} />
           </div>
-          {/* <div className="text-right">
-            <div className="flex items-center space-x-2 mb-2">
-              <div className="bg-yellow-400 text-black px-2 py-1 rounded text-xs font-bold">IMDbPro</div>
-              <div className="bg-green-600 px-2 py-1 rounded text-xs">Top 500</div>
-              <span className="text-gray-500 dark:text-gray-400">150</span>
-            </div>
-          </div> */}
         </div>
 
         {/* Main Profile Section */}
@@ -183,15 +199,44 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
               <div className="text-gray-400">You haven’t uploaded any posts yet.</div>
             )}
 
-            <div className="w-full flex flex-col gap-6">
-              {userPosts.map((post) => (
-                <Post
-                  key={post._id}
-                  {...post}
-                  onOpenDetails={() => { }}
-                />
-              ))}
+            <div className="w-full">
+              {postDetailsOpen && selectedPost ? (
+                <Suspense fallback={null}>
+                  {selectedPost.type === "model_post" ? (
+                    <PostDetails
+                      post={selectedPost as ExePostProps}
+                      onClose={() => {
+                        setPostDetailsOpen(false);
+                        setSelectedPost(null);
+                      }}
+                    />
+                  ) : (
+                    <NormalPostDetails
+                      post={selectedPost as NormalPostProps}
+                      BACKEND_URL={BACKEND_URL}
+                      onClose={() => {
+                        setPostDetailsOpen(false);
+                        setSelectedPost(null);
+                      }}
+                    />
+                  )}
+                </Suspense>
+              ) : (
+                <div className="flex flex-col gap-6">
+                  {userPosts.map((post) => (
+                    <Post
+                      key={post._id}
+                      {...post}
+                      onOpenDetails={() => {
+                        setSelectedPost(post);
+                        setPostDetailsOpen(true);
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
+
           </div>
 
 
@@ -201,70 +246,70 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
           {/* Right Column – X-style natural stop behavior */}
           {/* Right Column – X-style natural stop behavior */}
           <div className="lg:col-span-5 hidden lg:block">
-  <div className="sticky top-4">
-    {/* Main Container: We use flex-col and a fixed max-height */}
-    <div className="bg-gray-200 dark:bg-gray-900 rounded-2xl p-6 w-full flex flex-col max-h-[calc(100vh-40px)] shadow-sm">
-      
-      <h2 className="text-2xl font-bold mb-6 dark:text-[#3D7A6E] flex-shrink-0">
-        Support Morgan&apos;s Causes
-      </h2>
+            <div className="sticky top-4">
+              {/* Main Container: We use flex-col and a fixed max-height */}
+              <div className="bg-gray-200 dark:bg-gray-900 rounded-2xl p-6 w-full flex flex-col max-h-[calc(100vh-40px)] shadow-sm">
 
-      {/* Scrollable Area: 
+                <h2 className="text-2xl font-bold mb-6 dark:text-[#3D7A6E] flex-shrink-0">
+                  Support Morgan&apos;s Causes
+                </h2>
+
+                {/* Scrollable Area: 
         1. overflow-y-auto enables scrolling
         2. pr-4 (padding-right) creates a "buffer" so content isn't under the scrollbar
         3. Custom scrollbar styles for a thin, modern look
       */}
-      <div className="overflow-y-auto pr-4 space-y-6 flex-grow
+                <div className="overflow-y-auto pr-4 space-y-6 flex-grow
         [&::-webkit-scrollbar]:w-1.5
         [&::-webkit-scrollbar-thumb]:bg-gray-400/50
         [&::-webkit-scrollbar-thumb]:rounded-full
         [&::-webkit-scrollbar-track]:bg-transparent
         dark:[&::-webkit-scrollbar-thumb]:bg-gray-600/50">
-        
-        {[
-          {
-            title: "Environmental Initiative",
-            desc: "Support Morgan Freeman's bee sanctuary and environmental conservation efforts.",
-            btn: "Donate to Bee Sanctuary",
-            btnClass: "bg-green-600 hover:bg-green-700 text-white",
-          },
-          {
-            title: "Education Fund",
-            desc: "Contribute to scholarship programs for aspiring actors and filmmakers.",
-            btn: "Support Education",
-            btnClass: "bg-blue-600 hover:bg-blue-700 text-white",
-          },
-          {
-            title: "Hurricane Relief",
-            desc: "Help rebuild communities affected by natural disasters.",
-            btn: "Emergency Relief Fund",
-            btnClass: "bg-red-600 hover:bg-red-700 text-white",
-          },
-          {
-            title: "Fan Club",
-            desc: "Join the official Morgan Freeman fan community for exclusive content and updates.",
-            btn: "Join Fan Club – $9.99/month",
-            btnClass: "bg-yellow-500 hover:bg-yellow-600 text-black",
-            divider: true,
-          },
-        ].map((item, idx) => (
-          <div
-            key={idx}
-            className={`pt-6 ${item.divider ? "border-t border-gray-300 dark:border-gray-700" : ""}`}
-          >
-            <h3 className="font-semibold mb-3">{item.title}</h3>
-            <p className="text-sm text-gray-700 dark:text-gray-300 mb-4 leading-relaxed">
-              {item.desc}
-            </p>
-            <button className={`w-full px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm ${item.btnClass}`}>
-              {item.btn}
-            </button>
+
+                  {[
+                    {
+                      title: "Environmental Initiative",
+                      desc: "Support Morgan Freeman's bee sanctuary and environmental conservation efforts.",
+                      btn: "Donate to Bee Sanctuary",
+                      btnClass: "bg-green-600 hover:bg-green-700 text-white",
+                    },
+                    {
+                      title: "Education Fund",
+                      desc: "Contribute to scholarship programs for aspiring actors and filmmakers.",
+                      btn: "Support Education",
+                      btnClass: "bg-blue-600 hover:bg-blue-700 text-white",
+                    },
+                    {
+                      title: "Hurricane Relief",
+                      desc: "Help rebuild communities affected by natural disasters.",
+                      btn: "Emergency Relief Fund",
+                      btnClass: "bg-red-600 hover:bg-red-700 text-white",
+                    },
+                    {
+                      title: "Fan Club",
+                      desc: "Join the official Morgan Freeman fan community for exclusive content and updates.",
+                      btn: "Join Fan Club – $9.99/month",
+                      btnClass: "bg-yellow-500 hover:bg-yellow-600 text-black",
+                      divider: true,
+                    },
+                  ].map((item, idx) => (
+                    <div
+                      key={idx}
+                      className={`pt-6 ${item.divider ? "border-t border-gray-300 dark:border-gray-700" : ""}`}
+                    >
+                      <h3 className="font-semibold mb-3">{item.title}</h3>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 mb-4 leading-relaxed">
+                        {item.desc}
+                      </p>
+                      <button className={`w-full px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm ${item.btnClass}`}>
+                        {item.btn}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-        ))}
-      </div>
-    </div>
-  </div>
-</div>
 
 
         </div>
