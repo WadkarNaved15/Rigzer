@@ -3,6 +3,7 @@ import PostHeader from "./PostHeader";
 import PostInteractions from "./PostInteractions";
 import CommentSection from "./CommentSection";
 import { useLikes } from "../../hooks/useLikes";
+import MediaViewer from "../Media/MediaViewer"
 import { useWishlist } from "../../hooks/useWishlist";
 import type { NormalPostProps } from "../../types/Post";
 import { Play } from "lucide-react";
@@ -20,7 +21,8 @@ const NormalPost: React.FC<NormalPostProps> = ({
 }) => {
   const postRef = useRef<HTMLDivElement>(null);
   const [showComments, setShowComments] = useState(false);
-
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState(0);
   const BACKEND_URL =
     import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
@@ -142,11 +144,16 @@ const NormalPost: React.FC<NormalPostProps> = ({
                 <div
                   key={index}
                   className={`
-                    relative
-                    w-full h-full
+                    relative w-full h-full
                     ${assets.length === 3 && index === 0 ? "row-span-2" : ""}
-                  `}
+                 `}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setViewerIndex(index);
+                    setViewerOpen(true);
+                  }}
                 >
+
                   {asset.type === "video" ? (
                     <>
                       <video
@@ -195,6 +202,14 @@ const NormalPost: React.FC<NormalPostProps> = ({
               BACKEND_URL={BACKEND_URL}
             />
           )}
+          {viewerOpen && (
+            <MediaViewer
+              assets={assets}
+              startIndex={viewerIndex}
+              onClose={() => setViewerOpen(false)}
+            />
+          )}
+
         </div>
       </div>
     </article>
