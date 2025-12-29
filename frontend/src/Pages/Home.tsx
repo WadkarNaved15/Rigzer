@@ -185,11 +185,11 @@ function Home() {
       <Header />
       {/* <TickerBar /> */}
 
-      <main className="max-w-7xl mx-auto pl-2 sm:pl-4 lg:pl-6 pr-4 sm:pr-6 lg:pr-8 py-8">
+      <main className="max-w-7xl mx-auto pl-2 sm:pl-4 lg:pl-6 pr-4 sm:pr-6 lg:pr-8 pt-4">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left sidebar */}
           <div className="lg:col-span-2">
-            <div className="sticky top-24 shadow-2xl h-54 dark:bg-black bg-white rounded-t-xl border-t border-r border-gray-200 dark:border-[#3D7A6E]">
+            <div className="sticky top-20 shadow-2xl h-54 dark:bg-black bg-white rounded-t-xl border-t border-r border-gray-200 dark:border-[#3D7A6E]">
               <Suspense fallback={null}>
                 <ProfileCover setProfileOpen={setProfileOpen} />
               </Suspense>
@@ -324,7 +324,7 @@ function Home() {
             !profileOpen &&
             !(postDetailsOpen && selectedPost?.type === "model_post") && (
               <div className="lg:col-span-4 hidden lg:block h-full">
-                <div className="sticky top-24">
+                <div className="sticky top-20">
                   <div className="h-[500px] overflow-hidden">
                     <Suspense fallback={null}>
                       <Billboard />

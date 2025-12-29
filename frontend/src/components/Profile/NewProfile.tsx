@@ -21,6 +21,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
   const [postDetailsOpen, setPostDetailsOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<PostProps | null>(null);
   const rightRef = useRef<HTMLDivElement>(null);
+  const isModelPostOpen =
+    postDetailsOpen && selectedPost?.type === "model_post";
   const [loadingPosts, setLoadingPosts] = useState(false);
   const { user } = useUser();
   useEffect(() => {
@@ -141,7 +143,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
           </div>
 
           {/* Right Side - Stats */}
-          <div className="flex flex-col space-y-2">
+          {/* <div className="flex flex-col space-y-2">
             <div className="text-center bg-gray-100 dark:bg-gray-800 rounded-xl shadow-md">
               <Video className="w-24 h-12 mx-auto text-gray-600 dark:text-gray-400" />
               <div className="text-xl font-bold">99+</div>
@@ -152,7 +154,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
               <div className="text-xl font-bold">99+</div>
               <div className="text-sm text-gray-500 dark:text-gray-400">PHOTOS</div>
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* Biography Text */}
@@ -188,131 +190,123 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
       {/* <div className="bg-gray-200 dark:bg-gray-900 py-12"> */}
       <div className=" mx-auto ">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative">
-          <div ref={leftRef} className="lg:col-span-7 flex flex-col items-center w-full">
-            {/* <h2 className="text-2xl font-semibold mb-4 dark:text-[#3D7A6E] self-start">
-              Your Posts
-            </h2> */}
 
-            {loadingPosts && <div className="text-gray-400">Loading your posts...</div>}
-
-            {!loadingPosts && userPosts.length === 0 && (
-              <div className="text-gray-400">You haven’t uploaded any posts yet.</div>
-            )}
-
-            <div className="w-full">
-              {postDetailsOpen && selectedPost ? (
-                <Suspense fallback={null}>
-                  {selectedPost.type === "model_post" ? (
-                    <PostDetails
-                      post={selectedPost as ExePostProps}
-                      onClose={() => {
-                        setPostDetailsOpen(false);
-                        setSelectedPost(null);
-                      }}
-                    />
-                  ) : (
-                    <NormalPostDetails
-                      post={selectedPost as NormalPostProps}
-                      BACKEND_URL={BACKEND_URL}
-                      onClose={() => {
-                        setPostDetailsOpen(false);
-                        setSelectedPost(null);
-                      }}
-                    />
-                  )}
-                </Suspense>
-              ) : (
-                <div className="flex flex-col gap-6">
-                  {userPosts.map((post) => (
-                    <Post
-                      key={post._id}
-                      {...post}
-                      onOpenDetails={() => {
-                        setSelectedPost(post);
-                        setPostDetailsOpen(true);
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
+          {/* MODEL POST → replace LEFT + RIGHT */}
+          {isModelPostOpen ? (
+            <div className="lg:col-span-12 w-full">
+              <Suspense fallback={null}>
+                <PostDetails
+                  post={selectedPost as ExePostProps}
+                  onClose={() => {
+                    setPostDetailsOpen(false);
+                    setSelectedPost(null);
+                  }}
+                />
+              </Suspense>
             </div>
+          ) : (
+            <>
+              {/* LEFT COLUMN */}
+              <div ref={leftRef} className="lg:col-span-7 flex flex-col items-center w-full">
+                {loadingPosts && <div className="text-gray-400">Loading your posts...</div>}
 
-          </div>
+                {!loadingPosts && userPosts.length === 0 && (
+                  <div className="text-gray-400">You haven’t uploaded any posts yet.</div>
+                )}
 
-
-
-          {/* Right Card - Support & Donations */}
-          {/* Right Column – natural document scroll */}
-          {/* Right Column – X-style natural stop behavior */}
-          {/* Right Column – X-style natural stop behavior */}
-          <div className="lg:col-span-5 hidden lg:block">
-            <div className="sticky top-4">
-              {/* Main Container: We use flex-col and a fixed max-height */}
-              <div className="bg-gray-200 dark:bg-gray-900 rounded-2xl p-6 w-full flex flex-col max-h-[calc(100vh-40px)] shadow-sm">
-
-                <h2 className="text-2xl font-bold mb-6 dark:text-[#3D7A6E] flex-shrink-0">
-                  Support Morgan&apos;s Causes
-                </h2>
-
-                {/* Scrollable Area: 
-        1. overflow-y-auto enables scrolling
-        2. pr-4 (padding-right) creates a "buffer" so content isn't under the scrollbar
-        3. Custom scrollbar styles for a thin, modern look
-      */}
-                <div className="overflow-y-auto pr-4 space-y-6 flex-grow
-        [&::-webkit-scrollbar]:w-1.5
-        [&::-webkit-scrollbar-thumb]:bg-gray-400/50
-        [&::-webkit-scrollbar-thumb]:rounded-full
-        [&::-webkit-scrollbar-track]:bg-transparent
-        dark:[&::-webkit-scrollbar-thumb]:bg-gray-600/50">
-
-                  {[
-                    {
-                      title: "Environmental Initiative",
-                      desc: "Support Morgan Freeman's bee sanctuary and environmental conservation efforts.",
-                      btn: "Donate to Bee Sanctuary",
-                      btnClass: "bg-green-600 hover:bg-green-700 text-white",
-                    },
-                    {
-                      title: "Education Fund",
-                      desc: "Contribute to scholarship programs for aspiring actors and filmmakers.",
-                      btn: "Support Education",
-                      btnClass: "bg-blue-600 hover:bg-blue-700 text-white",
-                    },
-                    {
-                      title: "Hurricane Relief",
-                      desc: "Help rebuild communities affected by natural disasters.",
-                      btn: "Emergency Relief Fund",
-                      btnClass: "bg-red-600 hover:bg-red-700 text-white",
-                    },
-                    {
-                      title: "Fan Club",
-                      desc: "Join the official Morgan Freeman fan community for exclusive content and updates.",
-                      btn: "Join Fan Club – $9.99/month",
-                      btnClass: "bg-yellow-500 hover:bg-yellow-600 text-black",
-                      divider: true,
-                    },
-                  ].map((item, idx) => (
-                    <div
-                      key={idx}
-                      className={`pt-6 ${item.divider ? "border-t border-gray-300 dark:border-gray-700" : ""}`}
-                    >
-                      <h3 className="font-semibold mb-3">{item.title}</h3>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 mb-4 leading-relaxed">
-                        {item.desc}
-                      </p>
-                      <button className={`w-full px-4 py-2.5 rounded-lg font-medium transition-colors shadow-sm ${item.btnClass}`}>
-                        {item.btn}
-                      </button>
+                <div className="w-full">
+                  {postDetailsOpen && selectedPost ? (
+                    <Suspense fallback={null}>
+                      <NormalPostDetails
+                        post={selectedPost as NormalPostProps}
+                        BACKEND_URL={BACKEND_URL}
+                        onClose={() => {
+                          setPostDetailsOpen(false);
+                          setSelectedPost(null);
+                        }}
+                      />
+                    </Suspense>
+                  ) : (
+                    <div className="flex flex-col gap-6">
+                      {userPosts.map((post) => (
+                        <Post
+                          key={post._id}
+                          {...post}
+                          onOpenDetails={() => {
+                            setSelectedPost(post);
+                            setPostDetailsOpen(true);
+                          }}
+                        />
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
-            </div>
-          </div>
 
+              {/* RIGHT COLUMN — ONLY FOR NON-MODEL POSTS */}
+              <div className="lg:col-span-5 hidden lg:block">
+                <div className="sticky top-4">
+                  <div className="bg-gray-200 dark:bg-gray-900 rounded-2xl p-6 w-full flex flex-col max-h-[calc(100vh-40px)] shadow-sm">
 
+                    <h2 className="text-2xl font-bold mb-6 dark:text-[#3D7A6E]">
+                      Support Morgan&apos;s Causes
+                    </h2>
+
+                    <div className="overflow-y-auto pr-4 space-y-6 flex-grow
+              [&::-webkit-scrollbar]:w-1.5
+              [&::-webkit-scrollbar-thumb]:bg-gray-400/50
+              [&::-webkit-scrollbar-thumb]:rounded-full
+              [&::-webkit-scrollbar-track]:bg-transparent
+              dark:[&::-webkit-scrollbar-thumb]:bg-gray-600/50">
+
+                      {[
+                        {
+                          title: "Environmental Initiative",
+                          desc: "Support Morgan Freeman's bee sanctuary and environmental conservation efforts.",
+                          btn: "Donate to Bee Sanctuary",
+                          btnClass: "bg-green-600 hover:bg-green-700 text-white",
+                        },
+                        {
+                          title: "Education Fund",
+                          desc: "Contribute to scholarship programs for aspiring actors and filmmakers.",
+                          btn: "Support Education",
+                          btnClass: "bg-blue-600 hover:bg-blue-700 text-white",
+                        },
+                        {
+                          title: "Hurricane Relief",
+                          desc: "Help rebuild communities affected by natural disasters.",
+                          btn: "Emergency Relief Fund",
+                          btnClass: "bg-red-600 hover:bg-red-700 text-white",
+                        },
+                        {
+                          title: "Fan Club",
+                          desc: "Join the official Morgan Freeman fan community for exclusive content and updates.",
+                          btn: "Join Fan Club – $9.99/month",
+                          btnClass: "bg-yellow-500 hover:bg-yellow-600 text-black",
+                          divider: true,
+                        },
+                      ].map((item, idx) => (
+                        <div
+                          key={idx}
+                          className={`pt-6 ${item.divider ? "border-t border-gray-300 dark:border-gray-700" : ""}`}
+                        >
+                          <h3 className="font-semibold mb-3">{item.title}</h3>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
+                            {item.desc}
+                          </p>
+                          <button className={`w-full px-4 py-2.5 rounded-lg ${item.btnClass}`}>
+                            {item.btn}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
+
       </div>
     </div>
     // </div>
