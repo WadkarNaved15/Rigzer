@@ -89,12 +89,12 @@ const NormalPost: React.FC<NormalPostProps> = ({
       ref={postRef}
       onClick={onOpenDetails}
       className="
-        w-full
-        border-b border-gray-200 dark:border-gray-800
-        bg-white dark:bg-black
-        cursor-pointer
-        hover:bg-[#F7F9F9] dark:hover:bg-[#16181C]
-        transition-colors
+      relative w-full 
+    border border-gray-200 dark:border-gray-700
+    bg-white dark:bg-black
+    hover:bg-[#F7F9F9] dark:hover:bg-[#16181C]
+    transition-colors duration-200
+    cursor-pointer
       "
     >
       <div className="flex gap-3 px-4 py-3">
@@ -148,33 +148,53 @@ const NormalPost: React.FC<NormalPostProps> = ({
                     ${assets.length === 3 && index === 0 ? "row-span-2" : ""}
                  `}
                   onClick={(e) => {
-                    e.stopPropagation();
+                    e.stopPropagation()
                     setViewerIndex(index);
                     setViewerOpen(true);
+                    e.stopPropagation();
                   }}
                 >
-
-                  {asset.type === "video" ? (
-                    <>
-                      <video
-                        muted
-                        playsInline
-                        preload="metadata"
-                        className="w-full h-full object-cover"
-                        src={asset.url}
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Play className="h-10 w-10 text-white/80" />
+                  {assets.slice(0, 4).map((asset, index) => (
+                    <div
+                      key={index}
+                      className={`
+      relative w-full h-full overflow-hidden
+      ${assets.length === 3 && index === 0 ? "row-span-2" : ""}
+    `}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setViewerIndex(index);
+                        setViewerOpen(true);
+                      }}
+                    >
+                      {/* HOVER WRAPPER */}
+                      <div className="w-full h-full transition-transform duration-300 hover:scale-105">
+                        {asset.type === "video" ? (
+                          <>
+                            <video
+                              muted
+                              playsInline
+                              preload="metadata"
+                              className="w-full h-full object-cover"
+                              src={asset.url}
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                              <Play className="h-10 w-10 text-white/80" />
+                            </div>
+                          </>
+                        ) : (
+                          <img
+                            src={asset.url}
+                            alt={asset.name}
+                            loading="lazy"
+                            className="w-full h-full object-cover"
+                          />
+                        )}
                       </div>
-                    </>
-                  ) : (
-                    <img
-                      src={asset.url}
-                      alt={asset.name}
-                      loading="lazy"
-                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                    />
-                  )}
+                    </div>
+                  ))}
+
+
                 </div>
               ))}
             </div>
