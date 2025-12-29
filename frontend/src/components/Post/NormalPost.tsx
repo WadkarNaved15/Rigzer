@@ -89,7 +89,7 @@ const NormalPost: React.FC<NormalPostProps> = ({
       ref={postRef}
       onClick={onOpenDetails}
       className="
-      relative w-full 
+         relative w-full 
     border border-gray-200 dark:border-gray-700
     bg-white dark:bg-black
     hover:bg-[#F7F9F9] dark:hover:bg-[#16181C]
@@ -154,47 +154,28 @@ const NormalPost: React.FC<NormalPostProps> = ({
                     e.stopPropagation();
                   }}
                 >
-                  {assets.slice(0, 4).map((asset, index) => (
-                    <div
-                      key={index}
-                      className={`
-      relative w-full h-full overflow-hidden
-      ${assets.length === 3 && index === 0 ? "row-span-2" : ""}
-    `}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setViewerIndex(index);
-                        setViewerOpen(true);
-                      }}
-                    >
-                      {/* HOVER WRAPPER */}
-                      <div className="w-full h-full transition-transform duration-300 hover:scale-105">
-                        {asset.type === "video" ? (
-                          <>
-                            <video
-                              muted
-                              playsInline
-                              preload="metadata"
-                              className="w-full h-full object-cover"
-                              src={asset.url}
-                            />
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                              <Play className="h-10 w-10 text-white/80" />
-                            </div>
-                          </>
-                        ) : (
-                          <img
-                            src={asset.url}
-                            alt={asset.name}
-                            loading="lazy"
-                            className="w-full h-full object-cover"
-                          />
-                        )}
+
+                  {asset.type === "video" ? (
+                    <>
+                      <video
+                        muted
+                        playsInline
+                        preload="metadata"
+                        className="w-full h-full object-cover"
+                        src={asset.url}
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <Play className="h-10 w-10 text-white/80" />
                       </div>
-                    </div>
-                  ))}
-
-
+                    </>
+                  ) : (
+                    <img
+                      src={asset.url}
+                      alt={asset.name}
+                      loading="lazy"
+                      className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                    />
+                  )}
                 </div>
               ))}
             </div>
