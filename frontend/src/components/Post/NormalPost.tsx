@@ -161,7 +161,7 @@ const NormalPost: React.FC<NormalPostProps> = ({
                         muted
                         playsInline
                         preload="metadata"
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
                         src={asset.url}
                       />
                       <div className="absolute inset-0 flex items-center justify-center">
