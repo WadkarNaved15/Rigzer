@@ -189,7 +189,9 @@ function Home() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left sidebar */}
           <div className="lg:col-span-2">
-            <div className="sticky top-20 shadow-2xl h-54 dark:bg-black bg-white rounded-t-xl border-t border-r border-gray-200 dark:border-[#3D7A6E]">
+            <div className="
+  sticky top-20 h-54 bg-white dark:bg-black rounded-t-xl border-[3px] border-gray-400 dark:border-gray-700 shadow-lg">
+
               <Suspense fallback={null}>
                 <ProfileCover setProfileOpen={setProfileOpen} />
               </Suspense>

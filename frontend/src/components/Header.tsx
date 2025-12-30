@@ -85,7 +85,7 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-white dark:bg-[#1C1C1C] border-b border-gray-200 dark:border-gray-800 h-[50px]">
+    <header className="sticky top-0 z-50 bg-white dark:bg-[#1e1e1e] shadow-2xl border-b border-gray-200 dark:border-gray-800 h-[50px]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-[50px]">
           {/* Left section */}
@@ -128,7 +128,7 @@ export function Header() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search"
-                  className="w-full pl-10 pr-4 py-2 rounded-full bg-gray-100 dark:bg-gray-800 dark:text-white border-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full pl-10 pr-4 py-2 rounded-full bg-gray-100 dark:bg-[#191716] dark:text-white border-none focus:ring-2 focus:ring-purple-500"
                 />
 
                 {/* Suggestions dropdown */}
