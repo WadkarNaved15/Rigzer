@@ -87,16 +87,20 @@ const NormalPost: React.FC<NormalPostProps> = ({
   return (
     <article
       ref={postRef}
-      onClick={onOpenDetails}
+      onClick={() => {
+        if (viewerOpen) return; // 🔥 BLOCK when overlay is open
+        onOpenDetails?.();
+      }}
       className="
-         relative w-full 
+    relative w-full 
     border border-gray-200 dark:border-gray-700
     bg-white dark:bg-black
     hover:bg-[#F7F9F9] dark:hover:bg-[#16181C]
     transition-colors duration-200
     cursor-pointer
-      "
+  "
     >
+
       <div className="flex gap-3 px-4 py-3">
         {/* AVATAR */}
         <img
