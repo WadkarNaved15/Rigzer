@@ -156,18 +156,19 @@ const NormalPost: React.FC<NormalPostProps> = ({
                 >
 
                   {asset.type === "video" ? (
-                    <>
+                    <div className="w-full h-full overflow-hidden relative group"> {/* added group */}
                       <video
                         muted
                         playsInline
                         preload="metadata"
-                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                        // Added group-hover:scale-105 so it triggers when the container is hovered
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                         src={asset.url}
                       />
-                      <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <Play className="h-10 w-10 text-white/80" />
                       </div>
-                    </>
+                    </div>
                   ) : (
                     <img
                       src={asset.url}
