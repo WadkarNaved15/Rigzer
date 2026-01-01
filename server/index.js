@@ -125,58 +125,76 @@ const io = new Server(server, {
   },
 });
 
-let onlineUsers = new Map();
+let onlineUsers = new Map(); // userId => Set(socketId)
 
 io.on("connection", (socket) => {
   console.log("Socket connected:", socket.id);
 
   socket.on("join", (userId) => {
-    onlineUsers.set(userId, socket.id);
-    console.log("User joined:", userId);
+    if (!onlineUsers.has(userId)) {
+      onlineUsers.set(userId, new Set());
+    }
+
+    onlineUsers.get(userId).add(socket.id);
+
+    console.log("User joined:", userId, "->", socket.id);
   });
+
 
   socket.on("send-message", async (msg) => {
-  const { chatId, senderId, receiverId, text, mediaUrl, mediaType } = msg;
+    const { chatId, senderId, receiverId, text, mediaUrl, mediaType } = msg;
 
-  const message = await Message.create({
-    chatId,
-    senderId,
-    text,
-    mediaUrl,
-    mediaType,
+    const message = await Message.create({
+      chatId,
+      senderId,
+      text,
+      mediaUrl,
+      mediaType,
+    });
+
+    const messageData = {
+      _id: message._id,
+      chatId,
+      senderId,
+      receiverId,
+      text,
+      mediaUrl,
+      mediaType,
+      createdAt: message.createdAt,
+    };
+
+    const receiverSockets = onlineUsers.get(receiverId);
+
+    if (receiverSockets) {
+      for (const socketId of receiverSockets) {
+        io.to(socketId).emit("receive-message", messageData);
+      }
+    }
+
+    // always return to sender also
+    const senderSockets = onlineUsers.get(senderId);
+    if (senderSockets) {
+      for (const socketId of senderSockets) {
+        io.to(socketId).emit("receive-message", messageData);
+      }
+    }
   });
-
-  const messageData = {
-    _id: message._id,
-    chatId,
-    senderId,
-    receiverId,
-    text,
-    mediaUrl,
-    mediaType,
-    createdAt: message.createdAt,
-  };
-
-  const receiverSocket = onlineUsers.get(receiverId);
-  if (receiverSocket) {
-    io.to(receiverSocket).emit("receive-message", messageData);
-  }
-
-  // always return to sender also
-  const senderSocket = onlineUsers.get(senderId);
-  if (senderSocket) {
-    io.to(senderSocket).emit("receive-message", messageData);
-  }
-});
 
 
 
   // Cleanup on disconnect
   socket.on("disconnect", () => {
-    for (let [uid, sid] of onlineUsers.entries()) {
-      if (sid === socket.id) onlineUsers.delete(uid);
+    for (const [userId, sockets] of onlineUsers.entries()) {
+      sockets.delete(socket.id);
+
+      if (sockets.size === 0) {
+        onlineUsers.delete(userId);
+      }
     }
+
+    console.log("Socket disconnected:", socket.id);
   });
+
 });
 
 // MONGO

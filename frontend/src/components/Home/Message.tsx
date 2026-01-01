@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { io } from "socket.io-client";
+import { io, Socket } from "socket.io-client";
 import axios from "axios";
 import { toast } from "react-toastify";
 import {
@@ -19,7 +19,7 @@ interface ApiUser {
   username: string;
 }
 interface User {
-  _id:string,
+  _id: string,
   id: string;
   name: string;
   avatar: string;
@@ -27,6 +27,10 @@ interface User {
   status?: string;
   lastSeen?: string;
 }
+type UploadAsset = {
+  file: File;
+  type: "image" | "video" | "misc";
+};
 type Message = any
 type ChatId = string;
 const MessagingComponent = () => {
@@ -37,8 +41,9 @@ const MessagingComponent = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeChat, setActiveChat] = useState<ChatId | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentChatId, setCurrentChatId] = useState(null); 
+  const [currentChatId, setCurrentChatId] = useState(null);
   const [users, setUsers] = useState<User[]>([]);
+  const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -64,13 +69,61 @@ const MessagingComponent = () => {
       }
     };
   }, []);
-  const socket = io( `${BACKEND_URL}`, {
-    withCredentials: true,
-  });
+  // const socket = io( `${BACKEND_URL}`, {
+  //   withCredentials: true,
+  // });
   const [conversations, setConversations] = useState<
     Record<string, Message[]>
   >({});
+  const uploadChatMediaToS3 = async (
+    asset: UploadAsset,
+    onProgress: (percent: number) => void
+  ): Promise<string> => {
+    // 1️⃣ Get presigned URL
+    const res = await fetch(`${BACKEND_URL}/api/upload/presigned-url`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        fileName: asset.file.name,
+        fileType: asset.file.type,
+        category: asset.type,
+      }),
+    });
 
+    if (!res.ok) {
+      throw new Error("Failed to get presigned URL");
+    }
+
+    const { uploadUrl, fileUrl } = await res.json();
+
+    // 2️⃣ Upload to S3 with REAL progress
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.open("PUT", uploadUrl, true);
+      xhr.setRequestHeader("Content-Type", asset.file.type);
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percent = Math.round((event.loaded / event.total) * 100);
+          onProgress(percent);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          resolve(fileUrl);
+        } else {
+          reject(new Error(`Upload failed with status ${xhr.status}`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error("Upload network error"));
+
+      xhr.send(asset.file);
+    });
+  };
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   useEffect(() => scrollToBottom(), [conversations, activeChat]);
@@ -91,6 +144,25 @@ const MessagingComponent = () => {
 
     fetchUser();
   }, []);
+  useEffect(() => {
+    if (socketRef.current) return;
+
+    socketRef.current = io(BACKEND_URL, {
+      withCredentials: true,
+      transports: ["websocket"], // force stable transport
+    });
+
+    console.log("Socket initialized");
+
+    socketRef.current.on("connect", () => {
+      console.log("Socket connected:", socketRef.current?.id);
+    });
+
+    socketRef.current.on("disconnect", (reason) => {
+      console.log("Socket disconnected:", reason);
+    });
+  }, []);
+
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -118,14 +190,28 @@ const MessagingComponent = () => {
     fetchUsers();
   }, []);
   useEffect(() => {
-    if(!currentUser) return
-    if (currentUser?._id) {
-      socket.emit("join", currentUser._id);
-    }
-  }, [currentUser]);
+    if (!currentUser?._id || !socketRef.current) return;
 
+    const socket = socketRef.current;
+
+    const joinUser = () => {
+      console.log("Joining user:", currentUser._id);
+      socket.emit("join", currentUser._id);
+    };
+
+    if (socket.connected) {
+      joinUser();
+    } else {
+      socket.on("connect", joinUser);
+    }
+
+    return () => {
+      socket.off("connect", joinUser);
+    };
+  }, [currentUser?._id]);
   useEffect(() => {
     const handler = (msg: any) => {
+      if (!socketRef.current || !currentUser) return;
       if (!currentUser) return;
 
       if (msg.senderId === currentUser._id && !msg.tempId) return;
@@ -139,40 +225,36 @@ const MessagingComponent = () => {
       }));
     };
 
-    socket.on("receive-message", handler);
+    socketRef.current?.on("receive-message", handler);
 
     return () => {
-      socket.off("receive-message", handler);
+      socketRef.current?.off("receive-message", handler);
     };
   }, [currentUser]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
+    const file = e.target.files?.[0];
+    if (!file || !currentChatId || !activeChat || !currentUser) return;
 
-    const formData = new FormData();
-    formData.append("media", file);
-
-    // Toast
-    const toastId = toast.loading("Uploading...");
-
-    let fakeProgress = 0;
-    const interval = setInterval(() => {
-      if (fakeProgress < 95) {
-        fakeProgress += 5;
-        toast.update(toastId, {
-          render: `Uploading... ${fakeProgress}%`,
-          isLoading: true,
-        });
-      }
-    }, 200);
+    const toastId = toast.loading("Uploading... 0%");
 
     try {
-      const res = await axios.post(`${BACKEND_URL}/api/media/upload`, formData, {
-        withCredentials: true,
-      });
-
-      clearInterval(interval);
+      const fileUrl = await uploadChatMediaToS3(
+        {
+          file,
+          type: file.type.startsWith("image")
+            ? "image"
+            : file.type.startsWith("video")
+              ? "video"
+              : "misc",
+        },
+        (progress) => {
+          toast.update(toastId, {
+            render: `Uploading... ${progress}%`,
+            isLoading: true,
+          });
+        }
+      );
 
       toast.update(toastId, {
         render: "Upload complete!",
@@ -181,31 +263,31 @@ const MessagingComponent = () => {
         autoClose: 1200,
       });
 
-      const data = res.data;
-
+      // Send chat message
       const newMessage = {
         chatId: currentChatId,
-        senderId: currentUser ? currentUser._id : null,
+        senderId: currentUser._id,
         receiverId: activeChat,
         text: "",
-        mediaUrl: data.url,
-        mediaType: data.mediaType,
+        mediaUrl: fileUrl,
+        mediaType: file.type.startsWith("image")
+          ? "image"
+          : file.type.startsWith("video")
+            ? "video"
+            : "misc",
+
         createdAt: new Date(),
       };
 
-      socket.emit("send-message", newMessage);
+      socketRef.current?.emit("send-message", newMessage);
 
-      setConversations((prev) => {
-        if (activeChat == null) {
-          return prev;
-        }
-        return {
-          ...prev,
-          [activeChat]: [...(prev[activeChat] || []), newMessage],
-        };
-      });
+      // Optimistic UI
+      setConversations((prev) => ({
+        ...prev,
+        [activeChat]: [...(prev[activeChat] || []), newMessage],
+      }));
     } catch (err) {
-      clearInterval(interval);
+      console.error(err);
 
       toast.update(toastId, {
         render: "Upload failed!",
@@ -213,10 +295,10 @@ const MessagingComponent = () => {
         isLoading: false,
         autoClose: 2000,
       });
+    } finally {
+      e.target.value = "";
     }
   };
-
-
 
 
   const handleUserClick = async (receiverId: string) => {
@@ -259,7 +341,7 @@ const MessagingComponent = () => {
     };
 
     // emit to server
-    socket.emit("send-message", newMessage);
+    socketRef.current?.emit("send-message", newMessage);
 
     // optimistic update
     setConversations((prev) => ({
@@ -273,14 +355,14 @@ const MessagingComponent = () => {
 
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-  if (e.key === "Enter" && !e.shiftKey) {
-    e.preventDefault();
-    handleSendMessage();
-  }
-};
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
 
 
-  const formatTime = (ts:Date) => ts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const formatTime = (ts: Date) => ts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const getUnreadCount = () => users.reduce((t, u) => t + u.unreadCount, 0);
   const filteredUsers = users.filter((u) => u.name.toLowerCase().includes(searchTerm.toLowerCase()));
   const activeUser = users.find((u) => u.id === activeChat);
