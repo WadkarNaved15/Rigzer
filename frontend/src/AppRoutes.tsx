@@ -18,8 +18,10 @@ const Puck = lazy(() => import("./Pages/Puck"));
 
 // Components
 import GameStatus from "./components/Home/PlayGame";
+import { Header } from "./components/Header";
 import Recommendations from "./components/Recommendations";
 import RecommendationPosts from "./components/Home/RecommendationPost";
+import PublisherForm from "./Pages/PublisherForm"
 import ModelViewer from "./components/ModelViewer";
 import GamePost from "./components/Home/GamePost";
 
@@ -39,6 +41,14 @@ export default function AppRoutes() {
           <Route path="/auth" element={<Auth />} />
           <Route path="/stream" element={<GameStatus />} />
           <Route path="/wishlist" element={<WishlistPage />} />
+          <Route
+            path="/publisher"
+            element={
+              <div className="fixed inset-0 z-[100]">
+                <PublisherForm onPreview={() => { }} />
+              </div>
+            }
+          />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/editprofile" element={<EditProfilePage />} />
           <Route path="/createpost" element={<CreatePostPage />} />

@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Box, Image as ImageIcon, Gamepad2, Terminal} from 'lucide-react';
+import { X, Box, Image as ImageIcon, Gamepad2, Terminal, FileText} from 'lucide-react';
 import { POST_TYPES, PostType } from "../../types/postTypes";
 
 
@@ -14,6 +14,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   media: <ImageIcon size={22} />,
   game: <Gamepad2 size={22} />, 
   devlog: <Terminal size={22} />, 
+  article: <FileText size={22} />, // New icon added here
 };
 
 const PostTypeHeader: React.FC<PostTypeHeaderProps> = ({

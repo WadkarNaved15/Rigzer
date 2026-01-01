@@ -13,7 +13,8 @@ const postFormRegistry: Record<
   model: ModelPostForm,
   media: MediaPostForm,
   game: GamePostForm,
-  devlog: () => null // Registry needs a component, even if empty
+  devlog: () => null, // Registry needs a component, even if empty
+  article:() => null
 };
 
 const ActivePostForm = ({
@@ -31,9 +32,15 @@ const ActivePostForm = ({
       navigate('/devlogCanvas');
     }
   }, [postType, navigate, onCancel]);
-
+ useEffect(() => {
+    if (postType === 'article') {
+      // Internal navigation using React Router
+      navigate('/publisher');
+    }
+  }, [postType, navigate, onCancel]);
   // If devlog, render nothing while the redirect happens
   if (postType === 'devlog') return null;
+  if(postType === 'article') return null;
 
   const FormComponent = postFormRegistry[postType];
   return <FormComponent onCancel={onCancel} />;
