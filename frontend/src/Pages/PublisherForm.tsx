@@ -276,63 +276,29 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
     setMessage(null);
 
     try {
-    //   const { data: { user } } = await supabase.auth.getUser();
+      const postData = {
+        ...formData,
+        status: publish ? 'published' : 'draft',
+        published_at: publish ? new Date().toISOString() : null,
+        rating: formData.rating ? parseFloat(formData.rating) : null,
+      };
 
-    //   if (!user) {
-    //     setMessage({ type: 'error', text: 'You must be logged in to save posts' });
-    //     setSaving(false);
-    //     return;
-    //   }
-
-    //   const postData = {
-    //     ...formData,
-    //     status: publish ? 'published' : 'draft',
-    //     published_at: publish ? new Date().toISOString() : null,
-    //     rating: formData.rating ? parseFloat(formData.rating) : null,
-    //     user_id: user.id,
-    //   };
-
-    //   const { error } = await supabase.from('blog_posts').insert([postData]);
-
-    //   if (error) throw error;
+      const blob = new Blob([JSON.stringify(postData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${formData.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
 
       setMessage({
         type: 'success',
-        text: publish ? 'Post published successfully!' : 'Draft saved successfully!',
+        text: publish ? 'Post downloaded successfully!' : 'Draft downloaded successfully!',
       });
 
       setTimeout(() => {
-        setFormData({
-          title: '',
-          subtitle: '',
-          hero_image_url: '',
-          category: 'Review',
-          publisher_name: '',
-          genre: '',
-          rating: '',
-          author_name: '',
-          author_role: '',
-          content: [],
-          profiles: [],
-          links: [],
-          status: 'draft',
-          background_sections: [
-            {
-              id: crypto.randomUUID(),
-              type: 'color',
-              value: '#1A1A1A',
-              startPosition: 0,
-              endPosition: 10000,
-            },
-          ],
-          theme_colors: {
-            background: '#1A1A1A',
-            text: '#BBBBBB',
-            primary: '#EEEEEE',
-            secondary: '#777777',
-            accent: '#999999',
-          },
-        });
         setMessage(null);
       }, 2000);
     } catch (error) {
@@ -415,9 +381,9 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
           <div className="w-full h-full relative pointer-events-none" style={blockStyle}>
             {block.content ? (
               <>
-                <img
+                <video
                   src={block.content}
-                  alt="Video thumbnail"
+                  autoPlay
                   className="w-full h-full object-cover rounded opacity-75 pointer-events-none select-none"
                   draggable={false}
                 />
@@ -748,8 +714,8 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
               id={block.id}
               position={block.position}
               size={block.size}
-              onPositionChange={(position: ElementPosition) => updateContentBlock(block.id, { position })}
-              onSizeChange={(size: ElementSize) => updateContentBlock(block.id, { size })}
+              onPositionChange={(position) => updateContentBlock(block.id, { position })}
+              onSizeChange={(size) => updateContentBlock(block.id, { size })}
               onDelete={() => deleteContentBlock(block.id)}
               onAlignmentChange={handleAlignmentChange}
               resizable={block.type === 'image' || block.type === 'video'}

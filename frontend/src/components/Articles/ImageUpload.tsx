@@ -1,6 +1,5 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useId } from 'react';
 import { Upload, Loader } from 'lucide-react';
-
 
 interface ImageUploadProps {
   onUploadComplete: (url: string) => void;
@@ -11,6 +10,7 @@ export default function ImageUpload({ onUploadComplete, className = '' }: ImageU
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputId = useId();
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -30,28 +30,27 @@ export default function ImageUpload({ onUploadComplete, className = '' }: ImageU
     setError(null);
 
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${crypto.randomUUID()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const reader = new FileReader();
 
-    //   const { error: uploadError } = await supabase.storage
-    //     .from('blog-images')
-    //     .upload(filePath, file);
+      reader.onload = (e) => {
+        const base64 = e.target?.result as string;
+        onUploadComplete(base64);
+        setUploading(false);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      };
 
-    //   if (uploadError) throw uploadError;
+      reader.onerror = () => {
+        setError('Failed to read image file');
+        setUploading(false);
+      };
 
-    //   const { data: { publicUrl } } = supabase.storage
-    //     .from('blog-images')
-    //     .getPublicUrl(filePath);
-
-    //   onUploadComplete(publicUrl);
+      reader.readAsDataURL(file);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to upload image');
-    } finally {
+      console.error('Image loading failed:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load image');
       setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
     }
   };
 
@@ -63,10 +62,10 @@ export default function ImageUpload({ onUploadComplete, className = '' }: ImageU
         accept="image/*"
         onChange={handleFileSelect}
         className="hidden"
-        id="image-upload"
+        id={inputId}
       />
       <label
-        htmlFor="image-upload"
+        htmlFor={inputId}
         className={`flex items-center justify-center gap-2 px-4 py-2 bg-[rgba(255,255,255,0.05)] hover:bg-[rgba(255,255,255,0.08)] text-[#AAAAAA] rounded-lg transition-all duration-300 cursor-pointer text-sm ${
           uploading ? 'opacity-50 cursor-not-allowed' : ''
         }`}

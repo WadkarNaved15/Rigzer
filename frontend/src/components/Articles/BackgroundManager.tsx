@@ -1,6 +1,6 @@
 import { Plus, Trash2, Image as ImageIcon } from 'lucide-react';
-import ColorPicker from '../Articles/ColorPicker';
-import ImageUpload from '../Articles/ImageUpload';
+import ColorPicker from './ColorPicker';
+import ImageUpload from './ImageUpload';
 
 export interface BackgroundSection {
   id: string;
@@ -159,7 +159,7 @@ export default function BackgroundManager({ sections, onChange }: BackgroundMana
                 {section.type === 'color' ? (
                   <ColorPicker
                     color={section.value}
-                    onChange={(color: string) => updateSection(section.id, { value: color })}
+                    onChange={(color) => updateSection(section.id, { value: color })}
                   />
                 ) : (
                   <div className="space-y-2">
@@ -172,7 +172,7 @@ export default function BackgroundManager({ sections, onChange }: BackgroundMana
                     />
                     <div className="text-center text-[#555555] text-[10px]">or</div>
                     <ImageUpload
-                      onUploadComplete={(url: string) => updateSection(section.id, { value: url })}
+                      onUploadComplete={(url) => updateSection(section.id, { value: url })}
                       className="w-full"
                     />
                   </div>
