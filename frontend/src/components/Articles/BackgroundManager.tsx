@@ -131,11 +131,10 @@ export default function BackgroundManager({ sections, onChange }: BackgroundMana
                         updateSection(section.id, { type: 'color', value: '#1A1A1A' });
                       }
                     }}
-                    className={`flex-1 px-2 py-1.5 rounded text-xs transition-colors ${
-                      section.type === 'color'
-                        ? 'bg-[rgba(255,255,255,0.12)] text-[#EEEEEE]'
-                        : 'bg-[rgba(255,255,255,0.04)] text-[#666666] hover:bg-[rgba(255,255,255,0.08)]'
-                    }`}
+                    className={`flex-1 px-2 py-1.5 rounded text-xs transition-colors ${section.type === 'color'
+                      ? 'bg-[rgba(255,255,255,0.12)] text-[#EEEEEE]'
+                      : 'bg-[rgba(255,255,255,0.04)] text-[#666666] hover:bg-[rgba(255,255,255,0.08)]'
+                      }`}
                   >
                     Color
                   </button>
@@ -145,11 +144,10 @@ export default function BackgroundManager({ sections, onChange }: BackgroundMana
                         updateSection(section.id, { type: 'image', value: '' });
                       }
                     }}
-                    className={`flex-1 px-2 py-1.5 rounded text-xs transition-colors ${
-                      section.type === 'image'
-                        ? 'bg-[rgba(255,255,255,0.12)] text-[#EEEEEE]'
-                        : 'bg-[rgba(255,255,255,0.04)] text-[#666666] hover:bg-[rgba(255,255,255,0.08)]'
-                    }`}
+                    className={`flex-1 px-2 py-1.5 rounded text-xs transition-colors ${section.type === 'image'
+                      ? 'bg-[rgba(255,255,255,0.12)] text-[#EEEEEE]'
+                      : 'bg-[rgba(255,255,255,0.04)] text-[#666666] hover:bg-[rgba(255,255,255,0.08)]'
+                      }`}
                   >
                     <ImageIcon size={10} className="inline mr-1" />
                     Image
@@ -172,9 +170,14 @@ export default function BackgroundManager({ sections, onChange }: BackgroundMana
                     />
                     <div className="text-center text-[#555555] text-[10px]">or</div>
                     <ImageUpload
-                      onUploadComplete={(url) => updateSection(section.id, { value: url })}
-                      className="w-full"
+                      type="image"
+                      onSelect={(file, previewUrl) => {
+                        updateSection(section.id, {
+                          value: previewUrl, // store preview URL as background image
+                        });
+                      }}
                     />
+
                   </div>
                 )}
 
