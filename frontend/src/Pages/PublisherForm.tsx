@@ -5,7 +5,7 @@ import AlignmentGuides from '../components/Articles/AlignmentGuides';
 import BackgroundManager, { BackgroundSection } from '../components/Articles/BackgroundManager';
 import ColorPicker from '../components/Articles/ColorPicker';
 import ImageUpload from '../components/Articles/ImageUpload';
-
+import { toast } from "react-toastify";
 interface ContentBlock {
   id: string;
   type: 'paragraph' | 'heading' | 'image' | 'video' | 'blockquote' | 'title' | 'subtitle';
@@ -17,6 +17,7 @@ interface ContentBlock {
     text?: string;
     background?: string;
   };
+  file?: File;
 }
 
 interface Profile {
@@ -39,6 +40,7 @@ interface ThemeColors {
 }
 
 interface FormData {
+  heroImageFile?: File; // 👈 add this
   title: string;
   subtitle: string;
   hero_image_url: string;
@@ -93,9 +95,20 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [alignmentX, setAlignmentX] = useState(-1);
   const [alignmentY, setAlignmentY] = useState(-1);
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   const [scrollY, setScrollY] = useState(0);
   const [selectedElement, setSelectedElement] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+  const isArticleInfoIncomplete = () => {
+    return (
+      !formData.author_name ||
+      !formData.hero_image_url ||
+      !formData.profiles.length ||
+      !formData.links.length
+
+    );
+  };
 
   useEffect(() => {
     const container = containerRef.current;
@@ -110,6 +123,11 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
 
   const updateField = (field: keyof FormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+  };
+  const getMediaCategory = (file: File): "image" | "video" => {
+    if (file.type.startsWith("image/")) return "image";
+    if (file.type.startsWith("video/")) return "video";
+    throw new Error("Unsupported file type");
   };
 
   const addContentBlock = (type: ContentBlock['type']) => {
@@ -310,6 +328,115 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
       setSaving(false);
     }
   };
+  const uploadMediaToS3 = async (
+    asset: File,
+    // category: "image" | "video",
+    onProgress: (percent: number) => void
+  ): Promise<string> => {
+    // 1️⃣ Get presigned URL
+    const category = getMediaCategory(asset);
+    const res = await fetch(`${BACKEND_URL}/api/upload/presigned-url`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        fileName: asset.name,
+        fileType: asset.type,
+        category,
+      }),
+    });
+
+    if (!res.ok) throw new Error("Failed to get presigned URL");
+
+    const { uploadUrl, fileUrl } = await res.json();
+
+    // 2️⃣ Upload to S3 with progress
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", uploadUrl, true);
+      xhr.setRequestHeader("Content-Type", asset.type);
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const percent = Math.round((event.loaded / event.total) * 100);
+          onProgress(percent);
+        }
+      };
+
+      xhr.onload = () => (xhr.status === 200 ? resolve() : reject(new Error(`Upload failed with status ${xhr.status}`)));
+      xhr.onerror = () => reject(new Error("Upload network error"));
+
+      xhr.send(asset);
+    });
+
+    return fileUrl; // Return CloudFront URL
+  };
+
+  const handlePublish = async () => {
+    if (isArticleInfoIncomplete()) {
+      setShowPublishConfirm(true);
+      return;
+    }
+    try {
+      setSaving(true);
+
+      const updatedContent = await Promise.all(
+        formData.content.map(async (block, index) => {
+          if (block.type === "image" || block.type === "video") {
+            const asset = block.file; // actual file from input
+            if (!asset) return block;
+
+            const toastId = toast.loading(`Uploading ${asset.name}... 0%`);
+
+            const fileUrl = await uploadMediaToS3(asset, (progress) => {
+              toast.update(toastId, {
+                render: `Uploading ${asset.name}... ${progress}%`,
+                isLoading: true,
+              });
+            });
+
+            toast.update(toastId, {
+              render: `${asset.name} uploaded!`,
+              type: "success",
+              isLoading: false,
+              autoClose: 1200,
+            });
+
+            return { ...block, content: fileUrl };
+          }
+          return block;
+        })
+      );
+
+      // Replace content in formData with uploaded URLs
+      const finalCanvas = { ...formData, content: updatedContent };
+
+      // 3️⃣ Save canvas
+      const res = await fetch(`${BACKEND_URL}/api/article/publish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(finalCanvas),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to publish canvas");
+      }
+
+      const savedCanvas = await res.json();
+      toast.success("Canvas published successfully!");
+      console.log("Published canvas:", savedCanvas);
+
+      // Optional: redirect to canvas view
+      // navigate(`/canvas/${savedCanvas._id}`);
+    } catch (error: any) {
+      console.error("Publish error:", error);
+      toast.error(error.message || "Failed to publish canvas");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const renderContentBlock = (block: ContentBlock) => {
     const blockStyle = {
@@ -368,9 +495,15 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
                 />
                 <div className="text-[#666666] text-xs">or</div>
                 <ImageUpload
-                  onUploadComplete={(url) => updateContentBlock(block.id, { content: url })}
-                  className="w-full"
+                  type="image"
+                  onSelect={(file, previewUrl) =>
+                    updateContentBlock(block.id, {
+                      file,
+                      content: previewUrl, // preview only
+                    })
+                  }
                 />
+
               </div>
             )}
           </div>
@@ -404,9 +537,15 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
                 />
                 <div className="text-[#666666] text-xs">or</div>
                 <ImageUpload
-                  onUploadComplete={(url) => updateContentBlock(block.id, { content: url })}
-                  className="w-full"
+                  type="video"
+                  onSelect={(file, previewUrl) =>
+                    updateContentBlock(block.id, {
+                      file,
+                      content: previewUrl, // preview only
+                    })
+                  }
                 />
+
               </div>
             )}
           </div>
@@ -447,11 +586,10 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
     <div ref={containerRef} className="relative w-full h-full overflow-y-auto bg-[#0A0A0A]">
       {message && (
         <div
-          className={`fixed top-20 left-1/2 transform -translate-x-1/2 z-[200] p-4 rounded-lg ${
-            message.type === 'success'
-              ? 'bg-green-500/10 border border-green-500/20 text-green-400'
-              : 'bg-red-500/10 border border-red-500/20 text-red-400'
-          }`}
+          className={`fixed top-20 left-1/2 transform -translate-x-1/2 z-[200] p-4 rounded-lg ${message.type === 'success'
+            ? 'bg-green-500/10 border border-green-500/20 text-green-400'
+            : 'bg-red-500/10 border border-red-500/20 text-red-400'
+            }`}
         >
           {message.text}
         </div>
@@ -499,6 +637,39 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
           <Quote size={14} />
         </button>
       </div>
+      {showPublishConfirm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-[#111111] rounded-xl p-6 w-full max-w-md">
+            <h3 className="text-[#EEEEEE] text-sm font-semibold mb-2">
+              Publish without complete article info?
+            </h3>
+
+            <p className="text-[#999999] text-xs mb-4 leading-relaxed">
+              Author profile details, links, or hero image are not filled.
+              This may affect how your article appears publicly.
+            </p>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowPublishConfirm(false)}
+                className="px-4 py-2 text-xs rounded-lg bg-[rgba(255,255,255,0.06)] text-[#AAAAAA] hover:bg-[rgba(255,255,255,0.1)]"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowPublishConfirm(false);
+                  handlePublish();
+                }}
+                className="px-4 py-2 text-xs rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]"
+              >
+                Publish anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <aside className="fixed top-4 right-4 w-80 z-[60] space-y-3 max-h-[calc(100vh-2rem)] overflow-y-auto">
         <div className="sidebar-panel">
@@ -511,50 +682,20 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
             Save Draft
           </button>
           <button
-            onClick={() => handleSave(true)}
+            onClick={handlePublish}
             disabled={saving || !formData.title}
             className="w-full px-6 py-2.5 bg-[rgba(255,255,255,0.08)] hover:bg-[rgba(255,255,255,0.12)] text-[#EEEEEE] rounded-lg transition-all duration-300 flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Eye size={14} />
             Publish
           </button>
+          {!formData.title && (
+            <p className="text-red-400 text-xs mt-1 text-center">
+              Title is required to publish
+            </p>
+          )}
+
         </div>
-
-        <div className="sidebar-panel">
-          <h4 className="mb-3 flex items-center gap-2">
-            <Palette size={14} />
-            Theme Colors
-          </h4>
-          <div className="space-y-2">
-            <ColorPicker
-              label="Background"
-              color={formData.theme_colors.background}
-              onChange={(color) =>
-                updateField('theme_colors', { ...formData.theme_colors, background: color })
-              }
-            />
-            <ColorPicker
-              label="Text"
-              color={formData.theme_colors.text}
-              onChange={(color) =>
-                updateField('theme_colors', { ...formData.theme_colors, text: color })
-              }
-            />
-            <ColorPicker
-              label="Primary"
-              color={formData.theme_colors.primary}
-              onChange={(color) =>
-                updateField('theme_colors', { ...formData.theme_colors, primary: color })
-              }
-            />
-          </div>
-        </div>
-
-        <BackgroundManager
-          sections={formData.background_sections}
-          onChange={(sections) => updateField('background_sections', sections)}
-        />
-
         <div className="sidebar-panel">
           <h4 className="mb-3">Article Info</h4>
           <div className="space-y-2">
@@ -596,13 +737,23 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
                 placeholder="Paste image URL"
               />
               <ImageUpload
-                onUploadComplete={(url) => updateField('hero_image_url', url)}
+                type="image"
+                onSelect={(file, previewUrl) => {
+                  updateField('hero_image_url', previewUrl);
+
+                  // OPTIONAL: store file separately if you want to upload hero image on publish
+                  setFormData(prev => ({
+                    ...prev,
+                    heroImageFile: file, // add this to FormData type
+                  }));
+                }}
                 className="w-full"
               />
+
+
             </div>
           </div>
         </div>
-
         <div className="sidebar-panel">
           <div className="flex items-center justify-between mb-3">
             <h4>Profiles</h4>
@@ -639,7 +790,6 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
             ))}
           </div>
         </div>
-
         <div className="sidebar-panel">
           <div className="flex items-center justify-between mb-3">
             <h4>Links</h4>
@@ -676,54 +826,89 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
             ))}
           </div>
         </div>
+        <div className="sidebar-panel">
+          <h4 className="mb-3 flex items-center gap-2">
+            <Palette size={14} />
+            Theme Colors
+          </h4>
+          <div className="space-y-2">
+            <ColorPicker
+              label="Background"
+              color={formData.theme_colors.background}
+              onChange={(color) =>
+                updateField('theme_colors', { ...formData.theme_colors, background: color })
+              }
+            />
+            <ColorPicker
+              label="Text"
+              color={formData.theme_colors.text}
+              onChange={(color) =>
+                updateField('theme_colors', { ...formData.theme_colors, text: color })
+              }
+            />
+            <ColorPicker
+              label="Primary"
+              color={formData.theme_colors.primary}
+              onChange={(color) =>
+                updateField('theme_colors', { ...formData.theme_colors, primary: color })
+              }
+            />
+          </div>
+        </div>
+
+        <BackgroundManager
+          sections={formData.background_sections}
+          onChange={(sections) => updateField('background_sections', sections)}
+        />
       </aside>
 
       <div className="relative w-full" style={{ height: `${canvasHeight}px` }}>
         <div
           className="absolute top-0 z-[5] overflow-hidden"
-        style={{
-          left: `${canvasMargin}px`,
-          width: `${canvasWidth}px`,
-          height: `${canvasHeight}px`
-        }}
-      >
-        {renderBackgroundSections()}
+          style={{
+            left: `${canvasMargin}px`,
+            width: `${canvasWidth}px`,
+            height: `${canvasHeight}px`
+          }}
+        >
+          {renderBackgroundSections()}
 
-        <AlignmentGuides
-          activeX={alignmentX}
-          activeY={alignmentY}
-          elements={formData.content.map((block) => ({
-            x: block.position.x,
-            y: block.position.y,
-            width: block.size?.width || 0,
-            height: block.size?.height || 0,
-          }))}
-        />
+          <AlignmentGuides
+            activeX={alignmentX}
+            activeY={alignmentY}
+            elements={formData.content.map((block) => ({
+              x: block.position.x,
+              y: block.position.y,
+              width: block.size?.width || 0,
+              height: block.size?.height || 0,
+            }))}
+          />
 
-        <main className="relative z-10 p-20" style={{ minHeight: `${canvasHeight}px` }}>
-          {formData.content.length === 0 && (
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
-              <p className="text-[#666666] text-lg mb-3">Click buttons above to add elements</p>
-              <p className="text-[#444444] text-sm">Drag them anywhere to position</p>
-            </div>
-          )}
+          <main className="relative z-10 p-20" style={{ minHeight: `${canvasHeight}px` }}>
+            {formData.content.length === 0 && (
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
+                <p className="text-[#666666] text-lg mb-3">Click buttons above to add elements</p>
+                <p className="text-[#444444] text-sm">Drag them anywhere to position</p>
+              </div>
+            )}
 
-          {formData.content.map((block) => (
-            <DraggableElement
-              key={block.id}
-              id={block.id}
-              position={block.position}
-              size={block.size}
-              onPositionChange={(position) => updateContentBlock(block.id, { position })}
-              onSizeChange={(size) => updateContentBlock(block.id, { size })}
-              onDelete={() => deleteContentBlock(block.id)}
-              onAlignmentChange={handleAlignmentChange}
-              resizable={block.type === 'image' || block.type === 'video'}
-            >
-              {renderContentBlock(block)}
-            </DraggableElement>
-          ))}
-        </main>
+
+            {formData.content.map((block) => (
+              <DraggableElement
+                key={block.id}
+                id={block.id}
+                position={block.position}
+                size={block.size}
+                onPositionChange={(position) => updateContentBlock(block.id, { position })}
+                onSizeChange={(size) => updateContentBlock(block.id, { size })}
+                onDelete={() => deleteContentBlock(block.id)}
+                onAlignmentChange={handleAlignmentChange}
+                resizable={block.type === 'image' || block.type === 'video'}
+              >
+                {renderContentBlock(block)}
+              </DraggableElement>
+            ))}
+          </main>
         </div>
       </div>
     </div>
