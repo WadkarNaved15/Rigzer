@@ -98,7 +98,14 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
   const [scrollY, setScrollY] = useState(0);
   const [selectedElement, setSelectedElement] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+  const isArticleInfoIncomplete = () => {
+    return (
+      !formData.author_name ||
+      !formData.hero_image_url
+    );
+  };
 
 
   useEffect(() => {
@@ -424,6 +431,17 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
       setSaving(false);
     }
   };
+  const handlePublishClick = () => {
+    if (!formData.title) return;
+
+    if (isArticleInfoIncomplete()) {
+      setShowPublishConfirm(true);
+      return;
+    }
+
+    handlePublish(); // direct publish
+  };
+
 
   const renderContentBlock = (block: ContentBlock) => {
     const blockStyle = {
@@ -624,6 +642,39 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
           <Quote size={14} />
         </button>
       </div>
+      {showPublishConfirm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+          <div className="bg-[#111111] rounded-xl p-6 w-full max-w-md">
+            <h3 className="text-[#EEEEEE] text-sm font-semibold mb-2">
+              Publish without complete article info?
+            </h3>
+
+            <p className="text-[#999999] text-xs mb-4 leading-relaxed">
+              Author profile details, links, or hero image are not filled.
+              This may affect how your article appears publicly.
+            </p>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowPublishConfirm(false)}
+                className="px-4 py-2 text-xs rounded-lg bg-[rgba(255,255,255,0.06)] text-[#AAAAAA] hover:bg-[rgba(255,255,255,0.1)]"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={() => {
+                  setShowPublishConfirm(false);
+                  handlePublish();
+                }}
+                className="px-4 py-2 text-xs rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]"
+              >
+                Publish anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <aside className="fixed top-4 right-4 w-80 z-[60] space-y-3 max-h-[calc(100vh-2rem)] overflow-y-auto">
         <div className="sidebar-panel">
@@ -636,7 +687,7 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
             Save Draft
           </button>
           <button
-            onClick={handlePublish}
+            onClick={handlePublishClick}
             disabled={saving || !formData.title}
             className="w-full px-6 py-2.5 bg-[rgba(255,255,255,0.08)] hover:bg-[rgba(255,255,255,0.12)] text-[#EEEEEE] rounded-lg transition-all duration-300 flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
@@ -703,8 +754,6 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
                 }}
                 className="w-full"
               />
-
-
             </div>
           </div>
         </div>
