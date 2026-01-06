@@ -4,6 +4,13 @@ import { PlusCircle } from "lucide-react";
 import FollowFace from "./FollowFace";
 import { useUser } from "../../context/user";
 import FollowButton from "../FollowButton";
+interface CanvasPreview {
+  _id: string;
+  title: string;
+  hero_image_url?: string;
+  author_name?: string;
+}
+
 
 type Face = "follow" | "posts" | "reading" | "projects";
 
@@ -11,6 +18,7 @@ const Tower: React.FC<{ activeFace: Face }> = ({ activeFace }) => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const { user } = useUser();
   const cubeRef = useRef<HTMLDivElement>(null);
+  const [readingCanvases, setReadingCanvases] = useState<CanvasPreview[]>([]);
   const [translateZ, setTranslateZ] = useState(150);
 
   // Recompute translateZ on mount + resize
@@ -24,7 +32,16 @@ const Tower: React.FC<{ activeFace: Face }> = ({ activeFace }) => {
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
-
+useEffect(() => {
+  axios
+    .get(`${BACKEND_URL}/api/article/published`)
+    .then(res => setReadingCanvases(res.data))
+    .catch(console.error);
+}, []);
+// This logs the data every time it changes
+useEffect(() => {
+  console.log("Current Reading Canvases:", readingCanvases);
+}, [readingCanvases]);
   // Map active face to rotation
   const rotation = useMemo(() => {
     const map: Record<Face, string> = {
@@ -63,22 +80,44 @@ const Tower: React.FC<{ activeFace: Face }> = ({ activeFace }) => {
   );
 
   const ReadingFace = () => (
-    <div
-      className="face dark:text-white dark:bg-black overflow-y-auto"
-      style={{ transform: `rotateY(180deg) translateZ(${translateZ}px)` }}
-    >
-      <div className="h-full space-y-4 px-2">
-        {Array.from({ length: 3 }, (_, i) => (
-          <div key={i} className="border-b pb-4">
-            <h3 className="font-semibold mb-2">Article Title {i + 1}</h3>
-            <p className="text-sm text-gray-600 mb-2 dark:text-gray-200">
-              Brief description of article content to give a preview.
-            </p>
+  <div
+    className="face dark:text-white dark:bg-black overflow-y-auto"
+    style={{ transform: `rotateY(180deg) translateZ(${translateZ}px)` }}
+  >
+    <div className="grid grid-cols-2 gap-3 px-2 py-3">
+      {readingCanvases.map(canvas => (
+        <div
+          key={canvas._id}
+          // onClick={() => openCanvas(canvas._id)}
+          className="cursor-pointer group"
+        >
+          <div className="aspect-[4/3] bg-[#111] rounded-lg overflow-hidden border border-white/10">
+            {canvas.hero_image_url ? (
+              <img
+                src={canvas.hero_image_url}
+                alt={canvas.title}
+                className="w-full h-full object-cover group-hover:scale-105 transition"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-xs text-[#666]">
+                No Thumbnail
+              </div>
+            )}
           </div>
-        ))}
-      </div>
+
+          <h3 className="mt-2 text-sm font-medium line-clamp-2">
+            {canvas.title}
+          </h3>
+
+          {canvas.author_name && (
+            <p className="text-xs text-[#777]">{canvas.author_name}</p>
+          )}
+        </div>
+      ))}
     </div>
-  );
+  </div>
+);
+
 
   const ProjectsFace = () => (
     <div

@@ -326,6 +326,8 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
       setSaving(false);
     }
   };
+
+
   const uploadMediaToS3 = async (
     asset: File,
     // category: "image" | "video",
@@ -370,9 +372,33 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
     return fileUrl; // Return CloudFront URL
   };
 
+
   const handlePublish = async () => {
     try {
       setSaving(true);
+      // 🔥 STEP 1: Upload hero image if present
+      let heroImageUrl = formData.hero_image_url;
+
+      if (formData.heroImageFile) {
+        const toastId = toast.loading("Uploading hero image... 0%");
+
+        heroImageUrl = await uploadMediaToS3(
+          formData.heroImageFile,
+          (progress) => {
+            toast.update(toastId, {
+              render: `Uploading hero image... ${progress}%`,
+              isLoading: true,
+            });
+          }
+        );
+
+        toast.update(toastId, {
+          render: "Hero image uploaded!",
+          type: "success",
+          isLoading: false,
+          autoClose: 1200,
+        });
+      }
 
       const updatedContent = await Promise.all(
         formData.content.map(async (block, index) => {
@@ -403,7 +429,7 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
       );
 
       // Replace content in formData with uploaded URLs
-      const finalCanvas = { ...formData, content: updatedContent };
+      const finalCanvas = { ...formData,  hero_image_url: heroImageUrl, content: updatedContent };
 
       // 3️⃣ Save canvas
       const res = await fetch(`${BACKEND_URL}/api/article/publish`, {

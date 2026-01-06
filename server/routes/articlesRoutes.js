@@ -1,8 +1,10 @@
 import express from "express";
 import Canvas from "../models/Canvas.js"; 
 import authMiddleware from "../middlewares/authMiddleware.js";
-
+import { getPublishedCanvasById , getPublishedCanvases} from "../controllers/canvas.controller.js";
 const router = express.Router();
+router.get("/published", getPublishedCanvases);
+router.get("/:id", getPublishedCanvasById);
 
 router.post("/publish", authMiddleware, async (req, res) => {
   try {
