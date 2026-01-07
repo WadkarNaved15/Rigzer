@@ -5,12 +5,12 @@ interface Props {
   canvasId: string;
   onClose: () => void;
 }
-
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 export default function ArticleOverlay({ canvasId, onClose }: Props) {
   const [data, setData] = useState<any>(null);
 
   useEffect(() => {
-    fetch(`http://localhost:5000/api/article/${canvasId}`)
+    fetch(`${BACKEND_URL}/api/article/${canvasId}`)
       .then(res => res.json())
       .then(setData);
   }, [canvasId]);
