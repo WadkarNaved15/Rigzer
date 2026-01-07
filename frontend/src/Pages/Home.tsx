@@ -184,7 +184,7 @@ function Home() {
   }, [fetchMainPosts, hasMore, loading, showFilteredFeed]);
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-black">
+    <div className="min-h-screen bg-gray-100 dark:bg-[#191919]">
       <Header />
       {/* <TickerBar /> */}
 
@@ -194,7 +194,7 @@ function Home() {
           <div className="lg:col-span-2">
             {/* border-[3px] border-gray-400 dark:border-gray-700 shadow-lg */}
             <div className="
-  sticky top-20 h-54 bg-white dark:bg-black rounded-t-xl">
+  sticky top-20 h-54 bg-white dark:bg-[#151515] rounded-t-xl">
 
               <Suspense fallback={null}>
                 <ProfileCover setProfileOpen={setProfileOpen} />

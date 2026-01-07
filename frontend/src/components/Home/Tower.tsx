@@ -59,7 +59,7 @@ useEffect(() => {
 
   const PostsFace = () => (
     <div
-      className="face dark:text-white dark:bg-black overflow-y-auto"
+      className="face dark:text-white dark:bg-[#151515] overflow-y-auto"
       style={{ transform: `rotateY(90deg) translateZ(${translateZ}px)` }}
     >
       <div className="h-full space-y-4 px-2">
@@ -84,7 +84,7 @@ useEffect(() => {
 
   const ReadingFace = () => (
   <div
-    className="face dark:text-white dark:bg-black overflow-y-auto"
+    className="face dark:text-white dark:bg-[#151515] overflow-y-auto"
     style={{ transform: `rotateY(180deg) translateZ(${translateZ}px)` }}
   >
     <div className="grid grid-cols-2 gap-3 px-2 py-3">
@@ -124,7 +124,7 @@ useEffect(() => {
 
   const ProjectsFace = () => (
     <div
-      className="face dark:text-white dark:bg-black overflow-y-auto"
+      className="face dark:text-white dark:bg-[#151515] overflow-y-auto"
       style={{ transform: `rotateY(-90deg) translateZ(${translateZ}px)` }}
     >
       <div className="h-full space-y-4 px-2">
@@ -139,7 +139,7 @@ useEffect(() => {
   );
 
   return (
-    <div className="flex-1 dark:bg-black h-full w-full overflow-hidden flex items-center justify-center perspective-1000">
+    <div className="flex-1 dark:bg-[#151515] h-full w-full overflow-hidden flex items-center justify-center perspective-1000">
       <div
         ref={cubeRef}
         className="relative w-full h-full flex justify-center preserve-3d transition-transform duration-700"

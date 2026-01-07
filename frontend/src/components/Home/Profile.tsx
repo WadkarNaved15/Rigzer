@@ -9,7 +9,7 @@ export default function ProfileCover({ setProfileOpen }: ProfileCoverProps) {
   return (
     <div className="max-w-3xl mx-auto ">
       {/* MAIN CARD */}
-      <div className="relative bg-[#1e1e1e] shadow-2xl rounded-t-[0.5rem] overflow-hidden">
+      <div className="relative bg-[#3b3a38] shadow-2xl rounded-t-[0.5rem] overflow-hidden">
         
         {/* Inset border using ring (fixes green line issue) */}
         <div className="pointer-events-none absolute inset-0 rounded-t-[0.7rem]" />

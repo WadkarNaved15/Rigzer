@@ -12,7 +12,6 @@
     transform: translateX(-50%);
   }
 }
-
 .animate-scroll {
   animation: scroll-left 50s linear infinite;
 }
