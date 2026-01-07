@@ -6,6 +6,7 @@ export interface BackgroundSection {
   id: string;
   type: 'color' | 'image';
   value: string;
+  file?: File;    
   startPosition: number;
   endPosition: number;
 }
@@ -173,6 +174,7 @@ export default function BackgroundManager({ sections, onChange }: BackgroundMana
                       type="image"
                       onSelect={(file, previewUrl) => {
                         updateSection(section.id, {
+                          file,
                           value: previewUrl, // store preview URL as background image
                         });
                       }}

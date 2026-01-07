@@ -399,6 +399,33 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
           autoClose: 1200,
         });
       }
+      const updatedBackgroundSections = await Promise.all(
+        formData.background_sections.map(async (section) => {
+          if (section.type !== "image" || !section.file) return section;
+
+          const toastId = toast.loading("Uploading background image... 0%");
+
+          const fileUrl = await uploadMediaToS3(section.file, (progress) => {
+            toast.update(toastId, {
+              render: `Uploading background image... ${progress}%`,
+              isLoading: true,
+            });
+          });
+
+          toast.update(toastId, {
+            render: "Background image uploaded!",
+            type: "success",
+            isLoading: false,
+            autoClose: 1200,
+          });
+
+          return {
+            ...section,
+            value: fileUrl, // ✅ CloudFront URL
+            file: undefined, // 🔥 remove File before saving
+          };
+        })
+      );
 
       const updatedContent = await Promise.all(
         formData.content.map(async (block, index) => {
@@ -429,7 +456,7 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
       );
 
       // Replace content in formData with uploaded URLs
-      const finalCanvas = { ...formData,  hero_image_url: heroImageUrl, content: updatedContent };
+      const finalCanvas = { ...formData, hero_image_url: heroImageUrl, content: updatedContent, background_sections: updatedBackgroundSections, };
 
       // 3️⃣ Save canvas
       const res = await fetch(`${BACKEND_URL}/api/article/publish`, {

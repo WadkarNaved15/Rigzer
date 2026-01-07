@@ -113,7 +113,7 @@ export default function ReadOnlyCanvas({ data }: ReadOnlyCanvasProps) {
   };
 
   return (
-    <div className="w-full flex justify-center bg-[#0A0A0A] py-16">
+    <div className="w-full flex justify-center py-16">
       <div
         className="relative overflow-hidden"
         style={{
