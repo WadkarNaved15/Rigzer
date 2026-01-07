@@ -42,7 +42,7 @@ export default function AppRoutes() {
           <Route path="/auth" element={<Auth />} />
           <Route path="/stream" element={<GameStatus />} />
           <Route path="/wishlist" element={<WishlistPage />} />
-          <Route path="/article" element={<ArticleView/>} />
+          <Route path="/article" element={<ArticleView canvasId="" onClose={() => { }} />} />
           <Route
             path="/publisher"
             element={
