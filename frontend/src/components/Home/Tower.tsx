@@ -14,7 +14,10 @@ interface CanvasPreview {
 
 type Face = "follow" | "posts" | "reading" | "projects";
 
-const Tower: React.FC<{ activeFace: Face }> = ({ activeFace }) => {
+const Tower: React.FC<{
+  activeFace: Face;
+  onOpenArticle: (canvasId: string) => void;
+}> = ({ activeFace, onOpenArticle }) => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const { user } = useUser();
   const cubeRef = useRef<HTMLDivElement>(null);
@@ -88,7 +91,7 @@ useEffect(() => {
       {readingCanvases.map(canvas => (
         <div
           key={canvas._id}
-          // onClick={() => openCanvas(canvas._id)}
+          onClick={() => onOpenArticle(canvas._id)}
           className="cursor-pointer group"
         >
           <div className="aspect-[4/3] bg-[#111] rounded-lg overflow-hidden border border-white/10">

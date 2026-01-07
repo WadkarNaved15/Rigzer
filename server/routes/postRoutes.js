@@ -78,7 +78,11 @@ router.get("/fetch_posts", async (req, res) => {
   try {
     const { cursor, limit = 10 } = req.query;
 
-    const query = cursor ? { _id: { $lt: cursor } } : {};
+    const query = {
+      ...(cursor && { _id: { $lt: cursor } }),
+      type: { $ne: "canvas_article" } 
+    };
+
 
     const posts = await Post.find(query)
       .populate("user", "username")

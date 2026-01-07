@@ -2,8 +2,10 @@ import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense } fr
 const Tower = React.lazy(() => import("./Tower"));
 
 type Face = "follow" | "posts" | "reading" | "projects";
-
-const Billboard: React.FC = () => {
+interface BillboardProps {
+  onOpenArticle: (canvasId: string) => void;
+}
+const Billboard: React.FC<BillboardProps> = ({ onOpenArticle }) => {
   const [activeSection, setActiveSection] = useState<Face>("follow");
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
@@ -195,7 +197,7 @@ const handleClick = useCallback((e: React.MouseEvent, id: Face) => {
 
       <div className="h-[80%] border-t border-purple-600 pt-2 dark:border-gray-200 transition-opacity duration-300">
         <Suspense fallback={<div className="text-center text-gray-400">Loading section...</div>}>
-          <Tower activeFace={activeSection} />
+          <Tower activeFace={activeSection}  onOpenArticle={onOpenArticle}/>
         </Suspense>
       </div>
       </>

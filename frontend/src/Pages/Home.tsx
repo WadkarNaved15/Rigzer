@@ -16,6 +16,7 @@ import axios from "axios";
 import type { ExePostProps, PostProps, NormalPostProps } from "../types/Post";
 import CircleLoader from "../components/Loader/CircleLoader";
 import TickerBar from "../components/Home/TickerBar";
+import ArticleOverlay from "./ArticleView";
 import UploadBox from "../components/Home/Upload";
 import { useSearch } from "../components/Home/SearchContext";
 import { ArrowLeft } from "lucide-react";
@@ -55,6 +56,8 @@ function Home() {
   const [filteredPosts, setFilteredPosts] = useState<PostProps[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [postDetailsOpen, setPostDetailsOpen] = useState(false);
+  const [articleOpen, setArticleOpen] = useState(false);
+  const [activeCanvasId, setActiveCanvasId] = useState<string | null>(null);
   const [selectedPost, setSelectedPost] = useState<PostProps | null>(null);
 
   const {
@@ -237,6 +240,21 @@ function Home() {
                 </Suspense>
               </div>
             )}
+          {/* ARTICLE POST → replace center + right */}
+          {articleOpen && activeCanvasId && !isUploading && !profileOpen && (
+            <div className="lg:col-span-10 min-h-[80vh] w-full">
+              <Suspense fallback={null}>
+                <ArticleOverlay
+                  canvasId={activeCanvasId}
+                  onClose={() => {
+                    setArticleOpen(false);
+                    setActiveCanvasId(null);
+                  }}
+                />
+              </Suspense>
+            </div>
+          )}
+
 
           {/* CENTER */}
           {!isUploading &&
@@ -325,12 +343,18 @@ function Home() {
           {/* RIGHT SIDEBAR (hidden only for model post) */}
           {!isUploading &&
             !profileOpen &&
-            !(postDetailsOpen && selectedPost?.type === "model_post") && (
+            !(postDetailsOpen && selectedPost?.type === "model_post") && !articleOpen && (
               <div className="lg:col-span-4 hidden lg:block h-full">
                 <div className="sticky top-20">
                   <div className="h-[500px] overflow-hidden">
                     <Suspense fallback={null}>
-                      <Billboard />
+                      <Billboard
+                        // activeFace={activeFace}
+                        onOpenArticle={(canvasId: string) => {
+                          setActiveCanvasId(canvasId);
+                          setArticleOpen(true);
+                        }}
+                      />
                     </Suspense>
                   </div>
                 </div>

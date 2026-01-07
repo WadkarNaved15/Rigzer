@@ -208,7 +208,7 @@ const PostSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ["normal_post", "model_post", "game_post"],
+      enum: ["normal_post", "model_post", "game_post","canvas_article"],
       required: true,
     },
 
@@ -224,6 +224,11 @@ const PostSchema = new mongoose.Schema(
 
     gamePost: {
       type: GamePostSchema,
+      default: null,
+    },
+      canvasRef: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Canvas",
       default: null,
     },
   },
