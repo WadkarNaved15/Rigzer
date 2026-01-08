@@ -34,7 +34,7 @@ const FollowFace = ({ translateZ }: { translateZ: number }) => {
 
   return (
     <div
-      className="face dark:text-white dark:bg-black overflow-y-auto"
+      className="face dark:text-white dark:bg-[#191919] overflow-y-auto"
       style={{ transform: `translateZ(${translateZ}px)` }}
     >
       <div className="h-full space-y-4 px-2">
