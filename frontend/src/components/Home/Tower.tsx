@@ -52,39 +52,50 @@ useEffect(() => {
   }, [activeFace]);
 
 
-  const ReadingFace = () => (
+const ReadingFace = () => (
   <div
     className="face dark:text-white dark:bg-[#191919] overflow-y-auto"
     style={{ transform: `rotateY(180deg) translateZ(${translateZ}px)` }}
   >
-    <div className="grid grid-cols-2 gap-3 px-2 py-3">
-      {readingCanvases.map(canvas => (
+    <div className="grid grid-cols-2 gap-4 px-3 py-4">
+      {readingCanvases.map((canvas) => (
         <div
           key={canvas._id}
           onClick={() => onOpenArticle(canvas._id)}
-          className="cursor-pointer group"
+          className="cursor-pointer group flex flex-col"
         >
-          <div className="aspect-[4/3] bg-[#111] rounded-lg overflow-hidden border border-white/10">
+          {/* Vertical Article Thumbnail Layout */}
+          <div className="relative aspect-[3/4] bg-[#111] rounded-xl overflow-hidden border border-white/5 shadow-lg transition-all duration-300 group-hover:border-purple-500/50 group-hover:shadow-purple-500/10">
             {canvas.hero_image_url ? (
               <img
                 src={canvas.hero_image_url}
                 alt={canvas.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition"
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-xs text-[#666]">
-                No Thumbnail
+              <div className="w-full h-full flex flex-col items-center justify-center text-xs text-[#444] space-y-2">
+                <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center">
+                   <PlusCircle size={14} />
+                </div>
+                <span>No Image</span>
               </div>
             )}
+            
+            {/* Subtle Gradient for "Premium" feel */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
           </div>
 
-          <h3 className="mt-2 text-sm font-medium line-clamp-2">
-            {canvas.title}
-          </h3>
+          <div className="mt-3 px-1">
+            <h3 className="text-xs sm:text-sm font-semibold line-clamp-2 leading-tight group-hover:text-purple-400 transition-colors">
+              {canvas.title}
+            </h3>
 
-          {canvas.author_name && (
-            <p className="text-xs text-[#777]">{canvas.author_name}</p>
-          )}
+            {canvas.author_name && (
+              <p className="mt-1 text-[10px] uppercase tracking-wider text-[#777] font-medium">
+                {canvas.author_name}
+              </p>
+            )}
+          </div>
         </div>
       ))}
     </div>
