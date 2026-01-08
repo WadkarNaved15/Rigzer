@@ -4,7 +4,7 @@ import { BackgroundSection } from "./BackgroundManager";
 interface ReadOnlyCanvasProps {
   data: any; // published canvas document from backend
 }
-
+const CANVAS_WIDTH = 750;
 export default function ReadOnlyCanvas({ data }: ReadOnlyCanvasProps) {
   const canvasWidth = Math.min(window.innerWidth - 64, 900);
 
@@ -115,13 +115,14 @@ export default function ReadOnlyCanvas({ data }: ReadOnlyCanvasProps) {
   return (
     <div className="w-full flex justify-center py-16">
       <div
-        className="relative overflow-hidden"
+        className="relative overflow-hidden shadow-2xl"
         style={{
-          width: canvasWidth,
-          minHeight: canvasHeight,
+          width: `${CANVAS_WIDTH}px`,
+          minHeight: `${canvasHeight}px`,
           background: data.theme_colors.background,
         }}
       >
+
         {renderBackgroundSections()}
 
         <main className="relative z-10 p-20">

@@ -134,13 +134,13 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
     const sidebarWidth = 336;
     const spacing = 32;
     const totalReservedWidth = toolbarWidth + sidebarWidth + (spacing * 2);
-    const availableWidth = window.innerWidth - totalReservedWidth;
-    const canvasWidth = Math.min(availableWidth, 1400);
+    const CANVAS_WIDTH = 750;
 
     const canvasCenter = {
-      x: (canvasWidth / 2) - 200,
+      x: (CANVAS_WIDTH / 2) - 200,
       y: currentScrollY + 200,
     };
+
 
     const newBlock: ContentBlock = {
       id: crypto.randomUUID(),
@@ -631,9 +631,11 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
   const sidebarWidth = 336;
   const spacing = 32;
   const totalReservedWidth = toolbarWidth + sidebarWidth + (spacing * 2);
-  const availableWidth = typeof window !== 'undefined' ? window.innerWidth - totalReservedWidth : 1200;
-  const canvasWidth = Math.min(availableWidth, 1400);
-  const canvasMargin = typeof window !== 'undefined' ? toolbarWidth + spacing + ((window.innerWidth - totalReservedWidth - canvasWidth) / 2) : 300;
+  const CANVAS_WIDTH = 750; // ✅ fixed logical page width
+  const canvasMargin =
+    typeof window !== 'undefined'
+      ? toolbarWidth + spacing + ((window.innerWidth - totalReservedWidth - CANVAS_WIDTH) / 2)
+      : toolbarWidth + spacing;
 
   const maxSectionEnd = formData.background_sections.length > 0
     ? Math.max(...formData.background_sections.map(s => s.endPosition))
@@ -923,9 +925,10 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
           className="absolute top-0 z-[5] overflow-hidden"
           style={{
             left: `${canvasMargin}px`,
-            width: `${canvasWidth}px`,
+            width: `${CANVAS_WIDTH}px`,
             height: `${canvasHeight}px`
           }}
+
         >
           {renderBackgroundSections()}
 
