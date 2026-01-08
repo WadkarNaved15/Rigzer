@@ -85,7 +85,7 @@ const GamePost: React.FC<GamePostProps> = ({
   return (
     <article
       ref={postRef}
-      className="relative w-full border border-gray-200 dark:border-zinc-800 bg-white dark:bg-[#151515] hover:bg-gray-50/50 dark:hover:bg-zinc-900/20 transition-colors duration-200"
+      className="relative w-full border border-gray-200 dark:border-zinc-800 bg-white dark:bg-[#191919] hover:bg-gray-50/50 dark:hover:bg-zinc-900/20 transition-colors duration-200"
     >
       <div className="flex gap-3 p-4">
         {/* User Avatar */}
@@ -114,7 +114,7 @@ const GamePost: React.FC<GamePostProps> = ({
               
               <div className="relative p-8 flex flex-col items-center justify-center text-center">
                 {/* Game Branding */}
-                <div className="w-16 h-16 bg-white dark:bg-[#151515] rounded-2xl shadow-xl flex items-center justify-center mb-4 border border-gray-100 dark:border-zinc-800 group-hover:scale-110 transition-transform duration-300">
+                <div className="w-16 h-16 bg-white dark:bg-[#191919] rounded-2xl shadow-xl flex items-center justify-center mb-4 border border-gray-100 dark:border-zinc-800 group-hover:scale-110 transition-transform duration-300">
                   <Gamepad2 className="text-sky-500 w-8 h-8" />
                 </div>
 
