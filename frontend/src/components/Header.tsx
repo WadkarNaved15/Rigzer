@@ -94,8 +94,8 @@ export function Header() {
   border-gray-200 dark:border-white/10 
   /* Conditional Styles */
   ${isScrolled 
-    ? "bg-white/40 dark:bg-[#1e1e1e]/70 backdrop-blur-md shadow-sm" 
-    : "bg-white/20 dark:bg-[#1e1e1e]/40 backdrop-blur-sm"
+    ? "bg-white/30 dark:bg-[#1e1e1e]/70 backdrop-blur-md shadow-sm" 
+    : "bg-white/15 dark:bg-[#1e1e1e]/40 backdrop-blur-sm"
   }`}
 >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
