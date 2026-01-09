@@ -7,7 +7,8 @@ interface Props {
 }
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-
+const CANVAS_WIDTH = 750;
+const GAP = 20; // The specific gap you want (in pixels)
 export default function ArticleOverlay({ canvasId, onClose }: Props) {
   const [data, setData] = useState<any>(null);
 
@@ -27,21 +28,34 @@ export default function ArticleOverlay({ canvasId, onClose }: Props) {
 
   return (
     <div className="relative w-full">
-      {/* Modern Transparent Cross Icon */}
+      {/* Premium Close Button - Anchored to Canvas Edge */}
       <button
         onClick={onClose}
         aria-label="Close article"
-        className="absolute top-6 left-6 z-50 p-2 rounded-full 
-                   transition-all duration-200 ease-in-out
-                   text-black/70 dark:text-white/70 
-                   hover:bg-black/5 dark:hover:bg-white/10 
-                   hover:text-black dark:hover:text-white
-                   backdrop-blur-sm"
+        style={{ 
+          left: `calc(50% + ${CANVAS_WIDTH / 2}px + ${GAP}px)` 
+        }}
+        className="
+          /* CHANGED LINE: Removed 'right-8' and added 'fixed top-24' with style anchor */
+          fixed top-20 z-[60] 
+          p-3 rounded-full transition-all duration-300 ease-in-out
+          
+          /* LIGHT THEME: Dark content */
+          bg-white/40 text-black border border-black/10
+          hover:bg-black hover:text-white
+          
+          /* DARK THEME: Light content */
+          dark:bg-black/40 dark:text-white dark:border-white/20
+          dark:hover:bg-white dark:hover:text-black
+          
+          /* Glassmorphism & Depth */
+          backdrop-blur-xl shadow-xl active:scale-90
+        "
       >
         <svg 
           xmlns="http://www.w3.org/2000/svg" 
-          width="24" 
-          height="24" 
+          width="22" 
+          height="22" 
           viewBox="0 0 24 24" 
           fill="none" 
           stroke="currentColor" 
