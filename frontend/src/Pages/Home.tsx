@@ -242,7 +242,7 @@ function Home() {
             )}
           {/* ARTICLE POST → replace center + right */}
           {articleOpen && activeCanvasId && !isUploading && !profileOpen && (
-            <div className="lg:col-span-10 min-h-[80vh] w-full">
+            <div className="lg:col-span-10 min-h-[80vh] w-full pt-4">
               <Suspense fallback={null}>
                 <ArticleOverlay
                   canvasId={activeCanvasId}
