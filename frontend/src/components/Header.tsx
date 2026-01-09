@@ -28,6 +28,7 @@ export function Header() {
   const { searchQuery,setSearchQuery, setSubmittedQuery, setShowFilteredFeed } = useSearch();
   const [suggestions, setSuggestions] = useState<User[]>([]);
   const { isDark, toggleTheme } = useTheme();
+  const [isScrolled, setIsScrolled] = useState(false);
   const { user, logout } = useUser();
   const [scrollY, setScrollY] = useState(0); // This state isn't used, but it's not causing the error
   // const [searchQuery, setSearchQuery] = useState("");
@@ -48,11 +49,14 @@ export function Header() {
         console.error("Error fetching suggestions:", err);
       }
     };
-
     const debounceTimer = setTimeout(fetchSuggestions, 300);
     return () => clearTimeout(debounceTimer);
   }, [searchQuery]);
-
+ useEffect(() => {
+  const handleScroll = () => setIsScrolled(window.scrollY > 10);
+  window.addEventListener("scroll", handleScroll);
+  return () => window.removeEventListener("scroll", handleScroll);
+}, []);
   const handleLogout = async () => {
     try {
       const response = await fetch(`${BACKEND_URL}/api/auth/Logout`, {
@@ -85,7 +89,10 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-white dark:bg-[#1e1e1e] shadow-2xl border-b border-gray-200 dark:border-gray-800 h-[50px]">
+    <header className={`sticky top-0 z-50 h-[50px] transition-all duration-300 border-b 
+  ${isScrolled 
+    ? "bg-white/70 dark:bg-[#1e1e1e]/70 backdrop-blur-md border-gray-200 dark:border-white/10 shadow-sm" 
+    : "bg-transparent border-transparent"}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-[50px]">
           {/* Left section */}
