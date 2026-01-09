@@ -89,10 +89,15 @@ export function Header() {
   };
 
   return (
-    <header className={`sticky top-0 z-50 h-[50px] transition-all duration-300 border-b 
+   <header className={`sticky top-0 z-50 h-[50px] transition-all duration-300 border-b 
+  /* Permanent Border Colors */
+  border-gray-200 dark:border-white/10 
+  /* Conditional Styles */
   ${isScrolled 
-    ? "bg-white/70 dark:bg-[#1e1e1e]/70 backdrop-blur-md border-gray-200 dark:border-white/10 shadow-sm" 
-    : "bg-transparent border-transparent"}`}>
+    ? "bg-white/70 dark:bg-[#1e1e1e]/70 backdrop-blur-md shadow-sm" 
+    : "bg-white/40 dark:bg-[#1e1e1e]/40 backdrop-blur-sm"
+  }`}
+>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-[50px]">
           {/* Left section */}
