@@ -258,6 +258,7 @@ function Home() {
 
           {/* CENTER */}
           {!isUploading &&
+            !articleOpen &&
             !profileOpen &&
             !(postDetailsOpen && selectedPost?.type === "model_post") && (
               <div className="lg:col-span-6 flex flex-col items-center justify-start min-h-[80vh] w-full">
