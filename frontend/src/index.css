@@ -15,6 +15,27 @@
 .animate-scroll {
   animation: scroll-left 50s linear infinite;
 }
+.resize-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: white;
+  border: 2px solid #3b82f6;
+  border-radius: 50%;
+  z-index: 200;
+  cursor: pointer;
+}
+
+/* Cursors */
+.resize-handle.top { cursor: n-resize; }
+.resize-handle.bottom { cursor: s-resize; }
+.resize-handle.left { cursor: w-resize; }
+.resize-handle.right { cursor: e-resize; }
+.resize-handle.top-left { cursor: nw-resize; }
+.resize-handle.top-right { cursor: ne-resize; }
+.resize-handle.bottom-left { cursor: sw-resize; }
+.resize-handle.bottom-right { cursor: se-resize; }
+
 
 .animate-scroll:hover {
   animation-play-state: paused;
