@@ -61,6 +61,7 @@ export default function DraggableElement({
   const elementRef = useRef<HTMLDivElement>(null);
   const hoverTimeoutRef = useRef<number | null>(null);
   const isResizingRef = useRef(false);
+  const isDraggingRef = useRef(false);
 
   const handleMouseEnter = () => {
     if (hoverTimeoutRef.current) {
@@ -72,7 +73,7 @@ export default function DraggableElement({
 
   const handleMouseLeave = () => {
     hoverTimeoutRef.current = window.setTimeout(() => {
-      if (!isDragging && !isResizingRef.current) {
+      if (!isDraggingRef.current && !isResizingRef.current) {
         setIsHovered(false);
       }
     }, 300);
@@ -100,12 +101,14 @@ export default function DraggableElement({
     if (target.closest('.delete-button')) return;
     if (target.closest('input, textarea, button:not(.drag-handle button)')) return;
 
-    // Only allow drag from drag handle or element content
+    // Only allow drag from drag handle
     const isDragHandle = target.closest('.drag-handle');
     if (!isDragHandle) return;
 
     e.preventDefault();
     e.stopPropagation();
+    
+    isDraggingRef.current = true;
     setIsDragging(true);
     setDragStart({
       x: e.clientX - position.x,
@@ -123,9 +126,10 @@ export default function DraggableElement({
     
     // CRITICAL: Hard lock to prevent any dragging
     isResizingRef.current = true;
+    isDraggingRef.current = false;
     setIsDragging(false);
     setIsResizing(true);
-    setIsHovered(true); // Keep hover state during resize
+    setIsHovered(true);
     
     setResizeStart({
       width: size?.width || 0,
@@ -141,18 +145,24 @@ export default function DraggableElement({
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       // DRAG MODE: Only if dragging and NOT resizing
-      if (isDragging && !isResizingRef.current && !isResizing) {
+      if (isDragging && isDraggingRef.current && !isResizingRef.current && !isResizing) {
         e.preventDefault();
+        e.stopPropagation();
+        
         const newX = e.clientX - dragStart.x;
         const newY = e.clientY - dragStart.y;
+        
         onPositionChange({ x: newX, y: newY });
+        
         if (onAlignmentChange) {
           onAlignmentChange(newX, newY);
         }
       } 
       // RESIZE MODE: Only if resizing
-      else if (isResizing && isResizingRef.current && size && onSizeChange) {
+      else if (isResizing && isResizingRef.current && !isDraggingRef.current && size && onSizeChange) {
         e.preventDefault();
+        e.stopPropagation();
+        
         const dx = e.clientX - resizeStart.x;
         const dy = e.clientY - resizeStart.y;
 
@@ -203,21 +213,19 @@ export default function DraggableElement({
         const minWidth = 100;
         const minHeight = 50;
         
-        // Clamp dimensions
+        // Clamp dimensions and adjust position for left/top resize
         if (newWidth < minWidth) {
-          newWidth = minWidth;
-          // Adjust position if resizing from left
           if (resizeStart.direction.includes("left")) {
             newX = resizeStart.posX + resizeStart.width - minWidth;
           }
+          newWidth = minWidth;
         }
         
         if (newHeight < minHeight) {
-          newHeight = minHeight;
-          // Adjust position if resizing from top
           if (resizeStart.direction.includes("top")) {
             newY = resizeStart.posY + resizeStart.height - minHeight;
           }
+          newHeight = minHeight;
         }
 
         // Update size
@@ -234,6 +242,7 @@ export default function DraggableElement({
       if (isDragging || isResizing) {
         setIsDragging(false);
         setIsResizing(false);
+        isDraggingRef.current = false;
         isResizingRef.current = false;
         
         if (onAlignmentChange) {
@@ -243,7 +252,7 @@ export default function DraggableElement({
     };
 
     if (isDragging || isResizing) {
-      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mousemove', handleMouseMove, { passive: false });
       document.addEventListener('mouseup', handleMouseUp);
       return () => {
         document.removeEventListener('mousemove', handleMouseMove);
@@ -252,50 +261,41 @@ export default function DraggableElement({
     }
   }, [isDragging, isResizing, dragStart, position, resizeStart, size, onPositionChange, onSizeChange, onAlignmentChange]);
 
-  // Cursor styles for resize handles
-  const getResizeCursor = (direction: ResizeDirection) => {
-    const cursors: Record<ResizeDirection, string> = {
-      'top': 'n-resize',
-      'bottom': 's-resize',
-      'left': 'w-resize',
-      'right': 'e-resize',
-      'top-left': 'nw-resize',
-      'top-right': 'ne-resize',
-      'bottom-left': 'sw-resize',
-      'bottom-right': 'se-resize',
-    };
-    return cursors[direction];
-  };
-
   return (
     <>
       <style>{`
         .resize-handle {
           position: absolute;
-          width: 12px;
-          height: 12px;
+          width: 14px;
+          height: 14px;
           background: white;
           border: 2px solid #3b82f6;
           border-radius: 50%;
-          z-index: 1002 !important;
+          z-index: 1003 !important;
           transition: all 0.15s ease;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
         }
         .resize-handle:hover {
           background: #3b82f6;
           transform: scale(1.3);
-          box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+          box-shadow: 0 0 12px rgba(59, 130, 246, 0.6);
         }
         .resize-handle:active {
-          transform: scale(1.1);
+          transform: scale(1.15);
+          background: #2563eb;
         }
         .drag-handle {
           pointer-events: auto;
+          touch-action: none;
+        }
+        .draggable-element-wrapper {
+          touch-action: none;
         }
       `}</style>
       
       <div
         ref={elementRef}
-        className={`absolute ${isHovered || isDragging || isResizing ? 'z-[100]' : 'z-10'}`}
+        className={`draggable-element-wrapper absolute ${isHovered || isDragging || isResizing ? 'z-[100]' : 'z-10'}`}
         style={{
           left: `${position.x}px`,
           top: `${position.y}px`,
@@ -303,6 +303,7 @@ export default function DraggableElement({
           height: size ? `${size.height}px` : 'auto',
           cursor: isResizing ? 'resizing' : isDragging ? 'grabbing' : 'default',
           userSelect: 'none',
+          WebkitUserSelect: 'none',
         }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
@@ -313,12 +314,12 @@ export default function DraggableElement({
 
             <div
               className="drag-handle absolute -top-10 left-0 flex gap-1 bg-blue-500 rounded px-2 py-1.5 cursor-grab active:cursor-grabbing shadow-lg"
-              style={{ zIndex: 1000 }}
+              style={{ zIndex: 1001 }}
               onMouseDown={handleMouseDown}
               onMouseEnter={handleMouseEnter}
             >
               <Move size={14} className="text-white" />
-              <span className="text-white text-xs font-medium">Drag</span>
+              <span className="text-white text-xs font-medium select-none">Drag</span>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -338,11 +339,10 @@ export default function DraggableElement({
             <div 
               className="resize-handle top-left" 
               style={{ 
-                top: -6, 
-                left: -6, 
+                top: -7, 
+                left: -7, 
                 cursor: 'nwse-resize',
                 pointerEvents: 'auto',
-                zIndex: 1002
               }} 
               onMouseDown={(e) => handleResizeMouseDown(e, "top-left")}
               onMouseEnter={handleMouseEnter}
@@ -350,11 +350,10 @@ export default function DraggableElement({
             <div 
               className="resize-handle top-right" 
               style={{ 
-                top: -6, 
-                right: -6, 
+                top: -7, 
+                right: -7, 
                 cursor: 'nesw-resize',
                 pointerEvents: 'auto',
-                zIndex: 1002
               }} 
               onMouseDown={(e) => handleResizeMouseDown(e, "top-right")}
               onMouseEnter={handleMouseEnter}
@@ -362,11 +361,10 @@ export default function DraggableElement({
             <div 
               className="resize-handle bottom-left" 
               style={{ 
-                bottom: -6, 
-                left: -6, 
+                bottom: -7, 
+                left: -7, 
                 cursor: 'nesw-resize',
                 pointerEvents: 'auto',
-                zIndex: 1002
               }} 
               onMouseDown={(e) => handleResizeMouseDown(e, "bottom-left")}
               onMouseEnter={handleMouseEnter}
@@ -374,11 +372,10 @@ export default function DraggableElement({
             <div 
               className="resize-handle bottom-right" 
               style={{ 
-                bottom: -6, 
-                right: -6, 
+                bottom: -7, 
+                right: -7, 
                 cursor: 'nwse-resize',
                 pointerEvents: 'auto',
-                zIndex: 1002
               }} 
               onMouseDown={(e) => handleResizeMouseDown(e, "bottom-right")}
               onMouseEnter={handleMouseEnter}
@@ -388,12 +385,11 @@ export default function DraggableElement({
             <div 
               className="resize-handle top" 
               style={{ 
-                top: -6, 
+                top: -7, 
                 left: "50%", 
                 transform: "translateX(-50%)", 
                 cursor: 'ns-resize',
                 pointerEvents: 'auto',
-                zIndex: 1002
               }} 
               onMouseDown={(e) => handleResizeMouseDown(e, "top")}
               onMouseEnter={handleMouseEnter}
@@ -401,12 +397,11 @@ export default function DraggableElement({
             <div 
               className="resize-handle bottom" 
               style={{ 
-                bottom: -6, 
+                bottom: -7, 
                 left: "50%", 
                 transform: "translateX(-50%)", 
                 cursor: 'ns-resize',
                 pointerEvents: 'auto',
-                zIndex: 1002
               }} 
               onMouseDown={(e) => handleResizeMouseDown(e, "bottom")}
               onMouseEnter={handleMouseEnter}
@@ -414,12 +409,11 @@ export default function DraggableElement({
             <div 
               className="resize-handle left" 
               style={{ 
-                left: -6, 
+                left: -7, 
                 top: "50%", 
                 transform: "translateY(-50%)", 
                 cursor: 'ew-resize',
                 pointerEvents: 'auto',
-                zIndex: 1002
               }} 
               onMouseDown={(e) => handleResizeMouseDown(e, "left")}
               onMouseEnter={handleMouseEnter}
@@ -427,12 +421,11 @@ export default function DraggableElement({
             <div 
               className="resize-handle right" 
               style={{ 
-                right: -6, 
+                right: -7, 
                 top: "50%", 
                 transform: "translateY(-50%)", 
                 cursor: 'ew-resize',
                 pointerEvents: 'auto',
-                zIndex: 1002
               }} 
               onMouseDown={(e) => handleResizeMouseDown(e, "right")}
               onMouseEnter={handleMouseEnter}
@@ -440,7 +433,7 @@ export default function DraggableElement({
           </>
         )}
 
-        <div className="element-content pointer-events-auto h-full w-full">
+        <div className="element-content pointer-events-auto h-full w-full" style={{ overflow: 'hidden' }}>
           {children}
         </div>
       </div>

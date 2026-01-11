@@ -65,21 +65,21 @@ const ModelAssetSchema = new mongoose.Schema(
 
 const ModelPostSchema = new mongoose.Schema(
   {
-     title: {
+    title: {
       type: String,
       required: true,
       trim: true,
       maxlength: 120,
     },
-    price: { 
-      type: Number, 
+    price: {
+      type: Number,
       required: true,
-      min: [0, "Price cannot be negative"] 
+      min: [0, "Price cannot be negative"]
     },
     assets: {
       type: [ModelAssetSchema],
       validate: {
-        validator: function(arr) {
+        validator: function (arr) {
           return arr.length > 0 && arr.length <= 4;
         },
         message: "Model post must have 1–4 assets",
@@ -174,24 +174,28 @@ const GamePostSchema = new mongoose.Schema(
       size: { type: Number, required: true }, // bytes
     },
     verification: {
-  status: {
-    type: String,
-    enum: ["pending", "verified", "failed"],
-    default: "pending",
-  },
-  error: {
-    type: String,
-    default: null,
-  },
-  verifiedAt: {
-    type: Date,
-    default: null,
-  },
-},
+      status: {
+        type: String,
+        enum: ["pending", "verified", "failed"],
+        default: "pending",
+      },
+      error: {
+        type: String,
+        default: null,
+      },
+      verifiedAt: {
+        type: Date,
+        default: null,
+      },
+    },
 
   },
   { _id: false }
 );
+const DevlogMetaSchema = new mongoose.Schema({
+  title: String,
+  thumbnail: String,
+}, { _id: false });
 
 const PostSchema = new mongoose.Schema(
   {
@@ -208,7 +212,7 @@ const PostSchema = new mongoose.Schema(
 
     type: {
       type: String,
-      enum: ["normal_post", "model_post", "game_post","canvas_article"],
+      enum: ["normal_post", "model_post", "game_post", "canvas_article", "devlog_post"],
       required: true,
     },
 
@@ -226,9 +230,18 @@ const PostSchema = new mongoose.Schema(
       type: GamePostSchema,
       default: null,
     },
-      canvasRef: {
+    canvasRef: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Canvas",
+      default: null,
+    },
+    devlogRef: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "CanvasScene",
+      default: null,
+    },
+    devlogMeta: {
+      type: DevlogMetaSchema,
       default: null,
     },
   },

@@ -1,6 +1,7 @@
 import express from "express";
 import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import AllPost from "../models/Allposts.js";
 import CanvasScene from "../models/DevlogCanvas.js";
 import s3 from "../s3.js";
 
@@ -89,7 +90,7 @@ async function signCanvasObjects(objects) {
 router.get("/getUploadUrl", async (req, res) => {
   try {
     const { fileName, fileType, objectType } = req.query;
-    
+
     if (!fileName || !fileType) {
       return res.status(400).json({ message: "Missing fileName or fileType" });
     }
@@ -120,7 +121,7 @@ router.post("/", async (req, res) => {
   try {
     const { userId, title, description, objects, cameraX, cameraY, cameraZoom, isPublic, tags } = req.body;
 
-    console.log("Creating canvas scene for user:", userId,req.body);
+    console.log("Creating canvas scene for user:", userId, req.body);
 
     if (!userId) {
       return res.status(400).json({ message: "userId is required" });
@@ -140,10 +141,10 @@ router.post("/", async (req, res) => {
     });
 
     await newScene.save();
-    
-    res.status(201).json({ 
-      message: "Canvas scene created successfully", 
-      scene: newScene 
+
+    res.status(201).json({
+      message: "Canvas scene created successfully",
+      scene: newScene
     });
   } catch (err) {
     console.error("Error creating canvas scene:", err);
@@ -234,6 +235,20 @@ router.patch("/:id/publish", async (req, res) => {
     scene.isPublic = true;
 
     await scene.save();
+
+    const post = await AllPost.create({
+      user: userId,
+      description: scene.description || scene.title,
+      type: "devlog_post",
+      devlogRef: scene._id,
+
+      // snapshot for feed
+      devlogMeta: {
+        title: scene.title,
+        thumbnail: resolveCloudFrontUrl(thumbnailKey),
+      }
+    });
+
 
     res.json({
       message: "Scene published",
@@ -361,11 +376,11 @@ router.get("/:id", async (req, res) => {
 
     // Sign all media URLs in objects
     scene.objects = await signCanvasObjects(scene.objects);
-    console.log("After signCanvas",scene)
+    console.log("After signCanvas", scene)
     scene.thumbnail = resolveCloudFrontUrl(scene.thumbnail);
-    console.log("After resolveCloudFront",scene)
+    console.log("After resolveCloudFront", scene)
 
-   res.json({ scene });
+    res.json({ scene });
 
   } catch (err) {
     console.error("Error fetching canvas scene:", err);
@@ -462,15 +477,15 @@ router.delete("/:id", async (req, res) => {
       return res.status(403).json({ message: "Unauthorized" });
     }
 
-const keysToDelete = [];
+    const keysToDelete = [];
 
-scene.objects.forEach(obj => {
-  if (obj.source) keysToDelete.push(extractS3Key(obj.source));
-  if (obj.spritesheet?.jsonUrl) keysToDelete.push(extractS3Key(obj.spritesheet.jsonUrl));
-  if (obj.spritesheet?.imageUrl) keysToDelete.push(extractS3Key(obj.spritesheet.imageUrl));
-});
+    scene.objects.forEach(obj => {
+      if (obj.source) keysToDelete.push(extractS3Key(obj.source));
+      if (obj.spritesheet?.jsonUrl) keysToDelete.push(extractS3Key(obj.spritesheet.jsonUrl));
+      if (obj.spritesheet?.imageUrl) keysToDelete.push(extractS3Key(obj.spritesheet.imageUrl));
+    });
 
-if (scene.thumbnail) keysToDelete.push(extractS3Key(scene.thumbnail));
+    if (scene.thumbnail) keysToDelete.push(extractS3Key(scene.thumbnail));
 
 
     // Delete from S3 (optional, you might want to keep them)
@@ -495,7 +510,7 @@ if (scene.thumbnail) keysToDelete.push(extractS3Key(scene.thumbnail));
 router.post("/:id/duplicate", async (req, res) => {
   try {
     const { userId } = req.body;
-    
+
     if (!userId) {
       return res.status(400).json({ message: "userId is required" });
     }
@@ -518,9 +533,9 @@ router.post("/:id/duplicate", async (req, res) => {
 
     await duplicateScene.save();
 
-    res.status(201).json({ 
-      message: "Canvas scene duplicated successfully", 
-      scene: duplicateScene 
+    res.status(201).json({
+      message: "Canvas scene duplicated successfully",
+      scene: duplicateScene
     });
   } catch (err) {
     console.error("Error duplicating canvas scene:", err);
@@ -546,7 +561,7 @@ router.patch("/:id/thumbnail", async (req, res) => {
     scene.thumbnail = thumbnailKey;
     await scene.save();
 
-    res.json({ 
+    res.json({
       message: "Thumbnail updated successfully",
       thumbnail: resolveCloudFrontUrl(thumbnailKey)
     });

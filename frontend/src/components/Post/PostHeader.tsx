@@ -5,7 +5,7 @@ import { PostProps } from '../../types/Post';
 interface PostHeaderProps {
   username: string;
   timestamp: string;
-  type: 'normal_post' | 'model_post' | 'game_post';
+  type: 'normal_post' | 'model_post' | 'game_post' | 'devlog_post';
   price: number;
 }
 

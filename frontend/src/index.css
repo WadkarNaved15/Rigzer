@@ -34,7 +34,7 @@
 .resize-handle.top-left { cursor: nw-resize; }
 .resize-handle.top-right { cursor: ne-resize; }
 .resize-handle.bottom-left { cursor: sw-resize; }
-.resize-handle.bottom-right { cursor: se-resize; }
+.resize-handle.bottom-right { cursor: se-resize; } 
 
 
 .animate-scroll:hover {

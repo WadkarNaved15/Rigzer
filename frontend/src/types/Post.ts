@@ -1,6 +1,6 @@
 // types/post.ts
 
-export type PostType = 'normal_post' | 'game_post' | 'model_post';
+export type PostType = 'normal_post' | 'game_post' | 'model_post' | 'devlog_post';
 
 export interface UserSummary {
   _id: string;
@@ -106,7 +106,10 @@ export interface GameSystemRequirements {
   cpuCores?: number | null;
   gpuRequired?: boolean;
 }
-
+export interface DevlogMeta {
+  title?: string;
+  thumbnail?: string;
+}
 export interface GameFile {
   name: string;
   url: string;
@@ -138,5 +141,10 @@ export interface ExePostProps extends CommonPostFields {
   // gameUrl: string;
   modelPost?: ModelPost;
 }
+export interface DevlogPostProps extends CommonPostFields {
+  type: "devlog_post";
+  devlogRef: string;   // CanvasScene ID
+  devlogMeta?: DevlogMeta;
+}
 
-export type PostProps = NormalPostProps | GamePostProps | ExePostProps;
+export type PostProps = NormalPostProps | GamePostProps | ExePostProps | DevlogPostProps;

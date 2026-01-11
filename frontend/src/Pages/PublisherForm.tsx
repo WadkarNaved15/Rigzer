@@ -148,12 +148,16 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
       content: '',
       metadata: type === 'image' ? { alt: '' } : type === 'video' ? { duration: '' } : undefined,
       position: canvasCenter,
-      size: type === 'image' || type === 'video' ? { width: 400, height: 300 } : undefined,
+      size: {
+        width: 400,
+        height: type === 'heading' ? 80 : 160
+      },
       colors: {
         text: formData.theme_colors.text,
         background: 'transparent',
       },
     };
+
     updateField('content', [...formData.content, newBlock]);
   };
 
@@ -509,10 +513,11 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
             <textarea
               value={block.content}
               onChange={(e) => updateContentBlock(block.id, { content: e.target.value })}
-              className="w-full bg-transparent border-none outline-none resize-none min-h-[100px] text-base leading-relaxed"
+              className="w-full h-full bg-transparent border-none outline-none resize-none text-base leading-relaxed"
               placeholder="Write your paragraph..."
               style={{ color: blockStyle.color }}
             />
+
           </div>
         );
 
@@ -523,10 +528,11 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
               type="text"
               value={block.content}
               onChange={(e) => updateContentBlock(block.id, { content: e.target.value })}
-              className="w-full bg-transparent border-none outline-none text-2xl font-medium"
+              className="w-full h-full bg-transparent border-none outline-none text-2xl font-medium"
               placeholder="Heading..."
               style={{ color: blockStyle.color }}
             />
+
           </div>
         );
 
@@ -611,15 +617,14 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
 
       case 'blockquote':
         return (
-          <div className="p-4 border-l-4 rounded" style={{ ...blockStyle, borderColor: formData.theme_colors.accent }}>
-            <textarea
-              value={block.content}
-              onChange={(e) => updateContentBlock(block.id, { content: e.target.value })}
-              className="w-full bg-transparent border-none outline-none resize-none min-h-[60px] italic text-base"
-              placeholder="Quote..."
-              style={{ color: blockStyle.color }}
-            />
-          </div>
+          <textarea
+            value={block.content}
+            onChange={(e) => updateContentBlock(block.id, { content: e.target.value })}
+            className="w-full h-full bg-transparent border-none outline-none resize-none italic text-base"
+            placeholder="Quote..."
+            style={{ color: blockStyle.color }}
+          />
+
         );
 
       default:
@@ -962,7 +967,9 @@ export default function PublisherForm({ onPreview }: { onPreview: (data: FormDat
                 onSizeChange={(size) => updateContentBlock(block.id, { size })}
                 onDelete={() => deleteContentBlock(block.id)}
                 onAlignmentChange={handleAlignmentChange}
-                resizable={block.type === 'image' || block.type === 'video'}
+                resizable={true}
+
+
               >
                 {renderContentBlock(block)}
               </DraggableElement>
