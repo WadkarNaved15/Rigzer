@@ -1,4 +1,5 @@
-import React, { memo, useMemo, useEffect, useRef } from "react";
+import React, { memo, useMemo, useEffect, useRef} from "react";
+import { useNavigate } from "react-router-dom";
 import PostHeader from "./PostHeader";
 import PostInteractions from "./PostInteractions";
 import { useLikes } from "../../hooks/useLikes";
@@ -19,13 +20,14 @@ const DevlogPost: React.FC<DevlogPostProps> = ({
   avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330",
 }) => {
   const postRef = useRef<HTMLDivElement>(null);
+  const navigate= useNavigate();
   console.log("props received", devlogMeta);
-  const BACKEND_URL =
-    import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+  console.log("props received for devlogRef", devlogRef);
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
   const { likesCount, isLiked, handleLike } = useLikes(_id, BACKEND_URL);
   const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
-
+  const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || "http://localhost:5173";
   /* -------------------- TIME FORMAT -------------------- */
   const getRelativeTime = (date: string | Date) => {
     const now = new Date();
@@ -111,10 +113,11 @@ const DevlogPost: React.FC<DevlogPostProps> = ({
           {/* -------------------- DEVLOG PREVIEW -------------------- */}
         {/* -------------------- DEVLOG PREVIEW -------------------- */}
 <div
+  onClick={() => navigate(`${FRONTEND_URL}/devlogviewer/${devlogRef}`)}
   className="
     mt-3
     w-full
-    h-[240px]
+    h-[320px]
     rounded-2xl
     overflow-hidden
     border border-gray-200 dark:border-gray-700
