@@ -49,7 +49,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
   console.log("User in ProfilePage:", user);
   console.log("User posts in ProfilePage:", userPosts);
   return (
-    <div className="relative pt-2 min-h-screen bg-gray-100 dark:bg-black text-gray-900 dark:text-white">
+    <div className="relative pt-2 min-h-screen bg-gray-100 dark:bg-[#191919] text-gray-900 dark:text-white">
       {/* Close Button */}
       <button
         onClick={() => setProfileOpen(false)}
@@ -136,7 +136,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
                   </div>
                 </div>
               </div>
-              <button className="absolute top-4 left-4 bg-black/50 p-2 rounded-full hover:bg-black/70">
+              <button className="absolute top-4 left-4 bg-[#191919]/50 p-2 rounded-full hover:bg-[#191919]/70">
                 <Play className="w-5 h-5" />
               </button>
             </div>

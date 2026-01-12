@@ -10,9 +10,9 @@ export default function ProfileCover({ setProfileOpen }: ProfileCoverProps) {
 
   return (
     <div className="max-w-3xl mx-auto ">
-      {/* MAIN CARD */}
+      {/* MAIN CARD - Using backdrop-blur, exact border, and background from example */}
       <div 
-        className="relative shadow-2xl rounded-t-[0.5rem] overflow-hidden border border-white/5"
+        className="relative backdrop-blur-sm border border-white/5 rounded-t-[0.5rem] overflow-hidden shadow-xl"
         style={{ backgroundColor: cardBg }}
       >
         
@@ -28,11 +28,12 @@ export default function ProfileCover({ setProfileOpen }: ProfileCoverProps) {
                 "url('https://fastly.picsum.photos/id/299/800/200.jpg?hmac=xMdRbjiNM_IogJDEgKIJ0GeCxZ8nwOGd5_Wf_ODZ94s')",
             }}
           />
-          {/* Reference Styling: Banner Gradient */}
+          
+          {/* UPDATED: Applied the exact 4-step gradient from your latest example */}
           <div
             className="absolute inset-0"
             style={{
-              background: `linear-gradient(180deg, transparent 0%, rgba(25, 25, 25, 0.3) 40%, rgba(25, 25, 25, 0.95) 100%)`
+              background: `linear-gradient(180deg, transparent 0%, rgba(25, 25, 25, 0.2) 30%, rgba(25, 25, 25, 0.7) 60%, ${cardBg} 100%)`
             }}
           />
 
@@ -41,36 +42,31 @@ export default function ProfileCover({ setProfileOpen }: ProfileCoverProps) {
             <img
               src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
               alt="Profile"
-              className="cursor-pointer w-16 h-16 rounded-full border-4"
+              className="cursor-pointer w-16 h-16 rounded-full border-4 shadow-2xl object-cover"
               style={{
-                borderColor: cardBg // Reference Styling: Matches card background
+                borderColor: cardBg // Matches the new background color exactly
               }}
               onClick={() => setProfileOpen(true)}
             />
           </div>
         </div>
 
-        {/* Content with Reference Styling Gradient */}
-        <div 
-          className="mt-0 px-4 pt-10"
-          style={{
-            background: `linear-gradient(180deg, rgba(78, 205, 196, 0.08) 0%, rgba(25, 25, 25, 0.98) 20%, ${cardBg} 100%)`
-          }}
-        >
+        {/* Content - Maintained height and padding structure */}
+        <div className="mt-10 px-4">
           <h4 className="text-md font-bold text-gray-100">John Developer</h4>
           <p className="text-gray-500 text-sm">Game Developer</p>
+        </div>
 
-          {/* Nav Buttons */}
-          <div className="flex mt-4 pb-4 items-center justify-center space-x-2">
-            {[CircleUser, Gamepad2, UserRound, Bookmark].map((Icon, idx) => (
-              <button
-                key={idx}
-                className="p-2 rounded-full hover:bg-white/10 transition"
-              >
-                <Icon className="h-5 w-5 text-white" />
-              </button>
-            ))}
-          </div>
+        {/* Nav Buttons */}
+        <div className="flex mt-4 pb-4 items-center justify-center space-x-2">
+          {[CircleUser, Gamepad2, UserRound, Bookmark].map((Icon, idx) => (
+            <button
+              key={idx}
+              className="p-2 rounded-full hover:bg-white/10 transition"
+            >
+              <Icon className="h-5 w-5 text-white" />
+            </button>
+          ))}
         </div>
       </div>
     </div>
