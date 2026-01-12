@@ -32,6 +32,8 @@ const PostModal = lazy(() => import("../components/PostModal"));
 const MessagingComponent = lazy(() => import("../components/Home/Message"));
 const PostDetails = lazy(() => import("../Pages/PostDetail"));
 const Profile = lazy(() => import("../components/Profile/NewProfile"));
+const DevlogPostDetails = lazy(() => import("../Pages/DevlogPostDetails"));
+
 
 function Home() {
   const { user } = useUser();
@@ -267,14 +269,27 @@ function Home() {
                   selectedPost &&
                   selectedPost.type !== "model_post" ? (
                   <Suspense fallback={null}>
-                    <NormalPostDetails
-                      post={selectedPost as NormalPostProps}
-                      BACKEND_URL={BACKEND_URL}
-                      onClose={() => {
-                        setPostDetailsOpen(false);
-                        setSelectedPost(null);
-                      }}
-                    />
+
+                    {selectedPost.type === "devlog_post" ? (
+                      <DevlogPostDetails
+                        post={selectedPost}
+                        BACKEND_URL={BACKEND_URL}
+                        onClose={() => {
+                          setPostDetailsOpen(false);
+                          setSelectedPost(null);
+                        }}
+                      />
+                    ) : (
+                      <NormalPostDetails
+                        post={selectedPost as NormalPostProps}
+                        BACKEND_URL={BACKEND_URL}
+                        onClose={() => {
+                          setPostDetailsOpen(false);
+                          setSelectedPost(null);
+                        }}
+                      />
+                    )}
+
                   </Suspense>
                 ) : showFilteredFeed ? (
                   <div className="w-full mt-4 flex flex-col">

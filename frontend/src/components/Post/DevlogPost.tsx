@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useEffect, useRef} from "react";
+import React, { memo, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import PostHeader from "./PostHeader";
 import PostInteractions from "./PostInteractions";
@@ -20,7 +20,7 @@ const DevlogPost: React.FC<DevlogPostProps> = ({
   avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330",
 }) => {
   const postRef = useRef<HTMLDivElement>(null);
-  const navigate= useNavigate();
+  const navigate = useNavigate();
   console.log("props received", devlogMeta);
   console.log("props received for devlogRef", devlogRef);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
@@ -111,10 +111,12 @@ const DevlogPost: React.FC<DevlogPostProps> = ({
           )}
 
           {/* -------------------- DEVLOG PREVIEW -------------------- */}
-        {/* -------------------- DEVLOG PREVIEW -------------------- */}
-<div
-  onClick={() => navigate(`${FRONTEND_URL}/devlogviewer/${devlogRef}`)}
-  className="
+          <div
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/devlogviewer/${devlogRef}`);
+            }}
+            className="
     mt-3
     w-full
     h-[320px]
@@ -126,26 +128,26 @@ const DevlogPost: React.FC<DevlogPostProps> = ({
     text-white
     relative
   "
->
-  {devlogMeta?.thumbnail ? (
-    <img
-      src={devlogMeta.thumbnail}
-      alt={devlogMeta.title || "Devlog thumbnail"}
-      className="w-full h-full object-cover"
-      loading="lazy"
-    />
-  ) : (
-    <div className="flex items-center gap-3">
-      <FileText className="w-10 h-10 opacity-80" />
-      <span className="text-lg font-medium">Read Devlog</span>
-    </div>
-  )}
+          >
+            {devlogMeta?.thumbnail ? (
+              <img
+                src={devlogMeta.thumbnail}
+                alt={devlogMeta.title || "Devlog thumbnail"}
+                className="w-full h-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div className="flex items-center gap-3">
+                <FileText className="w-10 h-10 opacity-80" />
+                <span className="text-lg font-medium">Read Devlog</span>
+              </div>
+            )}
 
-  {/* Overlay */}
-  <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-    <span className="text-lg font-semibold">Read Devlog</span>
-  </div>
-</div>
+            {/* Overlay */}
+            <div className="absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+              <span className="text-lg font-semibold">Read Devlog</span>
+            </div>
+          </div>
 
 
           {/* -------------------- INTERACTIONS -------------------- */}
