@@ -22,7 +22,7 @@ const PostDetail = ({ post, onClose }: { post: ExePostProps; onClose: () => void
     w-full max-w-7xl min-h-[80vh]
     overflow-y-auto
     bg-white text-black
-    dark:bg-black dark:text-white
+    dark:bg-[#191919] dark:text-white
   "
       >
 
@@ -35,7 +35,7 @@ const PostDetail = ({ post, onClose }: { post: ExePostProps; onClose: () => void
     w-full
     border-b
     bg-white text-black
-    dark:bg-black dark:text-white
+    dark:bg-[#191919] dark:text-white
     border-gray-200 dark:border-gray-800
     px-6 py-4
   "
@@ -78,7 +78,7 @@ const PostDetail = ({ post, onClose }: { post: ExePostProps; onClose: () => void
           transition-all duration-200
           text-gray-500
           hover:text-black dark:hover:text-white
-          hover:bg-black/5 dark:hover:bg-white/10
+          hover:bg-[#191919]/5 dark:hover:bg-white/10
         "
                 aria-label="Close"
               >
@@ -196,7 +196,7 @@ const PostDetail = ({ post, onClose }: { post: ExePostProps; onClose: () => void
 
                 {/* Asset Selection Logic: Floated inside the viewer with Glassmorphism */}
                 {assets.length > 1 && (
-                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-3 rounded-2xl bg-white/70 dark:bg-black/70 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-2xl flex gap-3 z-10">
+                  <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-3 rounded-2xl bg-white/70 dark:bg-[#191919]/70 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-2xl flex gap-3 z-10">
                     {assets.map((asset, idx) => (
                       <button
                         key={asset.url}
