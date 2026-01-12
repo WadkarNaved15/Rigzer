@@ -166,10 +166,10 @@ const PostModal: React.FC<PostModalProps> = ({ onCancel }) => {
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto bg-white dark:bg-black min-h-[75vh] rounded-2xl border border-gray-200 dark:border-zinc-800 flex flex-col overflow-hidden shadow-sm">
+    <div className="w-full max-w-2xl mx-auto bg-white dark:bg-[#191919] min-h-[75vh] rounded-2xl border border-gray-200 dark:border-zinc-800 flex flex-col overflow-hidden shadow-sm">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 sticky top-0 bg-white/80 dark:bg-black/80 backdrop-blur-md z-30 border-b border-gray-100 dark:border-zinc-800">
+      <div className="flex items-center justify-between px-4 py-3 sticky top-0 bg-white/80 dark:bg-[#191919]/80 backdrop-blur-md z-30 border-b border-gray-100 dark:border-zinc-800">
         <div className="flex items-center gap-6">
           {/* <button onClick={onCancel} className="p-2 hover:bg-gray-100 dark:hover:bg-zinc-900 rounded-full transition-colors">
             <X size={20} className="text-black dark:text-white" />
@@ -264,7 +264,7 @@ const PostModal: React.FC<PostModalProps> = ({ onCancel }) => {
                   style={{ width: "100%", height: "400px", backgroundColor: "transparent" }}
                 />
 
-                <div className="absolute top-4 right-4 pointer-events-none bg-black/60 backdrop-blur-sm px-3 py-1 rounded-lg text-white text-[10px] font-bold uppercase tracking-wider">
+                <div className="absolute top-4 right-4 pointer-events-none bg-[#191919]/60 backdrop-blur-sm px-3 py-1 rounded-lg text-white text-[10px] font-bold uppercase tracking-wider">
                   Previewing: {assets[activeIndex].name.substring(0, 15)}{assets[activeIndex].name.length > 15 ? '...' : ''}
                 </div>
               </div>
@@ -324,7 +324,7 @@ const PostModal: React.FC<PostModalProps> = ({ onCancel }) => {
         ))}
       </div>
       {/* Footer Tools */}
-      <div className="px-4 py-3 border-t border-gray-100 dark:border-zinc-800 bg-white dark:bg-black flex items-center justify-between">
+      <div className="px-4 py-3 border-t border-gray-100 dark:border-zinc-800 bg-white dark:bg-[#191919] flex items-center justify-between">
         <div className="flex items-center gap-4">
           {/* Price Input Container */}
           <div className="flex items-center bg-gray-100 dark:bg-zinc-900 rounded-full px-3 py-1.5 border border-transparent focus-within:border-sky-500 text-sky-500 transition-all">

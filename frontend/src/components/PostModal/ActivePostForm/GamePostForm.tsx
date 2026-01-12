@@ -178,10 +178,10 @@ const GamePostForm: React.FC<PostModalProps> = ({ onCancel }) => {
 
   /* ---------------- UI ---------------- */
   return (
-    <div className="w-full max-w-2xl mx-auto bg-white dark:bg-black min-h-[80vh] max-h-[90vh] rounded-2xl border border-gray-200 dark:border-zinc-800 flex flex-col overflow-hidden shadow-xl transition-colors duration-200">
+    <div className="w-full max-w-2xl mx-auto bg-white dark:bg-[#191919] min-h-[80vh] max-h-[90vh] rounded-2xl border border-gray-200 dark:border-zinc-800 flex flex-col overflow-hidden shadow-xl transition-colors duration-200">
       
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-zinc-800 sticky top-0 bg-white/80 dark:bg-black/80 backdrop-blur-md z-30">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-zinc-800 sticky top-0 bg-white/80 dark:bg-[#191919]/80 backdrop-blur-md z-30">
         <div>
           <h2 className="text-xl font-bold text-black dark:text-white">Upload Game</h2>
           <p className="text-xs text-gray-500 dark:text-zinc-500">Configure your build and system requirements</p>

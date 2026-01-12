@@ -129,9 +129,9 @@ const uploadAssetToS3 = async (asset: Asset, onProgress: (percent: number) => vo
   };
 
   return (
-    <div className="w-full max-w-2xl mx-auto bg-white dark:bg-black min-h-[75vh] rounded-2xl border border-gray-200 dark:border-zinc-800 flex flex-col overflow-hidden shadow-sm">
+    <div className="w-full max-w-2xl mx-auto bg-white dark:bg-[#191919] min-h-[75vh] rounded-2xl border border-gray-200 dark:border-zinc-800 flex flex-col overflow-hidden shadow-sm">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 sticky top-0 bg-white dark:bg-black z-30 border-b border-gray-100 dark:border-zinc-800">
+      <div className="flex items-center justify-between px-4 py-3 sticky top-0 bg-white dark:bg-[#191919] z-30 border-b border-gray-100 dark:border-zinc-800">
         <h2 className="text-xl font-bold text-black dark:text-white">Compose Media</h2>
         <button
           onClick={handlePostSubmit}
@@ -208,7 +208,7 @@ const uploadAssetToS3 = async (asset: Asset, onProgress: (percent: number) => vo
                   />
                 )}
                 
-                <div className="absolute top-4 right-4 pointer-events-none bg-black/60 backdrop-blur-sm px-3 py-1 rounded-lg text-white text-[10px] font-bold uppercase tracking-wider">
+                <div className="absolute top-4 right-4 pointer-events-none bg-[#191919]/60 backdrop-blur-sm px-3 py-1 rounded-lg text-white text-[10px] font-bold uppercase tracking-wider">
                   {assets[activeIndex].name.substring(0, 15)}...
                 </div>
               </div>
@@ -248,7 +248,7 @@ const uploadAssetToS3 = async (asset: Asset, onProgress: (percent: number) => vo
       </div>
 
       {/* Footer */}
-      <div className="px-4 py-3 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between bg-white dark:bg-black">
+      <div className="px-4 py-3 border-t border-gray-100 dark:border-zinc-800 flex items-center justify-between bg-white dark:bg-[#191919]">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => fileInputRef.current?.click()} 
