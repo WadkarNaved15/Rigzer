@@ -1,42 +1,56 @@
 import React, { useState, memo } from 'react';
 import { Heart, MessageCircle, Share2, Bookmark } from 'lucide-react';
 import CommentSection from './CommentSection';
+import { useUser } from "../../context/user";
+import SharePostModal from "../Home/SharePostModal";
+
 
 interface PostInteractionsProps {
+  postId: string;
   likes: number;
   comments: number;
   isLiked?: boolean;
-  isWishlisted?: boolean; 
+  isWishlisted?: boolean;
   onLike?: () => void;
-  onWishlist?: () => void; 
+  onWishlist?: () => void;
   onCommentToggle?: () => void;
+  onShare?: () => void;
 }
 
 const PostInteractions: React.FC<PostInteractionsProps> = ({
   likes,
   comments,
   isLiked = false,
-  isWishlisted = false, 
+  isWishlisted = false,
   onLike,
-  onWishlist, 
+  onWishlist,
   onCommentToggle,
+  postId
 }) => {
+  const { user } = useUser();
   const [showComments, setShowComments] = useState(false);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  if (!user) {
+    console.log("User not found");
+  }
+  const currentUserId = user?.id;
+  const handleShare = () => {
+    setShareModalOpen(true);
+  };
 
   return (
     <div className="mt-4">
       {/* Buttons Row */}
       <div className="flex justify-between items-center">
         <div className="flex space-x-4">
-          
+
           {/* ❤️ Like */}
           <button
             onClick={onLike}
-            className={`flex items-center transition-colors ${
-              isLiked
-                ? "text-red-500"
-                : "text-gray-500 dark:text-gray-400 hover:text-red-400"
-            }`}
+            className={`flex items-center transition-colors ${isLiked
+              ? "text-red-500"
+              : "text-gray-500 dark:text-gray-400 hover:text-red-400"
+              }`}
             aria-label="Like post"
           >
             <Heart
@@ -58,29 +72,35 @@ const PostInteractions: React.FC<PostInteractionsProps> = ({
           {/* ⭐ Wishlist */}
           <button
             onClick={onWishlist}
-            className={`flex items-center transition-colors ${
-              isWishlisted
-                ? "text-yellow-500"
-                : "text-gray-500 dark:text-gray-400 hover:text-yellow-400"
-            }`}
+            className={`flex items-center transition-colors ${isWishlisted
+              ? "text-yellow-500"
+              : "text-gray-500 dark:text-gray-400 hover:text-yellow-400"
+              }`}
             aria-label="Add to wishlist"
           >
             <Bookmark
-              className={`h-5 w-5 mr-1 ${
-                isWishlisted ? "fill-yellow-500" : ""
-              }`}
+              className={`h-5 w-5 mr-1 ${isWishlisted ? "fill-yellow-500" : ""
+                }`}
             />
           </button>
 
           {/* 🔗 Share */}
           <button
             className="flex items-center text-gray-500 dark:text-gray-400 hover:text-green-500 transition-colors"
-            aria-label="Share"
+            onClick={() => setShareModalOpen(true)}
           >
             <Share2 className="h-5 w-5" />
           </button>
+
         </div>
       </div>
+      {shareModalOpen && currentUserId && (
+        <SharePostModal
+          postId={postId}
+          currentUserId={currentUserId} // TS is happy now because we checked currentUserId above
+          onClose={() => setShareModalOpen(false)}
+        />
+      )}
 
       {/* Comment Section */}
       {/* {showComments && (

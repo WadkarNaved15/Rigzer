@@ -37,5 +37,22 @@ router.get("/:chatId", async (req, res) => {
     res.status(500).json({ message: "Failed to fetch messages" });
   }
 });
+router.post("/share-post", async (req, res) => {
+  try {
+    const { chatId, senderId, postId } = req.body;
+
+    const message = await Message.create({
+      chatId,
+      senderId,
+      messageType: "post",
+      sharedPostId: postId
+    });
+
+    res.status(201).json(message);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to share post" });
+  }
+});
+
 
 export default router;

@@ -5,12 +5,16 @@ import "react-toastify/dist/ReactToastify.css";
 
 import { FeedProvider } from "./context/FeedContext";
 import FeedbackProvider from "./context/FeedbackProvider";
+import { SocketProvider } from "./context/SocketContext";
+import { useUser } from "./context/user";
 import { SearchProvider } from "./components/Home/SearchContext";
 
 import AppRoutes from "./AppRoutes";
 
 function App() {
+  const {user}=useUser();
   return (
+    <SocketProvider userId={user?.id}>
     <SearchProvider>
       <GoogleOAuthProvider clientId="970893892840-8ecshtmle4kip6ps0bl7vbkg3nogl5od.apps.googleusercontent.com">
         <FeedProvider>
@@ -23,6 +27,7 @@ function App() {
         </FeedProvider>
       </GoogleOAuthProvider>
     </SearchProvider>
+    </SocketProvider>
   );
 }
 

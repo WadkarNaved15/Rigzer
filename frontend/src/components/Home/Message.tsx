@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
-import { io, Socket } from "socket.io-client";
+import { useSocket } from "../../context/SocketContext";
 import axios from "axios";
+import { useUser } from "../../context/user";
 import { toast } from "react-toastify";
 import {
   MessageCircle,
@@ -38,16 +39,17 @@ const MessagingComponent = () => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [message, setMessage] = useState("");
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [activeChat, setActiveChat] = useState<ChatId | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentChatId, setCurrentChatId] = useState(null);
   const [users, setUsers] = useState<User[]>([]);
-  const socketRef = useRef<Socket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+  const {user}=useUser();
+  const currentUser=user?.id;
+  const socket = useSocket();
+  if(!currentUser) return <div>Connecting...</div>;
   // CSS animation for shine
   useEffect(() => {
     const style = document.createElement("style");
@@ -128,40 +130,6 @@ const MessagingComponent = () => {
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   useEffect(() => scrollToBottom(), [conversations, activeChat]);
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/me`, {
-          method: "GET",
-          credentials: "include",  // VERY IMPORTANT FOR COOKIES
-        });
-        const data = await res.json();
-        setCurrentUser(data);
-      } catch (err) {
-        console.error("User fetch error:", err);
-      }
-    };
-
-    fetchUser();
-  }, []);
-  useEffect(() => {
-    if (socketRef.current) return;
-
-    socketRef.current = io(BACKEND_URL, {
-      withCredentials: true,
-      transports: ["websocket"], // force stable transport
-    });
-
-    console.log("Socket initialized");
-
-    socketRef.current.on("connect", () => {
-      console.log("Socket connected:", socketRef.current?.id);
-    });
-
-    socketRef.current.on("disconnect", (reason) => {
-      console.log("Socket disconnected:", reason);
-    });
-  }, []);
 
 
   useEffect(() => {
@@ -189,35 +157,16 @@ const MessagingComponent = () => {
 
     fetchUsers();
   }, []);
+  
   useEffect(() => {
-    if (!currentUser?._id || !socketRef.current) return;
-
-    const socket = socketRef.current;
-
-    const joinUser = () => {
-      console.log("Joining user:", currentUser._id);
-      socket.emit("join", currentUser._id);
-    };
-
-    if (socket.connected) {
-      joinUser();
-    } else {
-      socket.on("connect", joinUser);
-    }
-
-    return () => {
-      socket.off("connect", joinUser);
-    };
-  }, [currentUser?._id]);
-  useEffect(() => {
+    if (!socket || !currentUser) return;
     const handler = (msg: any) => {
-      if (!socketRef.current || !currentUser) return;
       if (!currentUser) return;
 
-      if (msg.senderId === currentUser._id && !msg.tempId) return;
+      if (msg.senderId === currentUser && !msg.tempId) return;
 
       const otherUserId =
-        msg.senderId === currentUser._id ? msg.receiverId : msg.senderId;
+        msg.senderId === currentUser ? msg.receiverId : msg.senderId;
 
       setConversations((prev) => ({
         ...prev,
@@ -225,14 +174,15 @@ const MessagingComponent = () => {
       }));
     };
 
-    socketRef.current?.on("receive-message", handler);
+    socket.on("receive-message", handler);
 
     return () => {
-      socketRef.current?.off("receive-message", handler);
+      socket.off("receive-message", handler);
     };
   }, [currentUser]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!socket || !currentUser) return;
     const file = e.target.files?.[0];
     if (!file || !currentChatId || !activeChat || !currentUser) return;
 
@@ -266,7 +216,7 @@ const MessagingComponent = () => {
       // Send chat message
       const newMessage = {
         chatId: currentChatId,
-        senderId: currentUser._id,
+        senderId: currentUser,
         receiverId: activeChat,
         text: "",
         mediaUrl: fileUrl,
@@ -279,7 +229,7 @@ const MessagingComponent = () => {
         createdAt: new Date(),
       };
 
-      socketRef.current?.emit("send-message", newMessage);
+      socket.emit("send-message", newMessage);
 
       // Optimistic UI
       setConversations((prev) => ({
@@ -329,19 +279,20 @@ const MessagingComponent = () => {
   };
 
   const handleSendMessage = () => {
+    if (!socket || !currentUser) return;
     if (!message.trim() || !activeChat) return;
     const tempId = Date.now(); // unique temporary ID
     const newMessage = {
       tempId,
       chatId: currentChatId,
-      senderId: currentUser ? currentUser._id : null,
+      senderId: currentUser ? currentUser : null,
       receiverId: activeChat,
       text: message,
       createdAt: new Date(),
     };
 
     // emit to server
-    socketRef.current?.emit("send-message", newMessage);
+    socket.emit("send-message", newMessage);
 
     // optimistic update
     setConversations((prev) => ({
@@ -702,11 +653,11 @@ const MessagingComponent = () => {
                       {(conversations[activeChat] || []).map((msg) => (
                         <div
                           key={msg._id || msg.tempId || msg.id}
-                          className={`flex ${msg.senderId === currentUser?._id ? "justify-end" : "justify-start"
+                          className={`flex ${msg.senderId === currentUser? "justify-end" : "justify-start"
                             }`}
                         >
                           <div
-                            className={`max-w-xs px-3 py-2 rounded-lg text-sm shadow-sm ${msg.senderId === currentUser?._id
+                            className={`max-w-xs px-3 py-2 rounded-lg text-sm shadow-sm ${msg.senderId === currentUser
                               ? "bg-gray-600 text-white"
                               : "bg-gray-200 text-black"
                               }`}

@@ -142,6 +142,18 @@ io.on("connection", (socket) => {
     console.log("User joined:", userId, "->", socket.id);
   });
 
+  socket.on("send_post", async (data) => {
+  const { chatId, senderId, postId } = data;
+
+  const message = await Message.create({
+    chatId,
+    senderId,
+    messageType: "post",
+    sharedPostId: postId
+  });
+
+  io.to(chatId).emit("receive_message", message);
+});
 
   socket.on("send-message", async (msg) => {
     const { chatId, senderId, receiverId, text, mediaUrl, mediaType } = msg;
