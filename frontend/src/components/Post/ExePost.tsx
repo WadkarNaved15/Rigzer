@@ -207,6 +207,7 @@ const ExePost: React.FC<ExePostProps> = ({
 
           {/* Post Interactions */}
           <PostInteractions
+            postId={_id}
             likes={likesCount}
             comments={comments}
             isLiked={isLiked}

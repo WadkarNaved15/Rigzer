@@ -190,6 +190,7 @@ const NormalPost: React.FC<NormalPostProps> = ({
           {!disableInteractions && (
             <div onClick={(e) => e.stopPropagation()}>
               <PostInteractions
+                postId={_id}
                 likes={likesCount}
                 comments={comments}
                 isLiked={isLiked}

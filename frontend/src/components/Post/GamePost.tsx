@@ -151,6 +151,7 @@ const GamePost: React.FC<GamePostProps> = ({
           )}
 
           <PostInteractions
+            postId={_id}
             likes={likesCount}
             comments={comments}
             isLiked={isLiked}
