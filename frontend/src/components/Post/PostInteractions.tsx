@@ -34,9 +34,6 @@ const PostInteractions: React.FC<PostInteractionsProps> = ({
     console.log("User not found");
   }
   const currentUserId = user?.id;
-  const handleShare = () => {
-    setShareModalOpen(true);
-  };
 
   return (
     <div className="mt-4">
@@ -97,7 +94,7 @@ const PostInteractions: React.FC<PostInteractionsProps> = ({
       {shareModalOpen && currentUserId && (
         <SharePostModal
           postId={postId}
-          currentUserId={currentUserId} // TS is happy now because we checked currentUserId above
+          currentUserId={currentUserId} 
           onClose={() => setShareModalOpen(false)}
         />
       )}

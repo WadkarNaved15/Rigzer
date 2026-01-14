@@ -22,57 +22,56 @@ const postsIndex = client.index("posts");
 
 
 // POST /api/posts - Create a new post
-router.post("/create_posts", authMiddleware, upload.array("media", 5), async (req, res) => {
-  try {
-    const { description } = req.body;
-    const userId = req.user.id;
-    const files = req.files;
+// router.post("/create_posts", authMiddleware, upload.array("media", 5), async (req, res) => {
+//   try {
+//     const { description } = req.body;
+//     const userId = req.user.id;
+//     const files = req.files;
 
-    if (!description || !files || files.length === 0) {
-      return res.status(400).json({ error: "Description and at least one media file are required" });
-    }
+//     if (!description || !files || files.length === 0) {
+//       return res.status(400).json({ error: "Description and at least one media file are required" });
+//     }
 
-    const mediaUrls = [];
+//     const mediaUrls = [];
 
-    // Upload each file to Cloudinary
-    for (const file of files) {
-      const uploadOptions = {
-        folder: "game_social_posts",
-        resource_type: file.mimetype.startsWith("video/") ? "video" : "image", // Detect file type
-      };
+//     // Upload each file to Cloudinary
+//     for (const file of files) {
+//       const uploadOptions = {
+//         folder: "game_social_posts",
+//         resource_type: file.mimetype.startsWith("video/") ? "video" : "image", // Detect file type
+//       };
 
-      const uploadPromise = new Promise((resolve, reject) => {
-        const uploadStream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
-          if (error) {
-            console.error("Cloudinary upload error:", error);
-            return reject(error); // Reject the promise instead of sending response
-          }
-          mediaUrls.push(result.secure_url);
-          resolve();
-        });
-        uploadStream.end(file.buffer);
-      });
+//       const uploadPromise = new Promise((resolve, reject) => {
+//         const uploadStream = cloudinary.uploader.upload_stream(uploadOptions, (error, result) => {
+//           if (error) {
+//             console.error("Cloudinary upload error:", error);
+//             return reject(error); // Reject the promise instead of sending response
+//           }
+//           mediaUrls.push(result.secure_url);
+//           resolve();
+//         });
+//         uploadStream.end(file.buffer);
+//       });
 
-      await uploadPromise; // Wait for each file upload to complete
-    }
+//       await uploadPromise; // Wait for each file upload to complete
+//     }
 
-    // Save post details in MongoDB
-    const newPost = new Post({
-      user: userId,
-      description,
-      type: "normal_post",
-      media: mediaUrls,
-    });
+//     // Save post details in MongoDB
+//     const newPost = new Post({
+//       user: userId,
+//       description,
+//       type: "normal_post",
+//       media: mediaUrls,
+//     });
 
-    await newPost.save(); // Save to database
-    res.status(201).json({ message: "Post created successfully", post: newPost });
+//     await newPost.save(); // Save to database
+//     res.status(201).json({ message: "Post created successfully", post: newPost });
 
-  } catch (error) {
-    console.error("Post creation error:", error);
-    res.status(500).json({ error: "Failed to create post" });
-  }
-});
-// GET /api/posts - Fetch all posts with user details
+//   } catch (error) {
+//     console.error("Post creation error:", error);
+//     res.status(500).json({ error: "Failed to create post" });
+//   }
+// });
 // GET /api/posts - Fetch all posts with user details
 router.get("/fetch_posts", async (req, res) => {
   try {
@@ -137,7 +136,20 @@ router.get("/user_posts/:userId", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch user posts" });
   }
 });
+router.get("/:postId", async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.postId)
+      .populate("user", "username");
 
+    if (!post) {
+      return res.status(404).json({ deleted: true });
+    }
+
+    res.json(post);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch post" });
+  }
+});
 
 
 export default router;

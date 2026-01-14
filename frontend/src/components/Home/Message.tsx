@@ -1,7 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useSocket } from "../../context/SocketContext";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import SharedPostMessage from "./SharedPostMessage";
 import { useUser } from "../../context/user";
+import { useUsers } from "../../context/UsersContext";
 import { toast } from "react-toastify";
 import {
   MessageCircle,
@@ -42,14 +45,15 @@ const MessagingComponent = () => {
   const [activeChat, setActiveChat] = useState<ChatId | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentChatId, setCurrentChatId] = useState(null);
-  const [users, setUsers] = useState<User[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const {user}=useUser();
-  const currentUser=user?.id;
+  const { user } = useUser();
+  const { users, loading } = useUsers();
+  const currentUser = user?.id;
+  const navigate = useNavigate();
   const socket = useSocket();
-  if(!currentUser) return <div>Connecting...</div>;
+  if (!currentUser) return <div>Connecting...</div>;
   // CSS animation for shine
   useEffect(() => {
     const style = document.createElement("style");
@@ -132,32 +136,8 @@ const MessagingComponent = () => {
 
 
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const res = await axios.get(`${BACKEND_URL}/api/users`);
-        const formattedUsers = res.data.map((user: ApiUser) => ({
-          id: user._id,
-          name: user.username,
-          avatar: user.username
-            .split(" ")
-            .map(word => word[0])
-            .join("")
-            .toUpperCase(),
-          status: "online",
-          lastSeen: "Unknown",
-          unreadCount: 0
-        }));
-        setUsers(formattedUsers);
-        // console.log("Users:", formattedUsers);
-      } catch (err) {
-        console.error("Error fetching users:", err);
-      }
-    };
 
-    fetchUsers();
-  }, []);
-  
+
   useEffect(() => {
     if (!socket || !currentUser) return;
     const handler = (msg: any) => {
@@ -314,7 +294,7 @@ const MessagingComponent = () => {
 
 
   const formatTime = (ts: Date) => ts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const getUnreadCount = () => users.reduce((t, u) => t + u.unreadCount, 0);
+  const getUnreadCount = () => users.reduce((t, u) => t + (u.unreadCount || 0), 0);
   const filteredUsers = users.filter((u) => u.name.toLowerCase().includes(searchTerm.toLowerCase()));
   const activeUser = users.find((u) => u.id === activeChat);
 
@@ -653,7 +633,7 @@ const MessagingComponent = () => {
                       {(conversations[activeChat] || []).map((msg) => (
                         <div
                           key={msg._id || msg.tempId || msg.id}
-                          className={`flex ${msg.senderId === currentUser? "justify-end" : "justify-start"
+                          className={`flex ${msg.senderId === currentUser ? "justify-end" : "justify-start"
                             }`}
                         >
                           <div
@@ -685,7 +665,13 @@ const MessagingComponent = () => {
 
                             {/* TEXT */}
                             {msg.text && <p>{msg.text}</p>}
-
+                            {/* POST */}
+                            {msg.messageType === "post" && (
+                              <SharedPostMessage
+                                postId={msg.sharedPostId}
+                                onOpenPost={(postId: string) => navigate(`/post/${postId}`)}
+                              />
+                            )}
                             {/* TIME */}
                             <p className="text-xs mt-1 text-gray-500">
                               {new Date(msg.createdAt).toLocaleTimeString()}

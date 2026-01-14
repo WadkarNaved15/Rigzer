@@ -138,23 +138,41 @@ io.on("connection", (socket) => {
     }
 
     onlineUsers.get(userId).add(socket.id);
-
-    console.log("User joined:", userId, "->", socket.id);
+    console.log("User joined:", userId);
   });
 
+  // Join chat room
+  socket.on("join_chat", (chatId) => {
+    socket.join(chatId);
+    console.log("Joined chat room:", chatId);
+  });
+
+  // Send Post
   socket.on("send_post", async (data) => {
-  const { chatId, senderId, postId } = data;
+    const { chatId, senderId, receiverId, postId } = data;
 
-  const message = await Message.create({
-    chatId,
-    senderId,
-    messageType: "post",
-    sharedPostId: postId
+    const message = await Message.create({
+      chatId,
+      senderId,
+      messageType: "post",
+      sharedPostId: postId,
+    });
+
+    const messageData = {
+      _id: message._id,
+      chatId,
+      senderId,
+      receiverId,
+      messageType: "post",
+      sharedPostId: postId,
+      createdAt: message.createdAt,
+    };
+
+    // emit to chat room
+    io.to(chatId).emit("receive-message", messageData);
   });
 
-  io.to(chatId).emit("receive_message", message);
-});
-
+  // normal message
   socket.on("send-message", async (msg) => {
     const { chatId, senderId, receiverId, text, mediaUrl, mediaType } = msg;
 
@@ -164,6 +182,7 @@ io.on("connection", (socket) => {
       text,
       mediaUrl,
       mediaType,
+      messageType: mediaUrl ? "media" : "text"
     });
 
     const messageData = {
@@ -174,42 +193,18 @@ io.on("connection", (socket) => {
       text,
       mediaUrl,
       mediaType,
+      messageType: mediaUrl ? "media" : "text",
       createdAt: message.createdAt,
     };
 
-    const receiverSockets = onlineUsers.get(receiverId);
-
-    if (receiverSockets) {
-      for (const socketId of receiverSockets) {
-        io.to(socketId).emit("receive-message", messageData);
-      }
-    }
-
-    // always return to sender also
-    const senderSockets = onlineUsers.get(senderId);
-    if (senderSockets) {
-      for (const socketId of senderSockets) {
-        io.to(socketId).emit("receive-message", messageData);
-      }
-    }
+    io.to(chatId).emit("receive-message", messageData);
   });
 
-
-
-  // Cleanup on disconnect
   socket.on("disconnect", () => {
-    for (const [userId, sockets] of onlineUsers.entries()) {
-      sockets.delete(socket.id);
-
-      if (sockets.size === 0) {
-        onlineUsers.delete(userId);
-      }
-    }
-
     console.log("Socket disconnected:", socket.id);
   });
-
 });
+
 
 // MONGO
 mongoose
