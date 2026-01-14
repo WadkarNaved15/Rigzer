@@ -8,8 +8,9 @@ export default function SharedPostMessage({ postId, onOpenPost }: any) {
   const [deleted, setDeleted] = useState(false);
 
   useEffect(() => {
-    axios.get(`${BACKEND_URL}/api/posts/${postId}`)
-      .then(res => setPost(res.data))
+    axios
+      .get(`${BACKEND_URL}/api/posts/${postId}`)
+      .then((res) => setPost(res.data))
       .catch(() => setDeleted(true));
   }, [postId]);
 
@@ -21,22 +22,46 @@ export default function SharedPostMessage({ postId, onOpenPost }: any) {
     );
   }
 
-  if (!post) return <div className="p-3">Loading...</div>;
+  if (!post) {
+    return <div className="p-3">Loading preview...</div>;
+  }
+
+  // 🔥 Resolve preview image dynamically
+  let previewImage: string | null = null;
+
+  if (post.type === "normal_post") {
+    previewImage = post.normalPost?.assets?.[0]?.url;
+  }
+
+  if (post.type === "model_post") {
+    previewImage =
+      post.modelPost?.previewImage ||
+      post.modelPost?.assets?.[0]?.url;
+  }
+
+  if (post.type === "devlog_post") {
+    previewImage = post.devlogMeta?.thumbnail;
+  }
+
 
   return (
     <div
       onClick={() => onOpenPost(post._id)}
-      className="border rounded-xl overflow-hidden cursor-pointer hover:shadow-lg transition"
+      className="border rounded-xl overflow-hidden cursor-pointer hover:shadow-lg transition bg-white dark:bg-zinc-900"
     >
-      {post.assets?.[0] && (
+      {/* Preview Image */}
+      {previewImage && (
         <img
-          src={post.assets[0].url}
+          src={previewImage}
           className="w-full h-40 object-cover"
+          alt="post preview"
         />
       )}
 
-      <div className="p-3">
-        <p className="font-semibold">{post.user.username}</p>
+      {/* Content */}
+      <div className="p-3 space-y-1">
+        <p className="font-semibold text-sm">{post.user.username}</p>
+
         <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
           {post.description}
         </p>

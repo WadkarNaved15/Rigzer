@@ -53,7 +53,6 @@ const MessagingComponent = () => {
   const currentUser = user?.id;
   const navigate = useNavigate();
   const socket = useSocket();
-  if (!currentUser) return <div>Connecting...</div>;
   // CSS animation for shine
   useEffect(() => {
     const style = document.createElement("style");
