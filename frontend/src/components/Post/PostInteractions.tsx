@@ -2,7 +2,7 @@ import React, { useState, memo } from 'react';
 import { Heart, MessageCircle, Share2, Bookmark } from 'lucide-react';
 import CommentSection from './CommentSection';
 import { useUser } from "../../context/user";
-import SharePostModal from "../Home/SharePostModal";
+import ShareActionModal from "../Home/ShareActionModal";
 
 
 interface PostInteractionsProps {
@@ -29,6 +29,7 @@ const PostInteractions: React.FC<PostInteractionsProps> = ({
 }) => {
   const { user } = useUser();
   const [showComments, setShowComments] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
   if (!user) {
     console.log("User not found");
@@ -84,20 +85,21 @@ const PostInteractions: React.FC<PostInteractionsProps> = ({
           {/* 🔗 Share */}
           <button
             className="flex items-center text-gray-500 dark:text-gray-400 hover:text-green-500 transition-colors"
-            onClick={() => setShareModalOpen(true)}
+            onClick={() => setShareOpen(true)}
           >
             <Share2 className="h-5 w-5" />
           </button>
 
         </div>
       </div>
-      {shareModalOpen && currentUserId && (
-        <SharePostModal
+      {shareOpen && currentUserId && (
+        <ShareActionModal
           postId={postId}
-          currentUserId={currentUserId} 
-          onClose={() => setShareModalOpen(false)}
+          currentUserId={currentUserId}
+          onClose={() => setShareOpen(false)}
         />
       )}
+
 
       {/* Comment Section */}
       {/* {showComments && (

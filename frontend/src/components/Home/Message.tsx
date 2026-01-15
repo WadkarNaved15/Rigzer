@@ -668,7 +668,9 @@ const MessagingComponent = () => {
                             {msg.messageType === "post" && (
                               <SharedPostMessage
                                 postId={msg.sharedPostId}
-                                onOpenPost={(postId: string) => navigate(`/post/${postId}`)}
+                                onOpenPost={(postId: string) => {
+                                  window.open(`/?post=${postId}`, '_blank', 'noopener,noreferrer');
+                                }}
                               />
                             )}
                             {/* TIME */}

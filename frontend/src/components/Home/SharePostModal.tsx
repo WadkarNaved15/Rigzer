@@ -53,18 +53,30 @@ export default function SharePostModal({
         hideProgressBar: true,
         theme: "dark"
       });
-      
+
       onClose();
     } catch (error) {
       console.error("Error sharing post:", error);
       toast.error("Failed to share");
     }
   };
+ const shareLink = `${window.location.origin}/?post=${postId}`;
+
+
+  const handleCopyLink = async () => {
+    await navigator.clipboard.writeText(shareLink);
+    toast.success("Link copied!", {
+      position: "bottom-center",
+      autoClose: 1500,
+      hideProgressBar: true,
+      theme: "dark"
+    });
+  };
 
   return (
     <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
       <div className="bg-white dark:bg-[#191919] w-full max-w-[450px] rounded-2xl shadow-2xl overflow-hidden border border-gray-100 dark:border-zinc-800">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-zinc-800">
           <div className="flex items-center gap-4">
@@ -74,12 +86,32 @@ export default function SharePostModal({
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">Share Post</h2>
           </div>
         </div>
+        {/* Share Link Card */}
+        <div className="px-4 pt-4">
+          <div
+            onClick={handleCopyLink}
+            className="flex items-center gap-3 p-4 border rounded-xl cursor-pointer hover:bg-gray-50 dark:hover:bg-white/5 transition"
+          >
+            <div className="h-12 w-12 rounded-full bg-blue-500 flex items-center justify-center text-white text-xl">
+              🔗
+            </div>
+
+            <div className="flex flex-col">
+              <span className="font-bold text-gray-900 dark:text-white">
+                Copy Link
+              </span>
+              <span className="text-sm text-gray-500">
+                Share this post anywhere
+              </span>
+            </div>
+          </div>
+        </div>
 
         {/* Search Bar */}
         <div className="p-3">
           <div className="relative flex items-center group">
             <Search className="absolute left-3 text-gray-400 group-focus-within:text-blue-500 transition-colors" size={18} />
-            <input 
+            <input
               type="text"
               placeholder="Search people"
               value={search}
@@ -105,8 +137,8 @@ export default function SharePostModal({
                   className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-white/5 cursor-pointer transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <img 
-                      src={DEFAULT_AVATAR} 
+                    <img
+                      src={DEFAULT_AVATAR}
                       alt={user.name}
                       className="h-10 w-10 rounded-full object-cover border border-gray-100 dark:border-zinc-800"
                     />
@@ -119,7 +151,7 @@ export default function SharePostModal({
                       </span>
                     </div>
                   </div>
-                  
+
                   <button className="bg-gray-900 dark:bg-white text-white dark:text-black px-4 py-1.5 rounded-full text-sm font-bold hover:opacity-90 transition">
                     Send
                   </button>

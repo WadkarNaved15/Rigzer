@@ -20,6 +20,7 @@ import ArticleOverlay from "./ArticleView";
 import UploadBox from "../components/Home/Upload";
 import { useSearch } from "../components/Home/SearchContext";
 import { ArrowLeft } from "lucide-react";
+import { useLocation } from "react-router-dom";
 import { useFeedback } from "../context/FeedbackProvider";
 import { useNavigate } from "react-router-dom";
 // Lazy-loaded components
@@ -33,6 +34,7 @@ const MessagingComponent = lazy(() => import("../components/Home/Message"));
 const PostDetails = lazy(() => import("../Pages/PostDetail"));
 const Profile = lazy(() => import("../components/Profile/NewProfile"));
 const DevlogPostDetails = lazy(() => import("../Pages/DevlogPostDetails"));
+
 
 
 function Home() {
@@ -61,6 +63,10 @@ function Home() {
   const [articleOpen, setArticleOpen] = useState(false);
   const [activeCanvasId, setActiveCanvasId] = useState<string | null>(null);
   const [selectedPost, setSelectedPost] = useState<PostProps | null>(null);
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const highlightPostId = searchParams.get("post");
+  const [highlightPost, setHighlightPost] = useState<PostProps | null>(null);
 
   const {
     submittedQuery,
@@ -149,6 +155,13 @@ function Home() {
     },
     [BACKEND_URL]
   );
+  useEffect(() => {
+    if (!highlightPostId) return;
+
+    axios.get(`${BACKEND_URL}/api/posts/${highlightPostId}`)
+      .then(res => setHighlightPost(res.data))
+      .catch(() => setHighlightPost(null));
+  }, [highlightPostId]);
 
   // Load feed on mount
   useEffect(() => {
@@ -325,16 +338,29 @@ function Home() {
                   <>
                     {mainPosts.length > 0 && (
                       <div className="w-full mt-4 flex flex-col">
-                        {mainPosts.map((post) => (
-                          <Post
-                            key={post._id}
-                            {...post}
-                            onOpenDetails={() => {
-                              setSelectedPost(post);
-                              setPostDetailsOpen(true);
-                            }}
-                          />
-                        ))}
+                        {highlightPost && (
+                            <Post
+                              {...highlightPost}
+                              onOpenDetails={() => {
+                                setSelectedPost(highlightPost);
+                                setPostDetailsOpen(true);
+                              }}
+                            />
+                        )}
+
+                        {mainPosts
+                          .filter(p => p._id !== highlightPost?._id)
+                          .map((post) => (
+                            <Post
+                              key={post._id}
+                              {...post}
+                              onOpenDetails={() => {
+                                setSelectedPost(post);
+                                setPostDetailsOpen(true);
+                              }}
+                            />
+                          ))}
+
                       </div>
                     )}
 
