@@ -162,6 +162,18 @@ function Home() {
       .then(res => setHighlightPost(res.data))
       .catch(() => setHighlightPost(null));
   }, [highlightPostId]);
+  useEffect(() => {
+  if (!highlightPost) return;
+
+  setSelectedPost(highlightPost);
+  setPostDetailsOpen(true);
+
+  // Remove query param so refresh doesn't reopen
+  const url = new URL(window.location.href);
+  url.searchParams.delete("post");
+  window.history.replaceState({}, "", url.toString());
+
+}, [highlightPost]);
 
   // Load feed on mount
   useEffect(() => {
