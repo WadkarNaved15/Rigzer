@@ -1,46 +1,49 @@
-// src/components/Home/Profile.tsx
 import { CircleUser, Gamepad2, UserRound, Bookmark } from "lucide-react";
 
 interface ProfileCoverProps {
   setProfileOpen: (open: boolean) => void;
+  onOpenWishlist: () => void;
 }
 
-export default function ProfileCover({ setProfileOpen }: ProfileCoverProps) {
-  const cardBg = '#191919';
+export default function ProfileCover({
+  setProfileOpen,
+  onOpenWishlist,   // ✅ destructured correctly
+}: ProfileCoverProps) {
+
+  const cardBg = "#191919";
+
   const navItems = [
-    { 
-      icon: CircleUser, 
-      label: "Profile", 
-      action: () => setProfileOpen(true) 
+    {
+      icon: CircleUser,
+      label: "Profile",
+      action: () => setProfileOpen(true),
     },
-    { 
-      icon: Gamepad2, 
-      label: "Games", 
-      action: () => console.log("Games clicked") 
+    {
+      icon: Gamepad2,
+      label: "Games",
+      action: () => console.log("Games clicked"),
     },
-    { 
-      icon: UserRound, 
-      label: "Friends", 
-      action: () => console.log("Friends clicked") 
+    {
+      icon: UserRound,
+      label: "Friends",
+      action: () => console.log("Friends clicked"),
     },
-    { 
-      icon: Bookmark, 
-      label: "Saved", 
-      action: () => console.log("Saved clicked") 
+    {
+      icon: Bookmark,
+      label: "Saved",
+      action: onOpenWishlist,   // ✅ direct function call
     },
   ];
+
   return (
-    <div className="max-w-3xl mx-auto ">
-      {/* MAIN CARD - Using backdrop-blur, exact border, and background from example */}
-      <div 
+    <div className="max-w-3xl mx-auto">
+      <div
         className="relative backdrop-blur-sm border border-white/5 rounded-t-[0.5rem] overflow-hidden shadow-xl"
         style={{ backgroundColor: cardBg }}
       >
-        
-        {/* Inset border using ring (fixes green line issue) */}
         <div className="pointer-events-none absolute inset-0 rounded-t-[0.7rem]" />
 
-        {/* Cover Background */}
+        {/* Cover */}
         <div className="relative">
           <div
             className="w-full h-16 bg-cover bg-center"
@@ -49,12 +52,11 @@ export default function ProfileCover({ setProfileOpen }: ProfileCoverProps) {
                 "url('https://fastly.picsum.photos/id/299/800/200.jpg?hmac=xMdRbjiNM_IogJDEgKIJ0GeCxZ8nwOGd5_Wf_ODZ94s')",
             }}
           />
-          
-          {/* UPDATED: Applied the exact 4-step gradient from your latest example */}
+
           <div
             className="absolute inset-0"
             style={{
-              background: `linear-gradient(180deg, transparent 0%, rgba(25, 25, 25, 0.2) 30%, rgba(25, 25, 25, 0.7) 60%, ${cardBg} 100%)`
+              background: `linear-gradient(180deg, transparent 0%, rgba(25, 25, 25, 0.2) 30%, rgba(25, 25, 25, 0.7) 60%, ${cardBg} 100%)`,
             }}
           />
 
@@ -64,14 +66,12 @@ export default function ProfileCover({ setProfileOpen }: ProfileCoverProps) {
               src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
               alt="Profile"
               className="w-16 h-16 rounded-full border-4 shadow-2xl object-cover"
-              style={{
-                borderColor: cardBg // Matches the new background color exactly
-              }}
+              style={{ borderColor: cardBg }}
             />
           </div>
         </div>
 
-        {/* Content - Maintained height and padding structure */}
+        {/* Content */}
         <div className="mt-10 px-4">
           <h4 className="text-md font-bold text-gray-100">John Developer</h4>
           <p className="text-gray-500 text-sm">Game Developer</p>
@@ -83,7 +83,7 @@ export default function ProfileCover({ setProfileOpen }: ProfileCoverProps) {
             <button
               key={idx}
               onClick={item.action}
-              title={item.label} // Basic tooltip on hover
+              title={item.label}
               className="p-2 rounded-full hover:bg-white/10 transition-all active:scale-90 group"
             >
               <item.icon className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" />

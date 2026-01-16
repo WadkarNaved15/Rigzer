@@ -16,6 +16,7 @@ const WishlistPage = () => {
         });
 
         setPosts(res.data);
+        console.log("Wishlist posts:", res.data);
       } catch (err) {
         console.error("Failed to load wishlist posts:", err);
       } finally {

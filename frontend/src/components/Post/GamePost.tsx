@@ -14,6 +14,7 @@ const GamePost: React.FC<GamePostProps> = ({
   createdAt,
   comments = 0,
   onOpenDetails,
+  disableInteractions,
   _id,
   gamePost,
   avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
@@ -202,16 +203,20 @@ const GamePost: React.FC<GamePostProps> = ({
             </div>
           )}
 
-          <PostInteractions
-            postId={_id}
-            likes={likesCount}
-            comments={comments}
-            isLiked={isLiked}
-            onLike={handleLike}
-            isWishlisted={isWishlisted}
-            onWishlist={handleWishlist}
-            onCommentToggle={() => onOpenDetails?.()}
-          />
+          {!disableInteractions && (
+            <div onClick={(e) => e.stopPropagation()}>
+              <PostInteractions
+                postId={_id}
+                likes={likesCount}
+                comments={comments}
+                isLiked={isLiked}
+                isWishlisted={isWishlisted}
+                onLike={handleLike}
+                onWishlist={handleWishlist}
+                onCommentToggle={() => onOpenDetails?.()}
+              />
+            </div>
+          )}
 
           {showComments && <CommentSection postId={_id} BACKEND_URL={BACKEND_URL} />}
         </div>

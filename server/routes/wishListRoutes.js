@@ -23,7 +23,7 @@ router.get("/mine",verifyToken, async (req, res) => {
     const wishlisted = await Wishlist.find({ user: req.user.id })
       .populate({
         path: "post",
-        populate: { path: "user", select: "username profilePic" }
+        populate: { path: "user", select: "username" }
       })
       .sort({ createdAt: -1 });
 

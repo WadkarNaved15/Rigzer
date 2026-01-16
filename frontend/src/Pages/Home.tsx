@@ -61,6 +61,9 @@ function Home() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [postDetailsOpen, setPostDetailsOpen] = useState(false);
   const [articleOpen, setArticleOpen] = useState(false);
+  const [showWishlistFeed, setShowWishlistFeed] = useState(false);
+  const [wishlistPosts, setWishlistPosts] = useState<PostProps[]>([]);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
   const [activeCanvasId, setActiveCanvasId] = useState<string | null>(null);
   const [selectedPost, setSelectedPost] = useState<PostProps | null>(null);
   const location = useLocation();
@@ -87,6 +90,23 @@ function Home() {
     window.addEventListener("scroll", saveScroll);
     return () => window.removeEventListener("scroll", saveScroll);
   }, []);
+  const loadWishlist = useCallback(async () => {
+    try {
+      setWishlistLoading(true);
+
+      const res = await axios.get(`${BACKEND_URL}/api/wishlist/mine`, {
+        withCredentials: true,
+      });
+
+      setWishlistPosts(res.data);
+      console.log("Wishlist posts:", res.data);
+      setShowWishlistFeed(true);   // 👈 this activates center replacement
+    } catch (err) {
+      console.error("Failed to load wishlist posts:", err);
+    } finally {
+      setWishlistLoading(false);
+    }
+  }, [BACKEND_URL]);
 
   useEffect(() => {
     if (scrollY > 0) {
@@ -163,17 +183,17 @@ function Home() {
       .catch(() => setHighlightPost(null));
   }, [highlightPostId]);
   useEffect(() => {
-  if (!highlightPost) return;
+    if (!highlightPost) return;
 
-  setSelectedPost(highlightPost);
-  setPostDetailsOpen(true);
+    setSelectedPost(highlightPost);
+    setPostDetailsOpen(true);
 
-  // Remove query param so refresh doesn't reopen
-  const url = new URL(window.location.href);
-  url.searchParams.delete("post");
-  window.history.replaceState({}, "", url.toString());
+    // Remove query param so refresh doesn't reopen
+    const url = new URL(window.location.href);
+    url.searchParams.delete("post");
+    window.history.replaceState({}, "", url.toString());
 
-}, [highlightPost]);
+  }, [highlightPost]);
 
   // Load feed on mount
   useEffect(() => {
@@ -224,7 +244,7 @@ function Home() {
   sticky top-20 h-54 bg-white dark:bg-[#151515] rounded-t-xl">
 
               <Suspense fallback={null}>
-                <ProfileCover setProfileOpen={setProfileOpen} />
+                <ProfileCover onOpenWishlist={loadWishlist} setProfileOpen={setProfileOpen} />
               </Suspense>
             </div>
             <div className="sticky top-80">
@@ -316,6 +336,39 @@ function Home() {
                     )}
 
                   </Suspense>
+                ) : showWishlistFeed ? (
+                  /* WISHLIST FEED */
+                  <div className="w-full mt-4 flex flex-col">
+                    <button
+                      onClick={() => {
+                        setShowWishlistFeed(false);
+                        setWishlistPosts([]);
+                      }}
+                      className="flex items-center gap-2 text-blue-500 hover:text-blue-600 mb-4"
+                    >
+                      <ArrowLeft size={20} /> Back to Feed
+                    </button>
+
+                    {wishlistLoading && <CircleLoader />}
+
+                    {!wishlistLoading && wishlistPosts.length === 0 && (
+                      <div className="text-gray-400 dark:text-gray-500 mt-4">
+                        No wishlist posts found
+                      </div>
+                    )}
+
+                    {wishlistPosts.map((post) => (
+                      <Post
+                        key={post._id}
+                        {...post}
+                        onOpenDetails={() => {
+                          setSelectedPost(post);
+                          setPostDetailsOpen(true);
+                        }}
+                      />
+                    ))}
+                  </div>
+
                 ) : showFilteredFeed ? (
                   <div className="w-full mt-4 flex flex-col">
                     <button
@@ -351,13 +404,13 @@ function Home() {
                     {mainPosts.length > 0 && (
                       <div className="w-full mt-4 flex flex-col">
                         {highlightPost && (
-                            <Post
-                              {...highlightPost}
-                              onOpenDetails={() => {
-                                setSelectedPost(highlightPost);
-                                setPostDetailsOpen(true);
-                              }}
-                            />
+                          <Post
+                            {...highlightPost}
+                            onOpenDetails={() => {
+                              setSelectedPost(highlightPost);
+                              setPostDetailsOpen(true);
+                            }}
+                          />
                         )}
 
                         {mainPosts
