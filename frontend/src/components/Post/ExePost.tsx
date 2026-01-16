@@ -182,9 +182,6 @@ const ExePost: React.FC<ExePostProps> = ({
           />
 
           {/* DESCRIPTION */}
-          const [isExpanded, setIsExpanded] = useState(false);
-
-          // ... inside your JSX
 
           {description && (
             <div className="mt-2 mb-4">
