@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useSocket } from "../../context/SocketContext";
+import EmojiPicker from 'emoji-picker-react';
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import SharedPostMessage from "./SharedPostMessage";
@@ -42,6 +43,7 @@ const MessagingComponent = () => {
   const [isMinimized, setIsMinimized] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
   const [message, setMessage] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [activeChat, setActiveChat] = useState<ChatId | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentChatId, setCurrentChatId] = useState(null);
@@ -129,7 +131,9 @@ const MessagingComponent = () => {
       xhr.send(asset.file);
     });
   };
-
+  const onEmojiClick = (emojiData: { emoji: string }) => {
+    setMessage((prev) => prev + emojiData.emoji);
+  };
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   useEffect(() => scrollToBottom(), [conversations, activeChat]);
 
@@ -705,6 +709,15 @@ const MessagingComponent = () => {
                         </button>
 
                         <div className="flex-1 relative">
+                          {/* The Emoji Picker Popover */}
+                          {showEmojiPicker && (
+                            <div className="absolute bottom-full mb-2 right-0 z-50">
+                              <EmojiPicker
+                                onEmojiClick={onEmojiClick}
+                                height={400}
+                              />
+                            </div>
+                          )}
                           <textarea
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
@@ -719,6 +732,7 @@ const MessagingComponent = () => {
                           />
                         </div>
                         <button
+                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                           className={`${isMaximized
                             ? "text-white/60 hover:text-white"
                             : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
