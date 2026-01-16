@@ -3,6 +3,7 @@ import { useSocket } from "../../context/SocketContext";
 import EmojiPicker from 'emoji-picker-react';
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { Header } from "../Header"; // 1. Add your import
 import SharedPostMessage from "./SharedPostMessage";
 import { useUser } from "../../context/user";
 import { useUsers } from "../../context/UsersContext";
@@ -392,6 +393,7 @@ const MessagingComponent = () => {
             : "relative bg-white dark:bg-black w-80 border border-gray-200 shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md rounded-lg flex flex-col"
             } ${isMinimized ? "h-16" : isMaximized ? "h-full" : "h-96"}`}
         >
+        {isMaximized && <Header />}
           {/* Header */}
           <div
             className={`flex-shrink-0 h-16 ${isMaximized
