@@ -7,7 +7,28 @@ interface ProfileCoverProps {
 
 export default function ProfileCover({ setProfileOpen }: ProfileCoverProps) {
   const cardBg = '#191919';
-
+  const navItems = [
+    { 
+      icon: CircleUser, 
+      label: "Profile", 
+      action: () => setProfileOpen(true) 
+    },
+    { 
+      icon: Gamepad2, 
+      label: "Games", 
+      action: () => console.log("Games clicked") 
+    },
+    { 
+      icon: UserRound, 
+      label: "Friends", 
+      action: () => console.log("Friends clicked") 
+    },
+    { 
+      icon: Bookmark, 
+      label: "Saved", 
+      action: () => console.log("Saved clicked") 
+    },
+  ];
   return (
     <div className="max-w-3xl mx-auto ">
       {/* MAIN CARD - Using backdrop-blur, exact border, and background from example */}
@@ -42,11 +63,10 @@ export default function ProfileCover({ setProfileOpen }: ProfileCoverProps) {
             <img
               src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
               alt="Profile"
-              className="cursor-pointer w-16 h-16 rounded-full border-4 shadow-2xl object-cover"
+              className="w-16 h-16 rounded-full border-4 shadow-2xl object-cover"
               style={{
                 borderColor: cardBg // Matches the new background color exactly
               }}
-              onClick={() => setProfileOpen(true)}
             />
           </div>
         </div>
@@ -59,12 +79,14 @@ export default function ProfileCover({ setProfileOpen }: ProfileCoverProps) {
 
         {/* Nav Buttons */}
         <div className="flex mt-4 pb-4 items-center justify-center space-x-2">
-          {[CircleUser, Gamepad2, UserRound, Bookmark].map((Icon, idx) => (
+          {navItems.map((item, idx) => (
             <button
               key={idx}
-              className="p-2 rounded-full hover:bg-white/10 transition"
+              onClick={item.action}
+              title={item.label} // Basic tooltip on hover
+              className="p-2 rounded-full hover:bg-white/10 transition-all active:scale-90 group"
             >
-              <Icon className="h-5 w-5 text-white" />
+              <item.icon className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" />
             </button>
           ))}
         </div>
