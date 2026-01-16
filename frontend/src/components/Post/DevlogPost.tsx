@@ -143,7 +143,7 @@ const DevlogPost: React.FC<DevlogPostProps> = ({
     rounded-2xl
     overflow-hidden
     border border-gray-200 dark:border-gray-700
-    bg-black
+    bg-[#191919]
     flex items-center justify-center
     text-white
     relative

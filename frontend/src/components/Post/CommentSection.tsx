@@ -151,7 +151,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, BACKEND_URL }) 
   };
 
   return (
-    <div className="max-w-2xl mx-auto bg-white dark:bg-black rounded-xl overflow-hidden shadow-sm">
+    <div className="max-w-2xl mx-auto bg-white dark:bg-[#191919] rounded-xl overflow-hidden shadow-sm">
       <div className="p-4 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-2">
         <MessageSquare size={18} className="text-blue-500" />
         <h3 className="font-bold text-gray-900 dark:text-gray-100">Discussion ({comments.length})</h3>

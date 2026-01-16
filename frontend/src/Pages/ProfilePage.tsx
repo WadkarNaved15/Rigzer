@@ -7,7 +7,7 @@ import MessagingComponent from "../components/Home/Message"
 
 const Profile: React.FC = () => {
   return (
-    <div className="bg-black text-white min-h-screen font-sans">
+    <div className="bg-[#191919] text-white min-h-screen font-sans">
       <Header />
       <TickerBar />
       <MessagingComponent />

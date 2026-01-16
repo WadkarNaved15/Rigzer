@@ -156,7 +156,7 @@ const NormalPost: React.FC<NormalPostProps> = ({
                 grid
                 ${getGridClass(assets.length)}
                 gap-[2px]
-                bg-black
+                bg-[#191919]
               `}
               onClick={(e) => {
                 e.stopPropagation();
