@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useEffect, useRef } from "react";
+import React, { memo, useMemo, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PostHeader from "./PostHeader";
 import PostInteractions from "./PostInteractions";
@@ -26,6 +26,7 @@ const DevlogPost: React.FC<DevlogPostProps> = ({
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
   const { likesCount, isLiked, handleLike } = useLikes(_id, BACKEND_URL);
+  const [isExpanded, setIsExpanded] = useState(false);
   const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
   const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || "http://localhost:5173";
   /* -------------------- TIME FORMAT -------------------- */
@@ -105,9 +106,27 @@ const DevlogPost: React.FC<DevlogPostProps> = ({
           />
 
           {description && (
-            <p className="mt-2 text-gray-800 dark:text-gray-200 whitespace-pre-wrap">
-              {description}
-            </p>
+            <div className="mt-2 mb-4">
+              <p
+                className={`text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap overflow-hidden transition-all duration-300 ${!isExpanded ? "max-h-12" : "max-h-[1000px]"
+                  }`}
+              >
+                {description}
+              </p>
+
+              {/* Only show button if description is long enough to need it */}
+              {description.length > 100 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevents opening post details when clicking the button
+                    setIsExpanded(!isExpanded);
+                  }}
+                  className="text-sky-500 hover:text-sky-600 font-semibold text-sm mt-1 focus:outline-none"
+                >
+                  {isExpanded ? "Show less" : "Show more"}
+                </button>
+              )}
+            </div>
           )}
 
           {/* -------------------- DEVLOG PREVIEW -------------------- */}

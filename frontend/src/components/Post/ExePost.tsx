@@ -24,6 +24,7 @@ const ExePost: React.FC<ExePostProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [showComments, setShowComments] = useState(false); // ✅ toggle comment section
   const postRef = useRef(null);
+  const [isExpanded, setIsExpanded] = useState(false);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const { likesCount, isLiked, handleLike } = useLikes(_id, BACKEND_URL);
   const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
@@ -181,28 +182,50 @@ const ExePost: React.FC<ExePostProps> = ({
           />
 
           {/* DESCRIPTION */}
+          const [isExpanded, setIsExpanded] = useState(false);
+
+          // ... inside your JSX
+
           {description && (
-            <p className="text-gray-800 dark:text-gray-200 mt-2 mb-4">
-              {description}
-            </p>
+            <div className="mt-2 mb-4">
+              <p
+                className={`text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap overflow-hidden transition-all duration-300 ${!isExpanded ? "max-h-12" : "max-h-[1000px]"
+                  }`}
+              >
+                {description}
+              </p>
+
+              {/* Only show button if description is long enough to need it */}
+              {description.length > 100 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevents opening post details when clicking the button
+                    setIsExpanded(!isExpanded);
+                  }}
+                  className="text-sky-500 hover:text-sky-600 font-semibold text-sm mt-1 focus:outline-none"
+                >
+                  {isExpanded ? "Show less" : "Show more"}
+                </button>
+              )}
+            </div>
           )}
 
           {/* 3D MODEL */}
           {modelUrl && (
-             <div className="flex justify-center relative overflow-hidden w-full h-[400px] rounded-xl">
-            {/* @ts-ignore */}
-            <model-viewer
-              src={modelUrl}
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
-              camera-controls
-              auto-rotate
-              exposure="1.2"
-              environment-image="neutral"
-              shadow-intensity="1"
-              style={{ width: "600px", height: "400px" }}
-            />
+            <div className="flex justify-center relative overflow-hidden w-full h-[400px] rounded-xl">
+              {/* @ts-ignore */}
+              <model-viewer
+                src={modelUrl}
+                onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                camera-controls
+                auto-rotate
+                exposure="1.2"
+                environment-image="neutral"
+                shadow-intensity="1"
+                style={{ width: "600px", height: "400px" }}
+              />
 
-          </div>
+            </div>
           )}
 
           {/* Post Interactions */}

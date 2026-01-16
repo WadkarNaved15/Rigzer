@@ -13,14 +13,16 @@ const GamePost: React.FC<GamePostProps> = ({
   description,
   createdAt,
   comments = 0,
+  onOpenDetails,
   _id,
-  gamePost, 
+  gamePost,
   avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
 }) => {
-  const timestamp = useMemo(() => new Date(createdAt).toLocaleString(), [createdAt]);
   const postRef = useRef(null);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
   const [showComments, setShowComments] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const { likesCount, isLiked, handleLike } = useLikes(_id, BACKEND_URL);
   const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
   let viewStartTime = useRef<number | null>(null);
@@ -33,7 +35,7 @@ const GamePost: React.FC<GamePostProps> = ({
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ postId: _id })
-    }).catch(() => {});
+    }).catch(() => { });
   };
 
   const stopViewing = async () => {
@@ -45,7 +47,7 @@ const GamePost: React.FC<GamePostProps> = ({
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ postId: _id, duration })
-    }).catch(() => {});
+    }).catch(() => { });
   };
 
   const markViewed = async () => {
@@ -54,16 +56,37 @@ const GamePost: React.FC<GamePostProps> = ({
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ postId: _id })
-    }).catch(() => {});
+    }).catch(() => { });
   };
+  const getRelativeTime = (date: string | Date) => {
+    const now = new Date();
+    const created = new Date(date);
+    const diffMs = now.getTime() - created.getTime();
 
+    const seconds = Math.floor(diffMs / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+
+    if (seconds < 60) return `${seconds}s`;
+    if (minutes < 60) return `${minutes}m`;
+    if (hours < 24) return `${hours}h`;
+
+    return created.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    });
+  };
+  const timestamp = useMemo(
+    () => getRelativeTime(createdAt),
+    [createdAt]
+  );
   const handleStartGame = async () => {
     fetch(`${BACKEND_URL}/api/interactions/played-demo`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ postId: _id })
-    }).catch(() => {});
+    }).catch(() => { });
   };
 
   useEffect(() => {
@@ -85,7 +108,18 @@ const GamePost: React.FC<GamePostProps> = ({
   return (
     <article
       ref={postRef}
-      className="relative w-full border border-gray-200 dark:border-zinc-800 bg-white dark:bg-[#191919] hover:bg-gray-50/50 dark:hover:bg-zinc-900/20 transition-colors duration-200"
+      onClick={() => {
+        if (viewerOpen) return; // 🔥 BLOCK when overlay is open
+        onOpenDetails?.();
+      }}
+      className="
+    relative w-full 
+    border border-gray-200 dark:border-gray-700
+    bg-white dark:bg-[#191919]
+    hover:bg-[#F7F9F9] dark:hover:bg-[#16181C]
+    transition-colors duration-200
+    cursor-pointer
+  "
     >
       <div className="flex gap-3 p-4">
         {/* User Avatar */}
@@ -100,18 +134,36 @@ const GamePost: React.FC<GamePostProps> = ({
           />
 
           {description && (
-            <p className="text-gray-800 dark:text-gray-200 mt-2 mb-4 leading-relaxed whitespace-pre-wrap">
-              {description}
-            </p>
+            <div className="mt-2 mb-4">
+              <p
+                className={`text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap overflow-hidden transition-all duration-300 ${!isExpanded ? "max-h-12" : "max-h-[1000px]"
+                  }`}
+              >
+                {description}
+              </p>
+
+              {/* Only show button if description is long enough to need it */}
+              {description.length > 100 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevents opening post details when clicking the button
+                    setIsExpanded(!isExpanded);
+                  }}
+                  className="text-sky-500 hover:text-sky-600 font-semibold text-sm mt-1 focus:outline-none"
+                >
+                  {isExpanded ? "Show less" : "Show more"}
+                </button>
+              )}
+            </div>
           )}
 
           {/* SIMPLIFIED GAME CARD - Focus on Instant Play */}
           {gamePost && (
             <div className="group relative rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 mb-4 transition-all hover:border-sky-500/50">
-              
+
               {/* Visual Background Decor */}
               <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 via-transparent to-purple-500/10 opacity-50" />
-              
+
               <div className="relative p-8 flex flex-col items-center justify-center text-center">
                 {/* Game Branding */}
                 <div className="w-16 h-16 bg-white dark:bg-[#191919] rounded-2xl shadow-xl flex items-center justify-center mb-4 border border-gray-100 dark:border-zinc-800 group-hover:scale-110 transition-transform duration-300">
@@ -121,15 +173,15 @@ const GamePost: React.FC<GamePostProps> = ({
                 <h3 className="text-2xl font-black text-black dark:text-white tracking-tight">
                   {gamePost.gameName}
                 </h3>
-                
+
                 <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-200 dark:bg-zinc-800 px-2 py-0.5 rounded">
-                      v{gamePost.version}
-                    </span>
-                    <div className="flex items-center gap-1 text-[10px] font-bold text-sky-500 uppercase tracking-widest">
-                        <Sparkles size={10} />
-                        Instant Stream
-                    </div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-200 dark:bg-zinc-800 px-2 py-0.5 rounded">
+                    v{gamePost.version}
+                  </span>
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-sky-500 uppercase tracking-widest">
+                    <Sparkles size={10} />
+                    Instant Stream
+                  </div>
                 </div>
 
                 {/* Call to Action */}
@@ -158,7 +210,7 @@ const GamePost: React.FC<GamePostProps> = ({
             onLike={handleLike}
             isWishlisted={isWishlisted}
             onWishlist={handleWishlist}
-            onCommentToggle={() => setShowComments(!showComments)}
+            onCommentToggle={() => onOpenDetails?.()}
           />
 
           {showComments && <CommentSection postId={_id} BACKEND_URL={BACKEND_URL} />}
