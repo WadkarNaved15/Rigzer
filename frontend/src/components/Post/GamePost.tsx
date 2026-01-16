@@ -136,7 +136,7 @@ const GamePost: React.FC<GamePostProps> = ({
           {description && (
             <div className="mt-2 mb-4">
               <p
-                className={`text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap overflow-hidden transition-all duration-300 ${!isExpanded ? "max-h-12" : "max-h-[1000px]"
+                className={`text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap transition-all ${!isExpanded ? "line-clamp-2" : ""
                   }`}
               >
                 {description}
