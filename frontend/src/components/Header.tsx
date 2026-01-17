@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Moon,
   Search,
@@ -28,6 +29,7 @@ export function Header() {
   const { searchQuery,setSearchQuery, setSubmittedQuery, setShowFilteredFeed } = useSearch();
   const [suggestions, setSuggestions] = useState<User[]>([]);
   const { isDark, toggleTheme } = useTheme();
+  const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
   const { user, logout } = useUser();
   const [scrollY, setScrollY] = useState(0); // This state isn't used, but it's not causing the error
@@ -59,15 +61,16 @@ export function Header() {
 }, []);
   const handleLogout = async () => {
     try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/Logout`, {
+      const response = await fetch(`${BACKEND_URL}/api/auth/logout`, {
         method: "POST",
         credentials: "include",
       });
 
       if (response.ok) {
         logout();
+        navigate("/");
         console.log("Logout successful");
-        window.location.href = "/";
+        
       }
     } catch (error) {
       console.error("Logout failed:", error);
@@ -123,7 +126,7 @@ export function Header() {
                   })
                 }
               >
-                HESTER
+                STREAMOSS
               </Link>
             </div>
 
