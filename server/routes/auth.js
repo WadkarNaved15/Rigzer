@@ -8,7 +8,7 @@ import verifyToken from "../middlewares/authMiddleware.js";
 
 dotenv.config();
 const router = express.Router();
-const url=process.env.FRONTEND_URL
+const url = process.env.FRONTEND_URL
 
 
 // Google OAuth
@@ -19,7 +19,12 @@ router.get(
   "/google/callback",
   passport.authenticate("google", { failureRedirect: `${url}/login` }),
   (req, res) => {
-    res.cookie("token", req.user.token, { httpOnly: true, secure: false });
+    res.cookie("token", req.user.token,
+      {
+        httpOnly: true,
+        secure: true,
+        sameSite: "none",
+      });
     res.redirect(`${url}/`); // Redirect to frontend
   }
 );
@@ -48,7 +53,7 @@ router.post("/register", async (req, res) => {
 
     await newUser.save();
     const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "30d" });
-    res.cookie("token", token, { httpOnly: true, secure: false, maxAge: 30 * 24 * 60 * 60 * 1000 }); // Set cookie for 30 days
+    res.cookie("token", token, { httpOnly: true, secure: true, sameSite: "none", maxAge: 30 * 24 * 60 * 60 * 1000 }); // Set cookie for 30 days
     res.status(201).json({ message: "User registered & authenticated successfully", user: newUser, token });
   } catch (error) {
     console.error("Error in registration:", error);
@@ -75,8 +80,8 @@ router.post("/login", async (req, res) => {
 
     res.cookie("token", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production" ? true : false,
-      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // important for cross-origin
+      secure: true,
+      sameSite: "none",
       maxAge: 30 * 24 * 60 * 60 * 1000,
     });
 

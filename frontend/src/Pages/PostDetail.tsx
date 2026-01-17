@@ -19,13 +19,15 @@ const PostDetail = ({ post, onClose }: { post: ExePostProps; onClose: () => void
 
   return (
     <>
-      <div className="w-full h-full flex justify-center">
+      <div className="w-full flex justify-center">
         <div
           className="
-    w-full max-w-7xl min-h-[80vh]
-    overflow-y-auto
-    bg-white text-black
-    dark:bg-[#191919] dark:text-white
+    w-full max-w-7xl 
+            /* 1. Changed min-h to fit content instead of forcing 80% screen height */
+            h-auto 
+            bg-white text-black
+            dark:bg-[#191919] dark:text-white
+            overflow-visible
   "
         >
 
@@ -95,7 +97,7 @@ const PostDetail = ({ post, onClose }: { post: ExePostProps; onClose: () => void
 
 
           {/* MAIN HORIZONTAL LAYOUT */}
-          <div className="px-6 py-10">
+          <div className="px-6 pb-4">
             <div className="grid grid-cols-12 gap-8 items-start">
 
               {/* LEFT CONTENT */}
@@ -333,10 +335,16 @@ const PostDetail = ({ post, onClose }: { post: ExePostProps; onClose: () => void
 
         </div>
       </div>
-      <CommentSection
-        postId={post._id}
-        BACKEND_URL={BACKEND_URL}
-      />
+      <div className="w-full max-w-7xl mx-auto px-6 pb-20">
+        <div className="grid grid-cols-12 gap-8">
+          <div className="col-span-12 lg:col-span-9">
+            <CommentSection
+              postId={post._id}
+              BACKEND_URL={BACKEND_URL}
+            />
+          </div>
+        </div>
+      </div>
     </>
   );
 };
