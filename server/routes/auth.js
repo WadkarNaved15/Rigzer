@@ -14,14 +14,14 @@ const cookieOptions = {
   httpOnly: true,
   secure: isProduction,        // true only on HTTPS
   sameSite: isProduction ? "none" : "lax",
-  domain: isProduction ? process.env.COOKIE_DOMAIN : undefined,
+  path: "/",
   maxAge: 30 * 24 * 60 * 60 * 1000,
 };
 const clearCookieOptions = {
   httpOnly: true,
   secure: isProduction,
   sameSite: isProduction ? "none" : "lax",
-  domain: isProduction ? process.env.COOKIE_DOMAIN : undefined,
+  path: "/",
 };
 
 // Google OAuth
@@ -70,7 +70,7 @@ router.post("/register", async (req, res) => {
   }
 });
 
-// domain chnaged for deployment
+
 
 // Login Route
 router.post("/login", async (req, res) => {
