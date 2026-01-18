@@ -18,7 +18,6 @@ type User = {
 
 type UserContextType = {
   user: User | null;
-  token: string | null;
   loading: boolean;
   login: (user: User) => void;
   logout: () => void;
@@ -37,29 +36,11 @@ export const useUser = () => {
 // Provider component
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-  // Load from localStorage on mount
-  useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    const storedToken = localStorage.getItem("token");
 
-    if (storedUser && storedToken) {
-      try {
-        setUser(JSON.parse(storedUser));
-        setToken(storedToken);
-      } catch (e) {
-        console.error("Failed to parse user from localStorage", e);
-      }
-    }
-    setLoading(false);
-  }, []);
-
-  // Verify session
   useEffect(() => {
     const verifySession = async () => {
-      if (!loading && !user) return;
       try {
         const res = await fetch(`${BACKEND_URL}/api/auth/verify`, {
           method: "GET",
@@ -68,42 +49,31 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
         if (res.ok) {
           const { user } = await res.json();
-          login(user);
+          setUser(user);
           console.log("✅ Session verified");
         }
       } catch (err) {
         console.warn("Session check failed:", err);
+      } finally {
+        setLoading(false);   // ✅ VERY IMPORTANT
       }
     };
 
     verifySession();
   }, []);
 
-  // Sync to localStorage
-  useEffect(() => {
-    if (user && token) {
-      localStorage.setItem("user", JSON.stringify(user));
-      localStorage.setItem("token", token);
-    } else {
-      localStorage.removeItem("user");
-      localStorage.removeItem("token");
-    }
-  }, [user, token]);
-
   const login = (userData: User) => {
     setUser(userData);
-    // token is assumed to be handled via cookies, but can be updated here if needed
   };
 
   const logout = () => {
     setUser(null);
-    setToken(null);
   };
 
   return (
-    <UserContext.Provider value={{ user, token, loading, login, logout }}>
+    <UserContext.Provider value={{ user, loading, login, logout }}>
       {!loading && children}
     </UserContext.Provider>
   );
-
 };
+
