@@ -9,7 +9,20 @@ import verifyToken from "../middlewares/authMiddleware.js";
 dotenv.config();
 const router = express.Router();
 const url = process.env.FRONTEND_URL
-
+const isProduction = process.env.NODE_ENV === "production";
+const cookieOptions = {
+  httpOnly: true,
+  secure: isProduction,        // true only on HTTPS
+  sameSite: isProduction ? "none" : "lax",
+  domain: isProduction ? process.env.COOKIE_DOMAIN : undefined,
+  maxAge: 30 * 24 * 60 * 60 * 1000,
+};
+const clearCookieOptions = {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? "none" : "lax",
+  domain: isProduction ? process.env.COOKIE_DOMAIN : undefined,
+};
 
 // Google OAuth
 router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
@@ -19,12 +32,7 @@ router.get(
   "/google/callback",
   passport.authenticate("google", { failureRedirect: `${url}/login` }),
   (req, res) => {
-    res.cookie("token", req.user.token,
-      {
-        httpOnly: true,
-        secure: true,
-        sameSite: "none",
-      });
+    res.cookie("token", req.user.token, cookieOptions);
     res.redirect(`${url}/`); // Redirect to frontend
   }
 );
@@ -53,7 +61,8 @@ router.post("/register", async (req, res) => {
 
     await newUser.save();
     const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "30d" });
-    res.cookie("token", token, { httpOnly: true, secure: true, sameSite: "none", maxAge: 30 * 24 * 60 * 60 * 1000 }); // Set cookie for 30 days
+    res.cookie("token", token, cookieOptions);
+
     res.status(201).json({ message: "User registered & authenticated successfully", user: newUser, token });
   } catch (error) {
     console.error("Error in registration:", error);
@@ -78,12 +87,7 @@ router.post("/login", async (req, res) => {
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "30d" });
 
-    res.cookie("token", token, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-    });
+    res.cookie("token", token, cookieOptions);
 
 
     res.status(200).json({ message: "Login successful", token, user });
@@ -101,12 +105,7 @@ router.get("/verify", verifyToken, (req, res) => {
 
 // Logout Route
 router.post("/logout", (_req, res) => {
-  res.clearCookie("token", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-  });
-
+  res.clearCookie("token", clearCookieOptions);
   res.json({ message: "Logged out successfully" });
 });
 
