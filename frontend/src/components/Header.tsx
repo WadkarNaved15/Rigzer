@@ -59,23 +59,23 @@ export function Header() {
   window.addEventListener("scroll", handleScroll);
   return () => window.removeEventListener("scroll", handleScroll);
 }, []);
-  const handleLogout = async () => {
-    try {
-      const response = await fetch(`${BACKEND_URL}/api/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-      });
+const handleLogout = async () => {
+  try {
+    await fetch(`${BACKEND_URL}/api/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    });
 
-      if (response.ok) {
-        logout();
-        navigate("/");
-        console.log("Logout successful");
-        
-      }
-    } catch (error) {
-      console.error("Logout failed:", error);
-    }
-  };
+    logout();              // clear context
+    localStorage.clear(); // clear storage
+    window.location.href = "/";  // force clean reload
+
+  } catch (error) {
+    console.error("Logout failed:", error);
+  }
+};
+
+
 
   // const handleSearch = (e: React.FormEvent) => {
   //   e.preventDefault();

@@ -59,6 +59,7 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Verify session
   useEffect(() => {
     const verifySession = async () => {
+      if (!loading && !user) return;
       try {
         const res = await fetch(`${BACKEND_URL}/api/auth/verify`, {
           method: "GET",
@@ -101,7 +102,8 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   return (
     <UserContext.Provider value={{ user, token, loading, login, logout }}>
-      {children}
+      {!loading && children}
     </UserContext.Provider>
   );
+
 };
