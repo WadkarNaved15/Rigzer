@@ -128,7 +128,7 @@ const GamePostSchema = new mongoose.Schema(
 
     buildType: {
       type: String,
-      enum: ["windows_exe", "windows_zip"],
+      enum: ["archive", "executable"],
       required: true,
     },
 
@@ -165,14 +165,22 @@ const GamePostSchema = new mongoose.Schema(
       ramGB: { type: Number, min: 1 },
       cpuCores: { type: Number, min: 1 },
       gpuRequired: { type: Boolean, default: false },
+      
     },
 
     /** Uploaded build info */
     file: {
-      name: { type: String, required: true },
-      url: { type: String, required: true }, // CloudFront URL
-      size: { type: Number, required: true }, // bytes
-    },
+  name: { type: String, required: true },
+  url: { type: String, required: true }, // CloudFront
+  size: { type: Number, required: true }, // bytes
+
+  format: {
+    type: String,
+    enum: ["7z", "zip", "exe"],
+    required: true,
+  },
+},
+
     verification: {
       status: {
         type: String,

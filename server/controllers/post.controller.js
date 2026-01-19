@@ -1,6 +1,12 @@
 import AllPost from "../models/Allposts.js";
 import { extractMetadataFromUrl } from "../services/modelMetaData.service.js";
 
+function deriveBuildType(fileFormat) {
+  if (fileFormat === "exe") return "executable";
+  return "archive";
+}
+
+
 export const createPost = async (req, res) => {
   console.log("Create post controller got hit");
 
@@ -142,7 +148,6 @@ export const createPost = async (req, res) => {
         gameName,
         version,
         platform,
-        buildType,
         startPath,
         engine,
         runMode,
@@ -151,13 +156,37 @@ export const createPost = async (req, res) => {
         file,
       } = game;
 
+      const allowedFormats = ["7z", "zip", "exe"];
+if (!file?.format || !allowedFormats.includes(file.format)) {
+  return res.status(400).json({
+    message: "Unsupported or missing game build format",
+  });
+}
+
+const buildType = deriveBuildType(file.format);
+
       
       /* ---------- REQUIRED VALIDATION ---------- */
-      if (!gameName || !startPath || !file?.url || !file?.name) {
-        return res.status(400).json({
-          message: "Missing required game fields",
-        });
-      }
+      if (
+  !gameName ||
+  !startPath ||
+  !file?.url ||
+  !file?.name ||
+  !file?.format
+) {
+  return res.status(400).json({
+    message: "Missing required game fields",
+  });
+}
+
+
+if (buildType === "executable" && !startPath.toLowerCase().endsWith(".exe")) {
+  return res.status(400).json({
+    message: "Executable builds must have a .exe startPath",
+  });
+}
+
+
 
       // Security: startPath must be relative
       if (startPath.startsWith("/") || startPath.includes("..")) {
@@ -194,10 +223,11 @@ export const createPost = async (req, res) => {
   },
 
   file: {
-    name: file.name,
-    url: file.url,
-    size: file.size,
-  },
+  name: file.name,
+  url: file.url,
+  size: file.size,
+  format: file.format, // ⭐ REQUIRED
+},
 
   verification: {
     status: "pending",

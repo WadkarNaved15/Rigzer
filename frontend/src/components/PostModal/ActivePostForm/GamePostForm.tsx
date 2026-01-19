@@ -23,7 +23,10 @@ const GamePostForm: React.FC<PostModalProps> = ({ onCancel }) => {
   const [price, setPrice] = useState('');
 
   const [platform, setPlatform] = useState<'windows'>('windows');
-  const [buildType, setBuildType] = useState<'windows_exe' | 'windows_zip'>('windows_exe');
+type BuildType = 'archive' | 'executable';
+
+const [buildType, setBuildType] = useState<BuildType>('archive');
+
   const [startPath, setStartPath] = useState('');
   const [engine, setEngine] = useState('');
 
@@ -40,21 +43,36 @@ const GamePostForm: React.FC<PostModalProps> = ({ onCancel }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
 
+  const ALLOWED_EXTENSIONS = ['7z', 'zip', 'exe'];
+
+function isValidBuildFile(file: File) {
+  const ext = file.name.split('.').pop()?.toLowerCase();
+  return ext && ALLOWED_EXTENSIONS.includes(ext);
+}
+
+
   /* ---------------- File Select ---------------- */
-  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    setAsset({
-      id: crypto.randomUUID(),
-      file,
-      name: file.name,
-      size: file.size,
-      status: 'pending'
-    });
+  if (!isValidBuildFile(file)) {
+    setErrorMessage('Invalid build format. Only .7z, .zip, or .exe are allowed.');
+    return;
+  }
 
-    e.target.value = '';
-  };
+setAsset({
+  id: crypto.randomUUID(),
+  file,
+  name: file.name,
+  size: file.size,
+  status: 'pending'
+});
+
+setBuildType(buildTypeFromFile(file));
+
+  e.target.value = '';
+};
 
   /* ---------------- Upload ---------------- */
   const CHUNK_SIZE = 10 * 1024 * 1024; // 10MB per chunk
@@ -111,6 +129,20 @@ const GamePostForm: React.FC<PostModalProps> = ({ onCancel }) => {
     return fileUrl;
   };
 
+  function getBuildFormat(fileName: string): '7z' | 'zip' | 'exe' {
+  const ext = fileName.split('.').pop()?.toLowerCase();
+  if (ext === '7z') return '7z';
+  if (ext === 'zip') return 'zip';
+  return 'exe';
+}
+
+function buildTypeFromFile(file: File): BuildType {
+  return file.name.toLowerCase().endsWith('.exe')
+    ? 'executable'
+    : 'archive';
+}
+
+
   /* ---------------- Submit ---------------- */
   const handlePostSubmit = async () => {
     if (!asset || !gameName || !startPath || isSubmitting) return;
@@ -156,7 +188,8 @@ const GamePostForm: React.FC<PostModalProps> = ({ onCancel }) => {
             file: {
               name: asset.name,
               url: uploadedUrl,
-              size: asset.size
+              size: asset.size,
+              format: getBuildFormat(asset.name) // '7z' | 'zip' | 'exe'
             }
           }
         })
@@ -353,7 +386,7 @@ const GamePostForm: React.FC<PostModalProps> = ({ onCancel }) => {
               </div>
               <div className="text-center">
                 <p className="text-gray-900 dark:text-white font-bold">Upload Game Build</p>
-                <p className="text-xs text-gray-500 mt-1">Accepts .zip, .exe, .apk (Max 5GB)</p>
+                <p className="text-xs text-gray-500 mt-1">Accepts .zip, .7z, .exe, .apk (Max 5GB)</p>
               </div>
             </div>
           )}
@@ -373,7 +406,7 @@ const GamePostForm: React.FC<PostModalProps> = ({ onCancel }) => {
         ref={fileInputRef}
         type="file"
         hidden
-        accept=".zip,.exe,.apk"
+        accept=".7z,.zip,.exe,application/x-7z-compressed,application/zip"
         onChange={handleFileChange}
       />
     </div>
