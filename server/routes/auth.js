@@ -1,6 +1,8 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import Session from "../models/Session.js";
+import crypto from "crypto";
 import dotenv from "dotenv";
 import User from "../models/User.js"; // Correct import after fixing export
 import passport from "passport";
@@ -31,9 +33,27 @@ router.get("/google", passport.authenticate("google", { scope: ["profile", "emai
 router.get(
   "/google/callback",
   passport.authenticate("google", { failureRedirect: `${url}/login` }),
-  (req, res) => {
-    res.cookie("token", req.user.token, cookieOptions);
-    res.redirect(`${url}/`); // Redirect to frontend
+  async (req, res) => {
+    try {
+      const { user, token } = req.user;
+
+      const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+      await Session.create({
+        userId: user._id,
+        deviceId: req.deviceId,
+        tokenHash,
+        userAgent: req.headers["user-agent"],
+        ip: req.ip
+      });
+      console.log("Session created for userId", user._id);
+      res.cookie("token", token, cookieOptions);
+      res.redirect(`${url}/`);
+
+    } catch (err) {
+      console.error("Google login error:", err);
+      res.redirect(`${url}/login`);
+    }
   }
 );
 
@@ -60,9 +80,17 @@ router.post("/register", async (req, res) => {
     });
 
     await newUser.save();
-    const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "30d" });
-    res.cookie("token", token, cookieOptions);
+    const token = jwt.sign({ id: newUser._id },process.env.JWT_SECRET, { expiresIn: "30d" });
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
+    await Session.create({
+      userId: newUser._id,
+      deviceId: req.deviceId,
+      tokenHash,
+      userAgent: req.headers["user-agent"],
+      ip: req.ip
+    });
+    res.cookie("token", token, cookieOptions);
     res.status(201).json({ message: "User registered & authenticated successfully", user: newUser, token });
   } catch (error) {
     console.error("Error in registration:", error);
@@ -87,6 +115,17 @@ router.post("/login", async (req, res) => {
 
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "30d" });
 
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    
+    await Session.create({
+      userId: user._id,
+      deviceId: req.deviceId,
+      tokenHash,
+      userAgent: req.headers["user-agent"],
+      ip: req.ip
+    });
+    console.log("Session created for userId", user._id);
+
     res.cookie("token", token, cookieOptions);
 
 
@@ -104,10 +143,67 @@ router.get("/verify", verifyToken, (req, res) => {
 });
 
 // Logout Route
-router.post("/logout", (_req, res) => {
+router.post("/logout", verifyToken, async (req, res) => {
+  const userId = req.user._id;
+  const deviceId = req.deviceId;
+
+  await Session.deleteMany({
+    userId,
+    deviceId
+  });
+
   res.clearCookie("token", clearCookieOptions);
   res.json({ message: "Logged out successfully" });
 });
 
+
+
+router.post("/switch-account", async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const deviceId = req.deviceId;
+    console.log("deviceId:", deviceId);
+    console.log("userId:", userId);
+    // 1️⃣ Ensure target account exists on this device
+    const targetSession = await Session.findOne({ userId, deviceId });
+    console.log("targetSession:", targetSession);
+    if (!targetSession) {
+      return res.status(401).json({
+        error: "Account not logged in on this device"
+      });
+    }
+
+    // 3️⃣ Issue new token for target user
+    const newToken = jwt.sign(
+      { id: userId },
+      process.env.JWT_SECRET,
+      { expiresIn: "30d" }
+    );
+
+    const newHash = crypto
+      .createHash("sha256")
+      .update(newToken)
+      .digest("hex");
+
+    await Session.create({
+      userId,
+      deviceId,
+      tokenHash: newHash,
+      userAgent: req.headers["user-agent"],
+      ip: req.ip
+    });
+
+    // 4️⃣ Set cookie
+    res.cookie("token", newToken, cookieOptions);
+
+    const user = await User.findById(userId).select("-password");
+    console.log("Switched account:", user);
+    res.json({ message: "Switched account", user });
+
+  } catch (err) {
+    console.error("Switch error:", err);
+    res.status(500).json({ error: "Switch failed" });
+  }
+});
 
 export default router;

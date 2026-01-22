@@ -14,7 +14,7 @@ import AppRoutes from "./AppRoutes";
 function App() {
   const { user } = useUser();
   return (
-    <SocketProvider userId={user?.id}>
+    <SocketProvider userId={user?._id}>
       <UsersProvider>
         <SearchProvider>
           <GoogleOAuthProvider clientId="970893892840-8ecshtmle4kip6ps0bl7vbkg3nogl5od.apps.googleusercontent.com">

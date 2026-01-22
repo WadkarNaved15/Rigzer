@@ -1,19 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, Lock, ArrowRight, Zap, User, Eye, EyeOff } from 'lucide-react';
 import { GoogleOAuthProvider } from "@react-oauth/google";
-import { useNavigate } from "react-router-dom";
+import { saveAccount } from "../utils/accountRegistry.js";
+import { useNavigate ,useLocation} from "react-router-dom";
 import axios from 'axios';
 import { useUser } from "../context/user.js";
 
 type AuthMode = 'login' | 'signup';
 
 function Auth() {
-  const { login } = useUser();
+  const { login, user, loading } = useUser();
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000"; // Ensure this is set in your .env file
   const [mode, setMode] = useState<AuthMode>('login');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const addMode = searchParams.get("add") === "true";
+
   const navigate = useNavigate();
 
   // Form states
@@ -28,27 +33,12 @@ function Auth() {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch(`${BACKEND_URL}/api/auth/verify`, {
-          method: "GET",
-          credentials: "include",
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          login(data.user);
-          console.log("Token is valid ✅");
-          navigate("/"); // Redirect to dashboard if authenticated
-        }
-      } catch (error) {
-        console.error("Verification error:", error);
-      }
-    };
-
-    checkAuth();
-  }, [navigate]);
+   useEffect(() => {
+    if (user && !loading && !addMode) {
+      navigate("/"); // normal redirect for logged-in users
+    }
+    // ✅ if addMode is true, we do NOT redirect
+  }, [user, loading, addMode, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,23 +63,39 @@ function Auth() {
 
         console.log(response.data);
         if (response.status === 200) {
-          await login(response.data.user);
-          console.log(response.data);
-          navigate("/")
+          const user = response.data.user;
+
+          saveAccount({
+            userId: user._id,
+            username: user.username,
+            avatar: user.avatar
+          });
+
+          login(user);
+          navigate("/");
         }
+
       } else {
         const response = await axios.post(`${BACKEND_URL}/api/auth/register`, {
           username: formData.username,
           email: formData.email,
           password: formData.password
         },
-        { withCredentials: true } 
-      );
+          { withCredentials: true }
+        );
         if (response.status === 200) {
-          await login(response.data.user);
-          console.log(response.data);
-          navigate("/")
+          const user = response.data.user;
+
+          saveAccount({
+            userId: user._id,
+            username: user.username,
+            avatar: user.avatar
+          });
+
+          login(user);
+          navigate("/");
         }
+
       }
       // Here you would typically send the formData to your backend API
       console.log("Form data submitted:", formData);

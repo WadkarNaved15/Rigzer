@@ -34,7 +34,7 @@ const PostInteractions: React.FC<PostInteractionsProps> = ({
   if (!user) {
     console.log("User not found");
   }
-  const currentUserId = user?.id;
+  const currentUserId = user?._id;
 
   return (
     <div className="mt-4">

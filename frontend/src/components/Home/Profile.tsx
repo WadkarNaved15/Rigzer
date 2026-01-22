@@ -1,4 +1,8 @@
-import { CircleUser, Gamepad2, UserRound, Bookmark } from "lucide-react";
+import { useState} from "react";
+import { useNavigate } from "react-router-dom";
+import { CircleUser, Gamepad2, UserRound, Bookmark,LogIn,LogOut} from "lucide-react";
+import AccountSwitcherOverlay from "./AccountSwitchOverlay";
+import { useUser } from "../../context/user";
 
 interface ProfileCoverProps {
   setProfileOpen: (open: boolean) => void;
@@ -7,10 +11,18 @@ interface ProfileCoverProps {
 
 export default function ProfileCover({
   setProfileOpen,
-  onOpenWishlist,   // ✅ destructured correctly
+  onOpenWishlist,
 }: ProfileCoverProps) {
-
+  const [accountOverlayOpen, setAccountOverlayOpen] = useState(false);
+  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
   const cardBg = "#191919";
+  const navigate=useNavigate();
+  const { user,logout } = useUser();
+  const handleAvatarClick = (e: React.MouseEvent<HTMLImageElement>) => {
+    // This captures exactly where the image is on the user's screen
+    setAnchorRect(e.currentTarget.getBoundingClientRect());
+    setAccountOverlayOpen(true);
+  };
 
   const navItems = [
     {
@@ -24,25 +36,28 @@ export default function ProfileCover({
       action: () => console.log("Games clicked"),
     },
     {
-      icon: UserRound,
-      label: "Friends",
-      action: () => console.log("Friends clicked"),
-    },
-    {
       icon: Bookmark,
       label: "Saved",
-      action: onOpenWishlist,   // ✅ direct function call
+      action: onOpenWishlist,
+    },
+    // Toggle between Logout and Login based on user state
+    user ? {
+      icon: LogOut,
+      label: "Logout",
+      action: logout,
+    } : {
+      icon: LogIn,
+      label: "Login",
+      action: () => navigate("/auth"),
     },
   ];
 
   return (
     <div className="max-w-3xl mx-auto">
       <div
-        className="relative backdrop-blur-sm border border-white/5 rounded-t-[0.5rem] overflow-hidden shadow-xl"
+        className="relative backdrop-blur-sm border border-white/5 rounded-t-[0.5rem] overflow-visible shadow-xl"
         style={{ backgroundColor: cardBg }}
       >
-        <div className="pointer-events-none absolute inset-0 rounded-t-[0.7rem]" />
-
         {/* Cover */}
         <div className="relative">
           <div
@@ -60,14 +75,24 @@ export default function ProfileCover({
             }}
           />
 
-          {/* Profile Image */}
-          <div className="absolute -bottom-8 left-4">
-            <img
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-              alt="Profile"
-              className="w-16 h-16 rounded-full border-4 shadow-2xl object-cover"
-              style={{ borderColor: cardBg }}
-            />
+          {/* Profile Image Container */}
+          <div className="absolute -bottom-8 left-4 flex items-end z-50">
+            <div className="relative">
+              <img
+                src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+                alt="Profile"
+                onClick={handleAvatarClick}
+                className="w-16 h-16 rounded-full border-4 shadow-2xl object-cover cursor-pointer hover:brightness-90 transition"
+                style={{ borderColor: cardBg }}
+              />
+
+              {accountOverlayOpen && (
+                <AccountSwitcherOverlay 
+                  anchorRect={anchorRect}
+                  onClose={() => setAccountOverlayOpen(false)} 
+                />
+              )}
+            </div>
           </div>
         </div>
 

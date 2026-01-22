@@ -26,13 +26,13 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
   const [loadingPosts, setLoadingPosts] = useState(false);
   const { user } = useUser();
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?._id) return;
 
     const fetchUserPosts = async () => {
       setLoadingPosts(true);
       try {
         const res = await axios.get(
-          `${BACKEND_URL}/api/posts/user_posts/${user.id}`
+          `${BACKEND_URL}/api/posts/user_posts/${user._id}`
         );
         setUserPosts(res.data.posts);
       } catch (err) {
@@ -43,7 +43,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
     };
 
     fetchUserPosts();
-  }, [user?.id]);
+  }, [user?._id]);
 
 
   console.log("User in ProfilePage:", user);
@@ -94,7 +94,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
 
           {/* Followers List remains on the right */}
           <div className="ml-16 pt-2">
-            <FollowersList userId={user?.id} />
+            <FollowersList userId={user?._id} />
           </div>
         </div>
 
