@@ -342,8 +342,8 @@ if (viewport) {
   }, [selectedId, updateSelectionGizmo]);
 
   useEffect(() => {
-  if (user?.id) {
-    canvasAPI.setUserId(user.id)
+  if (user?._id) {
+    canvasAPI.setUserId(user._id)
   }
 }, [user])
 
