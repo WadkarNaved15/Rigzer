@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Mail, Lock, ArrowRight, Zap, User, Eye, EyeOff } from 'lucide-react';
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { saveAccount } from "../utils/accountRegistry.js";
-import { useNavigate ,useLocation} from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import axios from 'axios';
 import { useUser } from "../context/user.js";
 
@@ -33,7 +33,7 @@ function Auth() {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
-   useEffect(() => {
+  useEffect(() => {
     if (user && !loading && !addMode) {
       navigate("/"); // normal redirect for logged-in users
     }
@@ -250,9 +250,14 @@ function Auth() {
                     Remember me
                   </label>
                 </div>
-                <a href="#" className="text-sm font-medium text-purple-600 hover:text-purple-500">
+                <button
+                  type="button"
+                  onClick={() => navigate("/forgot-password")}
+                  className="text-sm font-medium text-purple-600 hover:text-purple-500"
+                >
                   Forgot password?
-                </a>
+                </button>
+
               </div>
             )}
 

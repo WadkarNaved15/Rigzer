@@ -6,6 +6,7 @@ import crypto from "crypto";
 import dotenv from "dotenv";
 import User from "../models/User.js"; // Correct import after fixing export
 import passport from "passport";
+import { sendResetEmail } from "../services/sendResetEmail.js";
 import verifyToken from "../middlewares/authMiddleware.js";
 
 dotenv.config();
@@ -156,7 +157,76 @@ router.post("/logout", verifyToken, async (req, res) => {
   res.json({ message: "Logged out successfully" });
 });
 
+router.post("/forgot-password", async (req, res) => {
+  try {
+    const { email } = req.body;
 
+    const user = await User.findOne({ email });
+    if (!user) {
+      // security: don't reveal existence
+      return res.json({ message: "If the email exists, a reset link has been sent" });
+    }
+
+    // Google users cannot reset password
+    if (user.isGoogleUser) {
+      return res.json({ message: "Use Google login to access your account" });
+    }
+
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpires = Date.now() + 15 * 60 * 1000; // 15 min
+    await user.save();
+
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
+    // 🔔 send email here
+    await sendResetEmail(user.email, resetUrl);
+
+    res.json({ message: "If the email exists, a reset link has been sent" });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Password reset failed" });
+  }
+});
+
+router.post("/reset-password", async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+
+    const hashedToken = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
+
+    const user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() },
+    }).select("+password");
+
+    if (!user) {
+      return res.status(400).json({ error: "Invalid or expired token" });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+
+    // 🔥 clear token
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+
+    await user.save();
+    await Session.deleteMany({ userId: user._id });
+    res.json({ message: "Password reset successful. Please login again." });
+
+  } catch (err) {
+    res.status(500).json({ error: "Reset failed" });
+  }
+});
 
 router.post("/switch-account", async (req, res) => {
   try {

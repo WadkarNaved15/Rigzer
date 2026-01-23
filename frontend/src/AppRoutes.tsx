@@ -13,9 +13,11 @@ const UploadGame = lazy(() => import("./Pages/UploadGame"));
 const DevLogs = lazy(() => import("./Pages/DevLogs"));
 const DevLogsView = lazy(() => import("./Pages/DevLogViewPage"));
 const DevLogCanvas = lazy(() => import("./Pages/DevlogCanvas"));
+const PostDetail = lazy(() => import("./Pages/PostDetail"));
 const DevlogViewer = lazy(() => import("./Pages/DevlogViewer"));
 const Puck = lazy(() => import("./Pages/Puck"));
-
+import ForgotPassword from "./Pages/ForgotPassword";
+import ResetPassword from "./Pages/ResetPassword";
 // Components
 import GameStatus from "./components/Home/PlayGame";
 import { Header } from "./components/Header";
@@ -25,8 +27,7 @@ import PublisherForm from "./Pages/PublisherForm"
 import ModelViewer from "./components/ModelViewer";
 import GamePost from "./components/Home/GamePost";
 
-// 🔥 NEW
-const PostDetail = lazy(() => import("./Pages/PostDetail"));
+
 
 export default function AppRoutes() {
   const location = useLocation();
@@ -39,6 +40,8 @@ export default function AppRoutes() {
         <Routes location={state?.background || location}>
           <Route path="/" element={<Home />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/stream" element={<GameStatus />} />
           <Route path="/wishlist" element={<WishlistPage />} />
           <Route

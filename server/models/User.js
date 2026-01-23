@@ -14,7 +14,15 @@ const userSchema = new mongoose.Schema(
     isGoogleUser: { type: Boolean, default: false },
     followersCount: { type: Number, default: 0 },
     followingCount: { type: Number, default: 0 },
+    resetPasswordToken: {
+      type: String,
+      select: false,
+    },
+    resetPasswordExpires: {
+      type: Date,
+    },
   },
+  
   { timestamps: true }
 );
 
