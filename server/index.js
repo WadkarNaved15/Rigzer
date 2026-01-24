@@ -51,6 +51,8 @@ const corsWhitelist = [
   "http://localhost:5173",
   "https://localhost:5173",
   "https://xn--tlay-0ra.com",
+  "https://www.rigzer.com",  
+  "https://rigzer.com",
   process.env.FRONTEND_URL
 ];
 
