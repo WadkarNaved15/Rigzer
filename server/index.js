@@ -39,6 +39,12 @@ import Message from "./models/Message.js";
 import searchRoutes from "./routes/searchRoutes.js";
 import followRoutes from "./routes/followRoutes.js";
 import canvasRoutes from "./routes/canvasRoutes.js";
+import sessionRoutes from "./routes/sessions.js";
+import internalRoutes from "./routes/internal.js";
+import { initializeInstancePool } from "./services/instanceAllocator.js";
+import { initializeSessionPubSub } from "./services/sessionPubSub.js";
+import  streamProxyRouter  from "./routes/streamProxy.js";
+
 
 dotenv.config();
 
@@ -115,9 +121,13 @@ app.use("/api/metadata", metadataRoutes);
 app.use("/api/comments", commentRoutes);
 app.use("/api/search", searchRoutes);
 app.use("/api/canvas", canvasRoutes);
+app.use("/api/sessions", sessionRoutes);
+app.use("/api/internal", internalRoutes);
+app.use("/api/stream", streamProxyRouter);
 
 // HTTP SERVER
 const server = http.createServer(app);
+
 
 // SOCKET.IO (Real-Time Chat)
 const io = new Server(server, {
@@ -213,4 +223,17 @@ mongoose
   .catch((err) => console.log("MongoDB Connection Error:", err));
 
 // START SERVER
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+// START SERVER
+(async () => {
+  try {
+    await initializeInstancePool();
+    await initializeSessionPubSub();
+    server.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (err) {
+    console.error("❌ Failed to initialize instance pool", err);
+    process.exit(1);
+  }
+})();
+

@@ -15,6 +15,7 @@ const DevLogsView = lazy(() => import("./Pages/DevLogViewPage"));
 const DevLogCanvas = lazy(() => import("./Pages/DevlogCanvas"));
 const DevlogViewer = lazy(() => import("./Pages/DevlogViewer"));
 const Puck = lazy(() => import("./Pages/Puck"));
+const StreamPage = lazy(() => import("./Pages/StreamPage"));
 
 // Components
 import GameStatus from "./components/Home/PlayGame";
@@ -39,8 +40,8 @@ export default function AppRoutes() {
         <Routes location={state?.background || location}>
           <Route path="/" element={<Home />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/stream" element={<GameStatus />} />
-          <Route path="/wishlist" element={<WishlistPage />} />
+          <Route path="/stream/:sessionId" element={<StreamPage />} />
+          <Route path="/wishlist" element={<WishlistPage />} />  
           <Route
             path="/publisher"
             element={

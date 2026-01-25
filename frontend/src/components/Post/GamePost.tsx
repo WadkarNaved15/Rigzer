@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import PostInteractions from './PostInteractions';
 import { Play, Gamepad2, Sparkles } from 'lucide-react';
 import type { GamePostProps } from '../../types/Post';
+import AdWithStatus from '../Home/PlayGame';
 
 const GamePost: React.FC<GamePostProps> = ({
   user,
@@ -20,13 +21,19 @@ const GamePost: React.FC<GamePostProps> = ({
   avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
 }) => {
   const postRef = useRef(null);
-  const [viewerOpen, setViewerOpen] = useState(false);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
   const [showComments, setShowComments] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const { likesCount, isLiked, handleLike } = useLikes(_id, BACKEND_URL);
   const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
   let viewStartTime = useRef<number | null>(null);
+  
+  // Session state management
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [showAdOverlay, setShowAdOverlay] = useState(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+  const [isStarting, setIsStarting] = useState(false);
+
 
   /* ---------------- Analytics Logic ---------------- */
   const startViewing = async () => {
@@ -36,7 +43,7 @@ const GamePost: React.FC<GamePostProps> = ({
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ postId: _id })
-    }).catch(() => { });
+    }).catch(() => {});
   };
 
   const stopViewing = async () => {
@@ -48,7 +55,7 @@ const GamePost: React.FC<GamePostProps> = ({
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ postId: _id, duration })
-    }).catch(() => { });
+    }).catch(() => {});
   };
 
   const markViewed = async () => {
@@ -57,8 +64,9 @@ const GamePost: React.FC<GamePostProps> = ({
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ postId: _id })
-    }).catch(() => { });
+    }).catch(() => {});
   };
+
   const getRelativeTime = (date: string | Date) => {
     const now = new Date();
     const created = new Date(date);
@@ -77,17 +85,46 @@ const GamePost: React.FC<GamePostProps> = ({
       day: "numeric",
     });
   };
+
   const timestamp = useMemo(
     () => getRelativeTime(createdAt),
     [createdAt]
   );
-  const handleStartGame = async () => {
-    fetch(`${BACKEND_URL}/api/interactions/played-demo`, {
+
+const handleStartGame = async () => {
+  if (isStarting) return; // 🔒 hard stop
+  setIsStarting(true);
+
+  try {
+    setSessionError(null);
+
+    const res = await fetch(`${BACKEND_URL}/api/sessions/start`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ postId: _id })
-    }).catch(() => { });
+      body: JSON.stringify({ gamePostId: _id }),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "Failed to start session");
+    }
+
+    const data = await res.json();
+    setSessionId(data.sessionId);
+    setShowAdOverlay(true);
+
+  } catch (err: any) {
+    console.error("Failed to start game:", err);
+    setSessionError(err.message || "Failed to start game. Please try again.");
+    setIsStarting(false); // 🔓 allow retry on failure
+  }
+};
+
+
+  const handleStreamReady = (sessionId: string) => {
+    // Navigate to the stream page
+    window.location.href = `/stream/${sessionId}`;
   };
 
   useEffect(() => {
@@ -107,121 +144,155 @@ const GamePost: React.FC<GamePostProps> = ({
   }, []);
 
   return (
-    <article
-      ref={postRef}
-      onClick={() => {
-        if (viewerOpen) return; // 🔥 BLOCK when overlay is open
-        onOpenDetails?.();
-      }}
-      className="
-    relative w-full 
-    border border-gray-200 dark:border-gray-700
-    bg-white dark:bg-[#191919]
-    hover:bg-[#F7F9F9] dark:hover:bg-[#16181C]
-    transition-colors duration-200
-    cursor-pointer
-  "
-    >
-      <div className="flex gap-3 p-4">
-        {/* User Avatar */}
-        <img src={avatarUrl} alt={user.username} className="h-10 w-10 rounded-full object-cover mt-1" />
+    <>
+      {/* =============================== 
+          AD OVERLAY (Shows while session is starting)
+      =============================== */}
+      {showAdOverlay && sessionId && (
+        <AdWithStatus
+          sessionId={sessionId}
+          onStreamReady={handleStreamReady}
+        />
+      )}
 
-        <div className="flex flex-col flex-1 min-w-0">
-          <PostHeader
-            type='game_post'
-            username={user.username}
-            timestamp={timestamp}
-            price={gamePost?.price || 0}
+      {/* =============================== 
+          POST CARD
+      =============================== */}
+      <article
+        ref={postRef}
+        onClick={(e) => {
+          if (showAdOverlay) {
+            e.stopPropagation();
+            return;
+          }
+          onOpenDetails?.();
+        }}
+        className="
+          relative w-full 
+          border border-gray-200 dark:border-gray-700
+          bg-white dark:bg-[#191919]
+          hover:bg-[#F7F9F9] dark:hover:bg-[#16181C]
+          transition-colors duration-200
+          cursor-pointer
+        "
+      >
+        <div className="flex gap-3 p-4">
+          {/* User Avatar */}
+          <img 
+            src={avatarUrl} 
+            alt={user.username} 
+            className="h-10 w-10 rounded-full object-cover mt-1" 
           />
 
-          {description && (
-            <div className="mt-2 mb-4">
-              <p
-                className={`text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap transition-all ${!isExpanded ? "line-clamp-2" : ""
+          <div className="flex flex-col flex-1 min-w-0">
+            <PostHeader
+              type='game_post'
+              username={user.username}
+              timestamp={timestamp}
+              price={gamePost?.price || 0}
+            />
+
+            {description && (
+              <div className="mt-2 mb-4">
+                <p
+                  className={`text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap transition-all ${
+                    !isExpanded ? "line-clamp-2" : ""
                   }`}
-              >
-                {description}
-              </p>
-
-              {/* Only show button if description is long enough to need it */}
-              {description.length > 100 && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation(); // Prevents opening post details when clicking the button
-                    setIsExpanded(!isExpanded);
-                  }}
-                  className="text-sky-500 hover:text-sky-600 font-semibold text-sm mt-1 focus:outline-none"
                 >
-                  {isExpanded ? "Show less" : "Show more"}
-                </button>
-              )}
-            </div>
-          )}
+                  {description}
+                </p>
 
-          {/* SIMPLIFIED GAME CARD - Focus on Instant Play */}
-          {gamePost && (
-            <div className="group relative rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 mb-4 transition-all hover:border-sky-500/50">
-
-              {/* Visual Background Decor */}
-              <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 via-transparent to-purple-500/10 opacity-50" />
-
-              <div className="relative p-8 flex flex-col items-center justify-center text-center">
-                {/* Game Branding */}
-                <div className="w-16 h-16 bg-white dark:bg-[#191919] rounded-2xl shadow-xl flex items-center justify-center mb-4 border border-gray-100 dark:border-zinc-800 group-hover:scale-110 transition-transform duration-300">
-                  <Gamepad2 className="text-sky-500 w-8 h-8" />
-                </div>
-
-                <h3 className="text-2xl font-black text-black dark:text-white tracking-tight">
-                  {gamePost.gameName}
-                </h3>
-
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-200 dark:bg-zinc-800 px-2 py-0.5 rounded">
-                    v{gamePost.version}
-                  </span>
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-sky-500 uppercase tracking-widest">
-                    <Sparkles size={10} />
-                    Instant Stream
-                  </div>
-                </div>
-
-                {/* Call to Action */}
-                <Link to='/stream' className="mt-8 w-full max-w-xs">
+                {description.length > 100 && (
                   <button
-                    onClick={handleStartGame}
-                    className="w-full flex items-center justify-center gap-2 py-3.5 bg-sky-500 hover:bg-sky-600 text-white font-black rounded-xl transition-all shadow-lg shadow-sky-500/20 active:scale-[0.98]"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsExpanded(!isExpanded);
+                    }}
+                    className="text-sky-500 hover:text-sky-600 font-semibold text-sm mt-1 focus:outline-none"
+                  >
+                    {isExpanded ? "Show less" : "Show more"}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* GAME CARD */}
+            {gamePost && (
+              <div className="group relative rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-800 bg-zinc-100 dark:bg-zinc-900 mb-4 transition-all hover:border-sky-500/50">
+                <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 via-transparent to-purple-500/10 opacity-50" />
+
+                <div className="relative p-8 flex flex-col items-center justify-center text-center">
+                  {/* Game Icon */}
+                  <div className="w-16 h-16 bg-white dark:bg-[#191919] rounded-2xl shadow-xl flex items-center justify-center mb-4 border border-gray-100 dark:border-zinc-800 group-hover:scale-110 transition-transform duration-300">
+                    <Gamepad2 className="text-sky-500 w-8 h-8" />
+                  </div>
+
+                  <h3 className="text-2xl font-black text-black dark:text-white tracking-tight">
+                    {gamePost.gameName}
+                  </h3>
+
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest bg-gray-200 dark:bg-zinc-800 px-2 py-0.5 rounded">
+                      v{gamePost.version}
+                    </span>
+                    <div className="flex items-center gap-1 text-[10px] font-bold text-sky-500 uppercase tracking-widest">
+                      <Sparkles size={10} />
+                      Instant Stream
+                    </div>
+                  </div>
+
+                  {/* Error Message */}
+                  {sessionError && (
+                    <div className="mt-3 w-full bg-red-500/10 border border-red-500/30 rounded-lg p-2">
+                      <p className="text-xs text-red-500 font-medium">{sessionError}</p>
+                    </div>
+                  )}
+
+                  {/* Play Button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStartGame();
+                    }}
+                    disabled={isStarting}
+                    className="mt-4 w-full flex items-center justify-center gap-2 py-3.5
+                      bg-sky-500 hover:bg-sky-600 text-white font-black rounded-xl
+                      transition-all shadow-lg shadow-sky-500/20
+                      active:scale-[0.98]
+                      disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Play size={18} fill="currentColor" />
-                    PLAY NOW
+                    {isStarting ? "STARTING..." : "PLAY NOW"}
                   </button>
-                </Link>
 
-                <p className="text-[10px] text-gray-500 dark:text-zinc-500 mt-4 font-medium italic">
-                  No download required • Powered by our Cloud Instances
-                </p>
+
+                  <p className="text-[10px] text-gray-500 dark:text-zinc-500 mt-4 font-medium italic">
+                    No download required • Powered by Cloud Instances
+                  </p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {!disableInteractions && (
-            <div onClick={(e) => e.stopPropagation()}>
-              <PostInteractions
-                postId={_id}
-                likes={likesCount}
-                comments={comments}
-                isLiked={isLiked}
-                isWishlisted={isWishlisted}
-                onLike={handleLike}
-                onWishlist={handleWishlist}
-                onCommentToggle={() => onOpenDetails?.()}
-              />
-            </div>
-          )}
+            {!disableInteractions && (
+              <div onClick={(e) => e.stopPropagation()}>
+                <PostInteractions
+                  postId={_id}
+                  likes={likesCount}
+                  comments={comments}
+                  isLiked={isLiked}
+                  isWishlisted={isWishlisted}
+                  onLike={handleLike}
+                  onWishlist={handleWishlist}
+                  onCommentToggle={() => onOpenDetails?.()}
+                />
+              </div>
+            )}
 
-          {showComments && <CommentSection postId={_id} BACKEND_URL={BACKEND_URL} />}
+            {showComments && <CommentSection postId={_id} BACKEND_URL={BACKEND_URL} />}
+          </div>
         </div>
-      </div>
-    </article>
+      </article>
+    </>
   );
 };
 

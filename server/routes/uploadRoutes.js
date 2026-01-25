@@ -115,7 +115,7 @@ router.post("/game/complete-multipart", async (req, res) => {
     await s3.send(command);
     res.json({ 
       success: true, 
-      fileUrl: `${process.env.CLOUDFRONT_DOMAIN}/${key}` 
+      fileUrl: `/${key}` 
     });
   } catch (err) {
     console.error(err);
