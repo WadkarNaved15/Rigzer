@@ -7,11 +7,17 @@ type AdWithStatusProps = {
 };
 
 interface Ad {
-  mediaType: string;
+  _id: string;
+  title?: string;
+  mediaType: "video" | "image";
   mediaUrl: string;
   redirectUrl: string;
-  logoUrl?: string;
+  logoUrl?: string | null;
+  impressions?: number;
+  clicks?: number;
+  isActive?: boolean;
 }
+
 
 const stepsMap: { [key: string]: string } = {
   starting: "Initializing Session",
@@ -122,7 +128,7 @@ useEffect(() => {
     if (ad) {
       // Track click
       try {
-        await axios.post(`${BACKEND_URL}/api/ads/click/${ad._id || ad.id}`);
+        await axios.post(`${BACKEND_URL}/api/ads/click/${ad._id}`);
       } catch (err) {
         console.error("Failed to track ad click:", err);
       }
