@@ -59,25 +59,8 @@ export function Header() {
   window.addEventListener("scroll", handleScroll);
   return () => window.removeEventListener("scroll", handleScroll);
 }, []);
-const handleLogout = async () => {
-  try {
-    await fetch(`${BACKEND_URL}/api/auth/logout`, {
-      method: "POST",
-      credentials: "include",
-    });
 
-    logout();              // clear context
-    localStorage.clear(); // clear storage
-    window.location.href = "/";  // force clean reload
-
-  } catch (error) {
-    console.error("Logout failed:", error);
-  }
-};
-
-
-
-  // const handleSearch = (e: React.FormEvent) => {
+ // const handleSearch = (e: React.FormEvent) => {
   //   e.preventDefault();
   //   if (searchQuery.trim() === "") return;
   //   console.log("Searching for:", searchQuery);
@@ -126,7 +109,7 @@ const handleLogout = async () => {
                   })
                 }
               >
-                STREAMOSS
+                RIGZER
               </Link>
             </div>
 
@@ -180,17 +163,6 @@ const handleLogout = async () => {
                 <Sun className="h-5 w-5 text-gray-600 dark:text-white" />
               ) : (
                 <Moon className="h-5 w-5 text-gray-600 dark:text-white" />
-              )}
-            </button>
-            <button
-              onClick={user ? handleLogout : () => (window.location.href = "/auth")}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
-              aria-label={user ? "Logout" : "Login"}
-            >
-              {user ? (
-                <LogOut className="h-5 w-5 text-gray-600 dark:text-white" />
-              ) : (
-                <LogIn className="h-5 w-5 text-gray-600 dark:text-white" />
               )}
             </button>
           </div>

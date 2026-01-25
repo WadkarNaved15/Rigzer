@@ -1,4 +1,8 @@
-import { CircleUser, Gamepad2, UserRound, Bookmark } from "lucide-react";
+import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { CircleUser, Gamepad2, Bookmark, LogIn, LogOut } from "lucide-react";
+import AccountSwitcherOverlay from "./AccountSwitchOverlay";
+import { useUser } from "../../context/user";
 
 interface ProfileCoverProps {
   setProfileOpen: (open: boolean) => void;
@@ -7,42 +11,35 @@ interface ProfileCoverProps {
 
 export default function ProfileCover({
   setProfileOpen,
-  onOpenWishlist,   // ✅ destructured correctly
+  onOpenWishlist,
 }: ProfileCoverProps) {
-
+  const [accountOverlayOpen, setAccountOverlayOpen] = useState(false);
+  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
+  
   const cardBg = "#191919";
+  const navigate = useNavigate();
+  const { user, logout } = useUser();
+
+  const handleAvatarClick = (e: React.MouseEvent<HTMLImageElement>) => {
+    setAnchorRect(e.currentTarget.getBoundingClientRect());
+    setAccountOverlayOpen(true);
+  };
 
   const navItems = [
-    {
-      icon: CircleUser,
-      label: "Profile",
-      action: () => setProfileOpen(true),
-    },
-    {
-      icon: Gamepad2,
-      label: "Games",
-      action: () => console.log("Games clicked"),
-    },
-    {
-      icon: UserRound,
-      label: "Friends",
-      action: () => console.log("Friends clicked"),
-    },
-    {
-      icon: Bookmark,
-      label: "Saved",
-      action: onOpenWishlist,   // ✅ direct function call
-    },
+    { icon: CircleUser, label: "Profile", action: () => setProfileOpen(true) },
+    { icon: Gamepad2, label: "Games", action: () => console.log("Games clicked") },
+    { icon: Bookmark, label: "Saved", action: onOpenWishlist },
+    user 
+      ? { icon: LogOut, label: "Logout", action: logout } 
+      : { icon: LogIn, label: "Login", action: () => navigate("/auth") },
   ];
 
   return (
     <div className="max-w-3xl mx-auto">
       <div
-        className="relative backdrop-blur-sm border border-white/5 rounded-t-[0.5rem] overflow-hidden shadow-xl"
+        className="relative backdrop-blur-sm border border-white/5 rounded-t-[0.5rem] overflow-visible shadow-xl"
         style={{ backgroundColor: cardBg }}
       >
-        <div className="pointer-events-none absolute inset-0 rounded-t-[0.7rem]" />
-
         {/* Cover */}
         <div className="relative">
           <div
@@ -52,7 +49,6 @@ export default function ProfileCover({
                 "url('https://fastly.picsum.photos/id/299/800/200.jpg?hmac=xMdRbjiNM_IogJDEgKIJ0GeCxZ8nwOGd5_Wf_ODZ94s')",
             }}
           />
-
           <div
             className="absolute inset-0"
             style={{
@@ -60,20 +56,25 @@ export default function ProfileCover({
             }}
           />
 
-          {/* Profile Image */}
-          <div className="absolute -bottom-8 left-4">
-            <img
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
-              alt="Profile"
-              className="w-16 h-16 rounded-full border-4 shadow-2xl object-cover"
-              style={{ borderColor: cardBg }}
-            />
+          {/* Profile Image Container */}
+          <div className="absolute -bottom-8 left-4 flex items-end z-10">
+            <div className="relative">
+              <img
+                src={user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"}
+                alt="Profile"
+                onClick={handleAvatarClick}
+                className={`w-16 h-16 rounded-full border-4 shadow-2xl object-cover cursor-pointer hover:brightness-90 transition-all ${
+                  accountOverlayOpen ? "opacity-0" : "opacity-100"
+                }`}
+                style={{ borderColor: cardBg }}
+              />
+            </div>
           </div>
         </div>
 
         {/* Content */}
         <div className="mt-10 px-4">
-          <h4 className="text-md font-bold text-gray-100">John Developer</h4>
+          <h4 className="text-md font-bold text-gray-100">{user?.username || "John Developer"}</h4>
           <p className="text-gray-500 text-sm">Game Developer</p>
         </div>
 
@@ -84,12 +85,19 @@ export default function ProfileCover({
               key={idx}
               onClick={item.action}
               title={item.label}
-              className="p-2 rounded-full hover:bg-white/10 transition-all active:scale-90 group"
+              className="p-2 rounded-full hover:bg-white/10 transition-all active:scale-90 group relative"
             >
               <item.icon className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" />
             </button>
           ))}
         </div>
+
+        {accountOverlayOpen && (
+          <AccountSwitcherOverlay
+            anchorRect={anchorRect}
+            onClose={() => setAccountOverlayOpen(false)}
+          />
+        )}
       </div>
     </div>
   );

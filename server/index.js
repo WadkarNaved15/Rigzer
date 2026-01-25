@@ -13,6 +13,7 @@ import { Server } from "socket.io";
 // ROUTES
 import modelUploadRouter from "./routes/compression.js";
 import chatMediaUpload from "./routes/chatMediaUpload.js";
+import deviceMiddleware from "./middlewares/deviceMiddleware.js";
 import ArticleRoutes from "./routes/articlesRoutes.js";
 import allPostRoutes from "./routes/allPosts.js";
 import gameStatus from "./routes/gameStatus.js"
@@ -56,6 +57,8 @@ const corsWhitelist = [
   "http://localhost:5173",
   "https://localhost:5173",
   "https://xn--tlay-0ra.com",
+  "https://www.rigzer.com",  
+  "https://rigzer.com",
   process.env.FRONTEND_URL
 ];
 
@@ -81,6 +84,7 @@ app.use(
 
 app.use(express.json());
 app.use(cookieParser());
+app.use(deviceMiddleware)
 app.use(
   session({
     secret: process.env.JWT_SECRET,

@@ -11,12 +11,12 @@ const FollowFace = ({ translateZ }: { translateZ: number }) => {
   const [loaded, setLoaded] = useState(false);
   const avatar="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?._id) return;
 
     const fetchUsers = async () => {
       try {
         const res = await axios.get(
-          `${BACKEND_URL}/api/follow/${user.id}/suggested`,
+          `${BACKEND_URL}/api/follow/${user._id}/suggested`,
           { withCredentials: true }
         );
         setUsers(res.data.users || []);
@@ -28,7 +28,7 @@ const FollowFace = ({ translateZ }: { translateZ: number }) => {
     };
 
     fetchUsers();
-  }, [user?.id]);
+  }, [user?._id]);
 
   if (!loaded) return null; // ⬅️ important: no empty flash
 
@@ -48,7 +48,7 @@ const FollowFace = ({ translateZ }: { translateZ: number }) => {
                 <h3 className="font-semibold">{u.name}</h3>
                 <p className="text-sm text-gray-500">@{u.username}</p>
               </div>
-              <FollowButton userId={user!.id} targetId={u._id} />
+              <FollowButton userId={user!._id} targetId={u._id} />
             </div>
           ))
         )}

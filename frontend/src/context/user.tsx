@@ -5,11 +5,13 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
+import { saveAccount } from "../utils/accountRegistry";
+import { removeAccount } from "../utils/accountRegistry";
 
 // Type definitions (optional — safe for JS if removed)
 type User = {
-  id: string;
-  name: string;
+  _id: string;
+  username: string;
   email: string;
   avatar?: string;
   followersCount?: number;
@@ -21,6 +23,7 @@ type UserContextType = {
   loading: boolean;
   login: (user: User) => void;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 };
 
 // Create context
@@ -40,38 +43,77 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
   useEffect(() => {
-    const verifySession = async () => {
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/auth/verify`, {
-          method: "GET",
-          credentials: "include",
+  const verifySession = async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/auth/verify`, {
+        method: "GET",
+        credentials: "include",
+      });
+
+      if (res.ok) {
+        const { user } = await res.json();
+        setUser(user);
+        console.log("user verified:", user);
+        // ✅ store account for switcher
+        saveAccount({
+          userId: user._id,
+          username: user.username,
+          avatar: user.avatar,
         });
 
-        if (res.ok) {
-          const { user } = await res.json();
-          setUser(user);
-          console.log("✅ Session verified");
-        }
-      } catch (err) {
-        console.warn("Session check failed:", err);
-      } finally {
-        setLoading(false);   // ✅ VERY IMPORTANT
+        console.log("✅ Session verified & account stored");
       }
-    };
+    } catch (err) {
+      console.warn("Session check failed:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    verifySession();
-  }, []);
+  verifySession();
+}, []);
+const refreshUser = async () => {
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/auth/verify`, {
+      credentials: "include"
+    });
+
+    if (res.ok) {
+      const { user } = await res.json();
+      setUser(user);
+    }
+  } catch (err) {
+    console.error("Failed to refresh user", err);
+  }
+};
 
   const login = (userData: User) => {
     setUser(userData);
   };
 
-  const logout = () => {
-    setUser(null);
-  };
+  const logout = async () => {
+  if (!user) return;
+
+  try {
+    await fetch(`${BACKEND_URL}/api/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    });
+    window.location.href = "/"; 
+  } catch (err) {
+    console.warn("Logout request failed", err);
+  }
+
+  // 🔥 remove only this account from device storage
+  removeAccount(user._id);
+
+  // clear app state
+  setUser(null);
+};
+
 
   return (
-    <UserContext.Provider value={{ user, loading, login, logout }}>
+    <UserContext.Provider value={{ user, loading, login, logout,refreshUser}}>
       {!loading && children}
     </UserContext.Provider>
   );

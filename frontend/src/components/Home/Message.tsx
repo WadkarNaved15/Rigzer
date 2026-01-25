@@ -53,7 +53,7 @@ const MessagingComponent = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useUser();
   const { users, loading } = useUsers();
-  const currentUser = user?.id;
+  const currentUser = user?._id;
   const navigate = useNavigate();
   const socket = useSocket();
   // CSS animation for shine
