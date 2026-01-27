@@ -104,7 +104,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/devlogs", devlogsRoutes);
 app.use("/api/follow", followRoutes);
 app.use("/api/chat", chatRoutes);
-app.use("/api/article", ArticleRoutes);
+app.use("/api/articles", ArticleRoutes);
 app.use("/api/allposts", allPostRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/me", meRoutes);

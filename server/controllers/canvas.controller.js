@@ -1,45 +1,45 @@
 import mongoose from "mongoose";
-import Canvas from "../models/Canvas.js";
+import Article from "../models/Canvas.js";
 
 /**
- * GET /api/canvas/:id
- * Public endpoint to fetch published canvas
+ * GET /api/articles/:id
  */
-export const getPublishedCanvasById = async (req, res) => {
+export const getPublishedArticleById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Validate ObjectId early
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ message: "Invalid canvas ID" });
+      return res.status(400).json({ message: "Invalid article ID" });
     }
 
-    const canvas = await Canvas.findOne({
+    const article = await Article.findOne({
       _id: id,
       status: "published",
     }).lean();
 
-    if (!canvas) {
+    if (!article) {
       return res.status(404).json({
-        message: "Canvas not found or not published",
+        message: "Article not found or not published",
       });
     }
 
-    return res.status(200).json(canvas);
+    res.status(200).json(article);
   } catch (error) {
-    console.error("Error fetching canvas:", error);
-    return res.status(500).json({
-      message: "Internal server error",
-    });
+    console.error("Error fetching article:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
-// controllers/canvas.controller.js
-export const getPublishedCanvases = async (req, res) => {
+
+/**
+ * GET /api/articles/published
+ */
+export const getPublishedArticles = async (req, res) => {
   try {
-    const canvases = await Canvas.find(
+    const articles = await Article.find(
       { status: "published" },
       {
         title: 1,
+        subtitle: 1,
         hero_image_url: 1,
         author_name: 1,
         publishedAt: 1,
@@ -48,10 +48,9 @@ export const getPublishedCanvases = async (req, res) => {
       .sort({ publishedAt: -1 })
       .lean();
 
-    res.status(200).json(canvases);
+    res.status(200).json(articles);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Failed to fetch canvases" });
+    res.status(500).json({ message: "Failed to fetch articles" });
   }
 };
-

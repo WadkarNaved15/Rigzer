@@ -1,25 +1,46 @@
 import express from "express";
-import Canvas from "../models/Canvas.js"; 
+import Article from "../models/Canvas.js";
 import AllPost from "../models/Allposts.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
-import { getPublishedCanvasById , getPublishedCanvases} from "../controllers/canvas.controller.js";
+import {
+  getPublishedArticleById,
+  getPublishedArticles,
+} from "../controllers/canvas.controller.js";
+
 const router = express.Router();
-router.get("/published", getPublishedCanvases);
-router.get("/:id", getPublishedCanvasById);
+
+/**
+ * Public feed listing
+ */
+router.get("/published", getPublishedArticles);
+
+/**
+ * Public article read
+ */
+router.get("/:id", getPublishedArticleById);
+
+/**
+ * Publish article
+ */
 router.post("/publish", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
+    const { title, description, content, headerImage ,author_name} = req.body;
 
-    if (!req.body.title || !req.body.content?.length) {
+    if (!title || !content) {
       return res.status(400).json({
-        message: "Title and at least one canvas element are required",
+        message: "Title and article content are required",
       });
     }
 
-    // 1️⃣ Save Canvas
-    const canvas = await Canvas.create({
-      ...req.body,
+    // 1️⃣ Save Article (HEAVY)
+    const article = await Article.create({
       ownerId: userId,
+      title,
+      subtitle: description,
+      author_name: author_name,
+      hero_image_url: headerImage,
+      content,
       status: "published",
       publishedAt: new Date(),
     });
@@ -28,16 +49,16 @@ router.post("/publish", authMiddleware, async (req, res) => {
     const post = await AllPost.create({
       user: userId,
       type: "canvas_article",
-      description: canvas.subtitle || canvas.title,
+      description: description || title,
       canvasRef: canvas._id,
     });
 
     res.status(201).json({
-      canvas,
+      article,
       postId: post._id,
     });
   } catch (error) {
-    console.error("Error publishing canvas:", error);
+    console.error("Error publishing article:", error);
     res.status(500).json({ message: "Server error" });
   }
 });

@@ -33,10 +33,6 @@ import GamePost from "./components/Home/GamePost";
 export default function AppRoutes() {
   const location = useLocation();
   const state = location.state as { background?: Location };
-    const handlePublish = (data: { title: string; content: any; headerImage: string }) => {
-    console.log('Published Article:', data);
-    alert(`Article "${data.title}" has been published! Check the console for full data.`);
-  };
   return (
     <>
       {/* MAIN ROUTES */}
@@ -48,11 +44,7 @@ export default function AppRoutes() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/stream/:sessionId" element={<StreamPage />} />
           <Route path="/wishlist" element={<WishlistPage />} />  
-          <Route
-            path="/publisher"
-            element={
-                <PublisherForm onPublish={handlePublish}/> }
-           />
+          <Route path="/publisher" element={<PublisherForm />}/>
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/editprofile" element={<EditProfilePage />} />
           <Route path="/createpost" element={<CreatePostPage />} />
