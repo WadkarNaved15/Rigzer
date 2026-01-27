@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation, data } from "react-router-dom";
 import { Suspense, lazy } from "react";
 
 // Pages
@@ -32,7 +32,10 @@ import GamePost from "./components/Home/GamePost";
 export default function AppRoutes() {
   const location = useLocation();
   const state = location.state as { background?: Location };
-
+    const handlePublish = (data: { title: string; content: any; headerImage: string }) => {
+    console.log('Published Article:', data);
+    alert(`Article "${data.title}" has been published! Check the console for full data.`);
+  };
   return (
     <>
       {/* MAIN ROUTES */}
@@ -47,11 +50,8 @@ export default function AppRoutes() {
           <Route
             path="/publisher"
             element={
-              <div className="fixed inset-0 z-[100]">
-                <PublisherForm onPreview={() => { }} />
-              </div>
-            }
-          />
+                <PublisherForm onPublish={handlePublish}/> }
+           />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/editprofile" element={<EditProfilePage />} />
           <Route path="/createpost" element={<CreatePostPage />} />
