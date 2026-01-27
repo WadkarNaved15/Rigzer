@@ -1,39 +1,43 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+
 type AdWithStatusProps = {
-  onComplete?: () => void;
+  sessionId: string;
+  onStreamReady?: (sessionId: string) => void;
 };
 
 interface Ad {
-  mediaType: string;
+  _id: string;
+  title?: string;
+  mediaType: "video" | "image";
   mediaUrl: string;
   redirectUrl: string;
-  logoUrl?: string;
-  // add other properties as needed
+  logoUrl?: string | null;
+  impressions?: number;
+  clicks?: number;
+  isActive?: boolean;
 }
 
+
 const stepsMap: { [key: string]: string } = {
-  starting_server: "Initializing",
-  initializing_game: "Loading Server",
-  initializing_stream: "Initializing Stream",
-  setting_up_input: "Setting Up Input Server",
-  ready: "Ready",
+  starting: "Initializing Session",
+  downloading: "Downloading Game",
+  launching: "Launching Game",
+  running: "Stream Ready",
 };
 
 const orderedSteps = [
-  "starting_server",
-  "initializing_game",
-  "initializing_stream",
-  "setting_up_input",
-  "ready",
+  "starting",
+  "downloading",
+  "launching",
+  "running",
 ];
 
-export default function AdWithStatus({ onComplete = () => { } }: AdWithStatusProps) {
-  const [sessionId, setSessionId] = useState(null);
+export default function AdWithStatus({ sessionId, onStreamReady }: AdWithStatusProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [showSkip, setShowSkip] = useState(false);
-
+  const [sessionStatus, setSessionStatus] = useState<string>("starting");
   const [ad, setAd] = useState<Ad | null>(null);
+  const [canSkip, setCanSkip] = useState(false);
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
@@ -49,130 +53,156 @@ export default function AdWithStatus({ onComplete = () => { } }: AdWithStatusPro
     };
     loadAd();
   }, []);
-  // Enable real fullscreen on mount, exit on unmount
+
+  // Enable fullscreen on mount
   useEffect(() => {
     const enterFullscreen = () => {
       const el = document.documentElement;
-
       if (el.requestFullscreen) {
-        el.requestFullscreen().catch(() => { });
+        el.requestFullscreen().catch(() => {});
       }
     };
 
-    // Try to enter fullscreen
     enterFullscreen();
 
-    // Exit fullscreen when component unmounts
     return () => {
       if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => { });
+        document.exitFullscreen().catch(() => {});
       }
     };
   }, []);
 
-  // Start game session
-  useEffect(() => {
-    const startSession = async () => {
+useEffect(() => {
+  if (!sessionId) return;
+
+ const es = new EventSource(
+  `${BACKEND_URL}/api/sessions/${sessionId}/events`,
+  { withCredentials: true }
+);
+  es.onmessage = (e) => {
+    const { status, phase } = JSON.parse(e.data);
+
+    const effectiveStatus =
+      status === "running" || status === "ended" || status === "failed"
+        ? status
+        : phase ?? status;
+
+    setSessionStatus(effectiveStatus);
+
+    if (effectiveStatus === "starting") setCurrentStepIndex(0);
+    if (effectiveStatus === "downloading") setCurrentStepIndex(1);
+    if (effectiveStatus === "launching") setCurrentStepIndex(2);
+
+    if (effectiveStatus === "running") {
+      setCurrentStepIndex(3);
+      setCanSkip(true);
+      setTimeout(() => onStreamReady?.(sessionId), 1500);
+    }
+
+    if (status === "failed") {
+      alert("Failed to start game session.");
+      es.close();
+    }
+
+    if (status === "ended") {
+      alert("Session ended.");
+      es.close();
+    }
+  };
+
+  es.onerror = () => {
+    es.close(); // browser auto-retries
+  };
+
+  return () => es.close();
+}, [sessionId]);
+
+
+  const handleSkip = () => {
+    if (canSkip) {
+      onStreamReady?.(sessionId);
+    }
+  };
+
+  const handleAdClick = async () => {
+    if (ad) {
+      // Track click
       try {
-        const res = await axios.post(`${BACKEND_URL}/api/game/start`);
-        setSessionId(res.data.sessionId);
+        await axios.post(`${BACKEND_URL}/api/ads/click/${ad._id}`);
       } catch (err) {
-        console.error("Failed to start session:", err);
+        console.error("Failed to track ad click:", err);
       }
-    };
-    startSession();
-  }, []);
-
-  // Poll game status
-  useEffect(() => {
-    if (!sessionId) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const res = await axios.get(`${BACKEND_URL}/api/game/status/${sessionId}`);
-        const stepKey = res.data.step;
-
-        const stepIndex = orderedSteps.indexOf(stepKey);
-        if (stepIndex !== -1) setCurrentStepIndex(stepIndex);
-
-        if (stepKey === "ready") {
-          setShowSkip(true);
-          clearInterval(interval);
-        }
-      } catch (err) {
-        console.error("Status check failed:", err);
-        clearInterval(interval);
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [sessionId]);
+      window.open(ad.redirectUrl, "_blank");
+    }
+  };
 
   if (!ad) {
     return (
       <div className="fixed inset-0 bg-black z-50 flex justify-center items-center text-white text-2xl">
-        Loading Ad...
+        Loading...
       </div>
     );
   }
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex justify-center items-center">
-
       {/* MEDIA (Video or Image) */}
       {ad.mediaType === "video" ? (
         <video
           autoPlay
           muted
           loop
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover cursor-pointer"
           src={ad.mediaUrl}
-          onClick={() => window.open(ad.redirectUrl, "_blank")}
+          onClick={handleAdClick}
         />
       ) : (
         <img
           src={ad.mediaUrl}
           className="w-full h-full object-cover cursor-pointer"
-          onClick={() => window.open(ad.redirectUrl, "_blank")}
-          alt="Ad"
+          onClick={handleAdClick}
+          alt="Advertisement"
         />
       )}
 
-      {/* LOGO (Top-left corner) */}
-      {/* {ad.logoUrl && ad.logoUrl !== "null" && (
-        <img
-          src={ad.logoUrl}
-          alt="logo"
-          className="absolute bottom-4 left-4 w-28 h-auto rounded-lg cursor-pointer"
-          onClick={() => window.open(ad.redirectUrl, "_blank")}
-        />
-      )} */}
-
       {/* STATUS LIST */}
-      <div className="absolute top-6 right-6 bg-black bg-opacity-40 p-4 rounded-xl 
-                      text-white space-y-2 text-lg font-semibold select-none">
-
+      <div className="absolute top-6 right-6 bg-black bg-opacity-60 p-4 rounded-xl 
+                      text-white space-y-2 text-sm font-semibold select-none backdrop-blur-sm">
         {orderedSteps.map((step, index) => (
           <div key={index} className="flex items-center space-x-2">
             <span className={`${index <= currentStepIndex ? "opacity-100" : "opacity-40"}`}>
               {stepsMap[step]}
             </span>
-
             {index < currentStepIndex && <span className="text-green-400">✔</span>}
+            {index === currentStepIndex && sessionStatus !== "running" && (
+              <span className="text-yellow-400 animate-pulse">●</span>
+            )}
           </div>
         ))}
       </div>
 
       {/* SKIP BUTTON */}
-      {showSkip && (
+      {canSkip && (
         <button
-          onClick={onComplete}
-          className="absolute bottom-6 right-6 bg-black bg-opacity-60 
-                     text-white px-5 py-2 rounded-lg text-lg 
-                     hover:bg-opacity-80 transition"
+          onClick={handleSkip}
+          className="absolute bottom-6 right-6 bg-sky-500 hover:bg-sky-600
+                     text-white px-6 py-3 rounded-lg text-lg font-bold
+                     transition-all shadow-lg hover:scale-105 active:scale-95"
         >
-          Skip Ad
+          Start Playing →
         </button>
+      )}
+
+      {/* AD SPONSOR INFO (optional) */}
+      {ad.logoUrl && ad.logoUrl !== "null" && (
+        <div className="absolute bottom-4 left-4 bg-black bg-opacity-60 px-3 py-2 rounded-lg backdrop-blur-sm">
+          <img
+            src={ad.logoUrl}
+            alt="Sponsor"
+            className="h-8 w-auto cursor-pointer"
+            onClick={handleAdClick}
+          />
+        </div>
       )}
     </div>
   );

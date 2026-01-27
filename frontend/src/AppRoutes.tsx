@@ -16,6 +16,7 @@ const DevLogCanvas = lazy(() => import("./Pages/DevlogCanvas"));
 const PostDetail = lazy(() => import("./Pages/PostDetail"));
 const DevlogViewer = lazy(() => import("./Pages/DevlogViewer"));
 const Puck = lazy(() => import("./Pages/Puck"));
+const StreamPage = lazy(() => import("./Pages/StreamPage"));
 import ForgotPassword from "./Pages/ForgotPassword";
 import ResetPassword from "./Pages/ResetPassword";
 // Components
@@ -45,8 +46,8 @@ export default function AppRoutes() {
           <Route path="/auth" element={<Auth />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/stream" element={<GameStatus />} />
-          <Route path="/wishlist" element={<WishlistPage />} />
+          <Route path="/stream/:sessionId" element={<StreamPage />} />
+          <Route path="/wishlist" element={<WishlistPage />} />  
           <Route
             path="/publisher"
             element={
