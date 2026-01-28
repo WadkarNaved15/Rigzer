@@ -6,6 +6,7 @@ import Image from '@tiptap/extension-image';
 import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import Placeholder from '@tiptap/extension-placeholder';
 import { toast } from "react-toastify";
+import { useUser } from '../context/user';
 import Link from '@tiptap/extension-link';
 import {
   Bold,
@@ -43,7 +44,9 @@ export default function ArticleEditor() {
     day: 'numeric',
     year: 'numeric'
   }));
-
+  const { user } = useUser();
+  const username = user?.username
+  console.log("user", user);
   const editor = useEditor({
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2] } }),
@@ -85,7 +88,7 @@ export default function ArticleEditor() {
       const payload = {
         title,
         description,
-        author_name: author,
+        author_name: username,
         content: editor.getJSON(), // TipTap JSON
         headerImage,
       };
@@ -250,14 +253,11 @@ export default function ArticleEditor() {
           </div>
         </aside>
 
-        {/* --- RIGHT SIDE: UNIFIED VERTICAL CONTENT --- */}
         <div className="flex-1 max-w-3xl space-y-12">
-          {/* --- MERGED HERO TITLE CARD --- */}
-          {/* --- COMPACT MERGED HEADER --- */}
           <header
             className={`relative overflow-hidden rounded-3xl p-10 shadow-2xl border transition-all duration-500 ${headerImage
-                ? 'border-transparent'
-                : 'bg-[#222222] border-white/5'
+              ? 'border-transparent'
+              : 'bg-[#222222] border-white/5'
               }`}
           >
             {/* Background Image Logic */}
@@ -286,6 +286,11 @@ export default function ArticleEditor() {
                 {/* Compact Image Actions */}
                 <div className="flex gap-2 shrink-0">
                   <label className="cursor-pointer p-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white transition-all shadow-lg">
+                    {!headerImage && (
+                      <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center text-red-500 font-bold text-lg select-none">
+                        *
+                      </span>
+                    )}
                     <ImagePlus size={18} />
                     <input
                       type="file"
@@ -316,17 +321,6 @@ export default function ArticleEditor() {
 
               <div className={`flex flex-wrap items-center gap-6 pt-4 border-t ${headerImage ? 'border-white/10' : 'border-white/5'
                 }`}>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <User size={16} className="text-blue-500" />
-                  <input
-                    type="text"
-                    placeholder="Author Name"
-                    value={author}
-                    onChange={(e) => setAuthor(e.target.value)}
-                    className={`bg-transparent border-none outline-none focus:text-white transition-colors ${headerImage ? 'placeholder:text-white/20 text-gray-300' : 'placeholder:text-gray-700'
-                      }`}
-                  />
-                </div>
                 <div className={`flex items-center gap-2 text-sm ${headerImage ? 'text-gray-400' : 'text-gray-500'}`}>
                   <Calendar size={16} />
                   <span>{currentDate}</span>
@@ -334,19 +328,31 @@ export default function ArticleEditor() {
               </div>
             </div>
           </header>
-
-          <main className="relative">
-            <EditorContent editor={editor} />
-            <div className="mt-20 pt-10 border-t border-white/10 flex justify-end">
-              <button
-                onClick={handlePublish}
-                className="bg-blue-600 hover:bg-blue-500 text-white px-12 py-3.5 rounded-full font-bold transition-all shadow-lg hover:shadow-blue-500/20 disabled:opacity-20 active:scale-95"
-                disabled={publishing || !title.trim() || isEditorEmpty}
-              >
-                {publishing ? "Publishing..." : "Publish Article"}
-              </button>
+          {/* --- ARTICLE CONTENT START --- */}
+          <div className="pt-6">
+            {/* Author Attribution Line */}
+            <div className="flex items-center gap-4 mb-8">
+              <User size={16} className="text-blue-500" />
+              <span className="text-blue-500 font-semibold tracking-tight shrink-0">
+                By {username || 'Anonymous'}
+              </span>
+              {/* <div className="h-px w-full bg-gradient-to-r from-white/10 to-transparent" /> */}
             </div>
-          </main>
+
+            <main className="relative">
+              <EditorContent editor={editor} />
+
+              <div className="mt-20 pt-10 border-t border-white/10 flex justify-end">
+                <button
+                  onClick={handlePublish}
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-12 py-3.5 rounded-full font-bold transition-all shadow-lg hover:shadow-blue-500/20 disabled:opacity-20 active:scale-95"
+                  disabled={publishing || !title.trim() || isEditorEmpty || !headerImage}
+                >
+                  {publishing ? "Publishing..." : "Publish Article"}
+                </button>
+              </div>
+            </main>
+          </div>
         </div>
       </div>
     </div>
