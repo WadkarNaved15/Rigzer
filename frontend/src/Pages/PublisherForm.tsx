@@ -1,4 +1,4 @@
-import { useState} from 'react';
+import { useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
@@ -29,6 +29,7 @@ export default function ArticleEditor() {
   const [description, setDescription] = useState('');
   const [author, setAuthor] = useState('');
   const [headerImage, setHeaderImage] = useState<string>('');
+  const [isEditorEmpty, setIsEditorEmpty] = useState(true);
 
   // Custom Link State
   const [showLinkInput, setShowLinkInput] = useState(false);
@@ -59,6 +60,9 @@ export default function ArticleEditor() {
       attributes: {
         class: 'tiptap prose prose-invert max-w-none focus:outline-none min-h-[400px]',
       },
+    },
+    onUpdate: ({ editor }) => {
+      setIsEditorEmpty(editor.isEmpty);
     },
   });
 
@@ -300,7 +304,7 @@ export default function ArticleEditor() {
               <button
                 onClick={handlePublish}
                 className="bg-blue-600 hover:bg-blue-500 text-white px-12 py-3.5 rounded-full font-bold transition-all shadow-lg hover:shadow-blue-500/20 disabled:opacity-20 active:scale-95"
-                disabled={publishing || !title.trim() || editor.isEmpty}
+                disabled={publishing || !title.trim() || isEditorEmpty}
               >
                 {publishing ? "Publishing..." : "Publish Article"}
               </button>
