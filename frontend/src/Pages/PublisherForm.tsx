@@ -299,6 +299,7 @@ export default function ArticleEditor() {
             <div className="mt-20 pt-10 border-t border-white/10 flex justify-end">
               <button
                 onClick={handlePublish}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-12 py-3.5 rounded-full font-bold transition-all shadow-lg hover:shadow-blue-500/20 disabled:opacity-20 active:scale-95"
                 disabled={publishing || !title.trim() || editor.isEmpty}
               >
                 {publishing ? "Publishing..." : "Publish Article"}
