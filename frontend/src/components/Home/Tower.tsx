@@ -37,7 +37,7 @@ const Tower: React.FC<{
   }, []);
 useEffect(() => {
   axios
-    .get(`${BACKEND_URL}/api/article/published`)
+    .get(`${BACKEND_URL}/api/articles/published`)
     .then(res => setReadingCanvases(res.data))
     .catch(console.error);
 }, []);

@@ -25,7 +25,7 @@ router.get("/:id", getPublishedArticleById);
 router.post("/publish", authMiddleware, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { title, description, content, headerImage ,author_name} = req.body;
+    const { title, description, content, headerImage, author_name } = req.body;
 
     if (!title || !content) {
       return res.status(400).json({
@@ -38,7 +38,7 @@ router.post("/publish", authMiddleware, async (req, res) => {
       ownerId: userId,
       title,
       subtitle: description,
-      author_name: author_name,
+      author_name,
       hero_image_url: headerImage,
       content,
       status: "published",
@@ -50,7 +50,7 @@ router.post("/publish", authMiddleware, async (req, res) => {
       user: userId,
       type: "canvas_article",
       description: description || title,
-      canvasRef: canvas._id,
+      canvasRef: article._id, // ✅ FIXED
     });
 
     res.status(201).json({
@@ -62,5 +62,6 @@ router.post("/publish", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
 
 export default router;
