@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Image from '@tiptap/extension-image';
 import HorizontalRule from '@tiptap/extension-horizontal-rule';
 import Placeholder from '@tiptap/extension-placeholder';
+import { toast } from "react-toastify";
 import Link from '@tiptap/extension-link';
 import {
   Bold,
@@ -30,7 +32,7 @@ export default function ArticleEditor() {
   const [author, setAuthor] = useState('');
   const [headerImage, setHeaderImage] = useState<string>('');
   const [isEditorEmpty, setIsEditorEmpty] = useState(true);
-
+  const navigate = useNavigate();
   // Custom Link State
   const [showLinkInput, setShowLinkInput] = useState(false);
   const [linkUrl, setLinkUrl] = useState('');
@@ -98,6 +100,13 @@ export default function ArticleEditor() {
       if (!res.ok) throw new Error("Publish failed");
       const data = await res.json();
       console.log("Article published:", data);
+      toast.success("Sent", {
+        position: "bottom-center",
+        autoClose: 1500,
+        hideProgressBar: true,
+        theme: "dark"
+      });
+      navigate('/')
 
     } catch (err) {
       console.error(err);
@@ -243,60 +252,88 @@ export default function ArticleEditor() {
 
         {/* --- RIGHT SIDE: UNIFIED VERTICAL CONTENT --- */}
         <div className="flex-1 max-w-3xl space-y-12">
-          <header className="bg-[#222222] border border-white/5 rounded-3xl p-10 shadow-2xl">
-            <div className="space-y-6">
-              <input
-                type="text"
-                placeholder="Article Title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                className="w-full bg-transparent text-5xl font-black border-none outline-none placeholder:text-gray-700 text-white tracking-tighter"
-              />
+          {/* --- MERGED HERO TITLE CARD --- */}
+          {/* --- COMPACT MERGED HEADER --- */}
+          <header
+            className={`relative overflow-hidden rounded-3xl p-10 shadow-2xl border transition-all duration-500 ${headerImage
+                ? 'border-transparent'
+                : 'bg-[#222222] border-white/5'
+              }`}
+          >
+            {/* Background Image Logic */}
+            {headerImage && (
+              <>
+                <img
+                  src={headerImage}
+                  alt="Cover"
+                  className="absolute inset-0 w-full h-full object-cover z-0 transition-transform duration-700 hover:scale-105"
+                />
+                {/* Dark overlay to ensure text is always readable */}
+                <div className="absolute inset-0 bg-black/60 z-10" />
+              </>
+            )}
+
+            <div className="relative z-20 space-y-6">
+              <div className="flex justify-between items-start gap-4">
+                <input
+                  type="text"
+                  placeholder="Article Title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full bg-transparent text-5xl font-black border-none outline-none placeholder:text-gray-700 text-white tracking-tighter"
+                />
+
+                {/* Compact Image Actions */}
+                <div className="flex gap-2 shrink-0">
+                  <label className="cursor-pointer p-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white transition-all shadow-lg">
+                    <ImagePlus size={18} />
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={(e) => e.target.files && handleCoverUpload(e.target.files[0])}
+                    />
+                  </label>
+                  {headerImage && (
+                    <button
+                      onClick={() => setHeaderImage('')}
+                      className="p-2 bg-red-500/20 hover:bg-red-500/40 backdrop-blur-md rounded-full text-red-200 transition-all"
+                    >
+                      <X size={18} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
               <textarea
                 placeholder="Write a brief, catchy description..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full bg-transparent text-xl text-gray-400 border-none outline-none resize-none placeholder:text-gray-700 leading-relaxed"
+                className={`w-full bg-transparent text-xl border-none outline-none resize-none leading-relaxed transition-colors ${headerImage ? 'text-gray-200 placeholder:text-white/20' : 'text-gray-400 placeholder:text-gray-700'
+                  }`}
                 rows={2}
               />
-              <div className="flex flex-wrap items-center gap-6 pt-4 border-t border-white/5">
+
+              <div className={`flex flex-wrap items-center gap-6 pt-4 border-t ${headerImage ? 'border-white/10' : 'border-white/5'
+                }`}>
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <User size={16} className="text-blue-500" />
-                  <input type="text" placeholder="Author Name" value={author} onChange={(e) => setAuthor(e.target.value)} className="bg-transparent border-none outline-none focus:text-white transition-colors" />
+                  <input
+                    type="text"
+                    placeholder="Author Name"
+                    value={author}
+                    onChange={(e) => setAuthor(e.target.value)}
+                    className={`bg-transparent border-none outline-none focus:text-white transition-colors ${headerImage ? 'placeholder:text-white/20 text-gray-300' : 'placeholder:text-gray-700'
+                      }`}
+                  />
                 </div>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
+                <div className={`flex items-center gap-2 text-sm ${headerImage ? 'text-gray-400' : 'text-gray-500'}`}>
                   <Calendar size={16} />
                   <span>{currentDate}</span>
                 </div>
               </div>
             </div>
           </header>
-
-          <section>
-            {headerImage ? (
-              <div className="relative group overflow-hidden rounded-2xl border border-white/10">
-                <img src={headerImage} alt="Cover" className="w-full h-[450px] object-cover transition-transform duration-700 group-hover:scale-105" />
-                <button onClick={() => setHeaderImage('')} className="absolute top-4 right-4 bg-black/60 backdrop-blur-md text-white px-4 py-2 rounded-full text-xs font-bold">Change Cover</button>
-              </div>
-            ) : (
-              <div className="border-2 border-dashed border-white/10 rounded-2xl p-20 text-center hover:border-blue-500/50 hover:bg-white/[0.02] transition-all group cursor-pointer" onClick={() => document.getElementById('header-upload')?.click()}>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => e.target.files && handleCoverUpload(e.target.files[0])}
-                  className="hidden"
-                  id="header-upload"
-                />
-
-                <div className="flex flex-col items-center">
-                  <div className="w-16 h-16 bg-[#252525] rounded-full flex items-center justify-center mb-4 group-hover:bg-blue-600/10 transition-colors">
-                    <ImagePlus className="w-8 h-8 text-gray-500 group-hover:text-blue-400" />
-                  </div>
-                  <span className="text-gray-400 font-medium">Upload high-resolution cover image</span>
-                </div>
-              </div>
-            )}
-          </section>
 
           <main className="relative">
             <EditorContent editor={editor} />
