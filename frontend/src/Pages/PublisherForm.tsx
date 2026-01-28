@@ -1,982 +1,330 @@
-import { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Save, Image as ImageIcon, Video as VideoIcon, Quote, Type, AlignLeft, Eye, Palette } from 'lucide-react';
-import DraggableElement, { ElementPosition, ElementSize } from '../components/Articles/DraggableElement';
-import AlignmentGuides from '../components/Articles/AlignmentGuides';
-import BackgroundManager, { BackgroundSection } from '../components/Articles/BackgroundManager';
-import ColorPicker from '../components/Articles/ColorPicker';
-import ImageUpload from '../components/Articles/ImageUpload';
-import { toast } from "react-toastify";
-interface ContentBlock {
-  id: string;
-  type: 'paragraph' | 'heading' | 'image' | 'video' | 'blockquote' | 'title' | 'subtitle';
-  content: string;
-  metadata?: { alt?: string; duration?: string };
-  position: ElementPosition;
-  size?: ElementSize;
-  colors?: {
-    text?: string;
-    background?: string;
-  };
-  file?: File;
-}
+import { useState} from 'react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Image from '@tiptap/extension-image';
+import HorizontalRule from '@tiptap/extension-horizontal-rule';
+import Placeholder from '@tiptap/extension-placeholder';
+import Link from '@tiptap/extension-link';
+import {
+  Bold,
+  Italic,
+  Heading1,
+  Heading2,
+  ImagePlus,
+  Minus,
+  List,
+  ListOrdered,
+  Type,
+  User,
+  Calendar,
+  Link as LinkIcon,
+  Unlink,
+  Check,
+  X
+} from 'lucide-react';
 
-interface Profile {
-  name: string;
-  role: string;
-}
 
-interface Link {
-  title: string;
-  url: string;
-  type: string;
-}
+export default function ArticleEditor() {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [author, setAuthor] = useState('');
+  const [headerImage, setHeaderImage] = useState<string>('');
 
-interface ThemeColors {
-  background: string;
-  text: string;
-  primary: string;
-  secondary: string;
-  accent: string;
-}
+  // Custom Link State
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [publishing, setPublishing] = useState(false);
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+  const [currentDate] = useState(new Date().toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  }));
 
-interface FormData {
-  heroImageFile?: File; // 👈 add this
-  title: string;
-  subtitle: string;
-  hero_image_url: string;
-  category: string;
-  publisher_name: string;
-  genre: string;
-  rating: string;
-  author_name: string;
-  author_role: string;
-  content: ContentBlock[];
-  profiles: Profile[];
-  links: Link[];
-  status: 'draft' | 'published';
-  background_sections: BackgroundSection[];
-  theme_colors: ThemeColors;
-}
-
-export default function PublisherForm({ onPreview }: { onPreview: (data: FormData) => void }) {
-  const [formData, setFormData] = useState<FormData>({
-    title: '',
-    subtitle: '',
-    hero_image_url: '',
-    category: 'Review',
-    publisher_name: '',
-    genre: '',
-    rating: '',
-    author_name: '',
-    author_role: '',
-    content: [],
-    profiles: [],
-    links: [],
-    status: 'draft',
-    background_sections: [
-      {
-        id: crypto.randomUUID(),
-        type: 'color',
-        value: '#1A1A1A',
-        startPosition: 0,
-        endPosition: 10000,
-      },
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({ heading: { levels: [1, 2] } }),
+      Image.configure({ inline: true, allowBase64: false }),
+      HorizontalRule,
+      Placeholder.configure({ placeholder: 'Tell your story...' }),
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: {
+          class: 'text-blue-400 underline cursor-pointer',
+        },
+      }),
     ],
-    theme_colors: {
-      background: '#1A1A1A',
-      text: '#BBBBBB',
-      primary: '#EEEEEE',
-      secondary: '#777777',
-      accent: '#999999',
+    content: '',
+    editorProps: {
+      attributes: {
+        class: 'tiptap prose prose-invert max-w-none focus:outline-none min-h-[400px]',
+      },
     },
   });
 
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [alignmentX, setAlignmentX] = useState(-1);
-  const [alignmentY, setAlignmentY] = useState(-1);
-  const [scrollY, setScrollY] = useState(0);
-  const [selectedElement, setSelectedElement] = useState<string | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-  const isArticleInfoIncomplete = () => {
-    return (
-      !formData.author_name ||
-      !formData.hero_image_url
-    );
+  // Handle Link Submission
+  const handleLinkConfirm = () => {
+    if (linkUrl) {
+      editor?.chain().focus().extendMarkRange('link').setLink({ href: linkUrl }).run();
+    } else {
+      editor?.chain().focus().extendMarkRange('link').unsetLink().run();
+    }
+    setLinkUrl('');
+    setShowLinkInput(false);
   };
-
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const handleScroll = () => {
-      setScrollY(container.scrollTop);
-    };
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const updateField = (field: keyof FormData, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
-  const getMediaCategory = (file: File): "image" | "video" => {
-    if (file.type.startsWith("image/")) return "image";
-    if (file.type.startsWith("video/")) return "video";
-    throw new Error("Unsupported file type");
-  };
-
-  const addContentBlock = (type: ContentBlock['type']) => {
-    const currentScrollY = containerRef.current?.scrollTop || 0;
-    const toolbarWidth = 280;
-    const sidebarWidth = 336;
-    const spacing = 32;
-    const totalReservedWidth = toolbarWidth + sidebarWidth + (spacing * 2);
-    const CANVAS_WIDTH = 750;
-
-    const canvasCenter = {
-      x: (CANVAS_WIDTH / 2) - 200,
-      y: currentScrollY + 200,
-    };
-
-
-    const newBlock: ContentBlock = {
-      id: crypto.randomUUID(),
-      type,
-      content: '',
-      metadata: type === 'image' ? { alt: '' } : type === 'video' ? { duration: '' } : undefined,
-      position: canvasCenter,
-      size: {
-        width: 400,
-        height: type === 'heading' ? 80 : 160
-      },
-      colors: {
-        text: formData.theme_colors.text,
-        background: 'transparent',
-      },
-    };
-
-    updateField('content', [...formData.content, newBlock]);
-  };
-
-  const updateContentBlock = (id: string, updates: Partial<ContentBlock>) => {
-    updateField(
-      'content',
-      formData.content.map((block) => (block.id === id ? { ...block, ...updates } : block))
-    );
-  };
-
-  const deleteContentBlock = (id: string) => {
-    updateField(
-      'content',
-      formData.content.filter((block) => block.id !== id)
-    );
-  };
-
-  const handleAlignmentChange = (x: number, y: number) => {
-    setAlignmentX(x);
-    setAlignmentY(y);
-  };
-
-  const addProfile = () => {
-    updateField('profiles', [...formData.profiles, { name: '', role: '' }]);
-  };
-
-  const updateProfile = (index: number, field: keyof Profile, value: string) => {
-    const updated = [...formData.profiles];
-    updated[index] = { ...updated[index], [field]: value };
-    updateField('profiles', updated);
-  };
-
-  const deleteProfile = (index: number) => {
-    updateField('profiles', formData.profiles.filter((_, i) => i !== index));
-  };
-
-  const addLink = () => {
-    updateField('links', [...formData.links, { title: '', url: '', type: 'external' }]);
-  };
-
-  const updateLink = (index: number, field: keyof Link, value: string) => {
-    const updated = [...formData.links];
-    updated[index] = { ...updated[index], [field]: value };
-    updateField('links', updated);
-  };
-
-  const deleteLink = (index: number) => {
-    updateField('links', formData.links.filter((_, i) => i !== index));
-  };
-
-  const renderBackgroundSections = () => {
-    return formData.background_sections.map((section, index) => {
-      const height = section.endPosition - section.startPosition;
-      const isLastSection = index === formData.background_sections.length - 1;
-      const nextSection = !isLastSection ? formData.background_sections[index + 1] : null;
-
-      const blendHeight = 200;
-
-      if (section.type === 'color') {
-        if (nextSection) {
-          if (nextSection.type === 'color') {
-            return (
-              <div
-                key={section.id}
-                className="absolute w-full z-0"
-                style={{
-                  top: `${section.startPosition}px`,
-                  height: `${height}px`,
-                  background: `linear-gradient(to bottom, ${section.value} 0%, ${section.value} calc(100% - ${blendHeight}px), ${nextSection.value} 100%)`
-                }}
-              />
-            );
-          } else {
-            const extendedHeight = height + blendHeight;
-            return (
-              <div
-                key={section.id}
-                className="absolute w-full z-0"
-                style={{
-                  top: `${section.startPosition}px`,
-                  height: `${extendedHeight}px`,
-                  background: `linear-gradient(to bottom, ${section.value} 0%, ${section.value} calc(100% - ${blendHeight}px), transparent 100%)`
-                }}
-              />
-            );
-          }
-        } else {
-          return (
-            <div
-              key={section.id}
-              className="absolute w-full z-0"
-              style={{
-                top: `${section.startPosition}px`,
-                height: `${height}px`,
-                background: section.value
-              }}
-            />
-          );
-        }
-      } else {
-        const backgroundStyle: React.CSSProperties = {
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        };
-
-        if (section.value) {
-          backgroundStyle.backgroundImage = `url(${section.value})`;
-        } else {
-          backgroundStyle.backgroundColor = '#0F0F0F';
-        }
-
-        if (nextSection) {
-          const maskGradient = `linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) calc(100% - ${blendHeight}px), rgba(0,0,0,0) 100%)`;
-          backgroundStyle.maskImage = maskGradient;
-          backgroundStyle.WebkitMaskImage = maskGradient;
-        }
-
-        return (
-          <div
-            key={section.id}
-            className="absolute w-full z-0"
-            style={{
-              top: `${section.startPosition}px`,
-              height: `${height}px`,
-              ...backgroundStyle
-            }}
-          />
-        );
-      }
-    });
-  };
-
-  const handleSave = async (publish: boolean) => {
-    setSaving(true);
-    setMessage(null);
-
+  const handlePublish = async () => {
+    if (!editor || editor.isEmpty || !title.trim()) return;
+    setPublishing(true);
     try {
-      const postData = {
-        ...formData,
-        status: publish ? 'published' : 'draft',
-        published_at: publish ? new Date().toISOString() : null,
-        rating: formData.rating ? parseFloat(formData.rating) : null,
+      const payload = {
+        title,
+        description,
+        author_name: author,
+        content: editor.getJSON(), // TipTap JSON
+        headerImage,
       };
+      console.log("Payload:", payload);
 
-      const blob = new Blob([JSON.stringify(postData, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${formData.title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}-${Date.now()}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      setMessage({
-        type: 'success',
-        text: publish ? 'Post downloaded successfully!' : 'Draft downloaded successfully!',
+      const res = await fetch(`${BACKEND_URL}/api/articles/publish`, {
+        method: "POST",
+        credentials: "include", // IMPORTANT (auth)
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
+      if (!res.ok) throw new Error("Publish failed");
+      const data = await res.json();
+      console.log("Article published:", data);
 
-      setTimeout(() => {
-        setMessage(null);
-      }, 2000);
-    } catch (error) {
-      setMessage({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'Failed to save post',
-      });
-    } finally {
-      setSaving(false);
+    } catch (err) {
+      console.error(err);
+    }
+    finally {
+      setPublishing(false);
     }
   };
 
+  const handleImageInsert = async () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
 
-  const uploadMediaToS3 = async (
-    asset: File,
-    // category: "image" | "video",
-    onProgress: (percent: number) => void
-  ): Promise<string> => {
-    // 1️⃣ Get presigned URL
-    const category = getMediaCategory(asset);
+    input.onchange = async (e: Event) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      try {
+        // 1️⃣ Get presigned URL
+        const res = await fetch(`${BACKEND_URL}/api/upload/presigned-url`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            fileName: file.name,
+            fileType: file.type,
+            category: "image",
+          }),
+        });
+
+        if (!res.ok) throw new Error("Failed to get upload URL");
+        const { uploadUrl, fileUrl } = await res.json();
+
+        // 2️⃣ Upload to S3
+        await fetch(uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
+
+        // 3️⃣ Insert CloudFront URL into editor
+        editor
+          ?.chain()
+          .focus()
+          .setImage({ src: fileUrl })
+          .run();
+      } catch (err) {
+        console.error("Image upload failed", err);
+      }
+    };
+
+    input.click();
+  };
+  const handleCoverUpload = async (file: File) => {
     const res = await fetch(`${BACKEND_URL}/api/upload/presigned-url`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      credentials: "include",
       body: JSON.stringify({
-        fileName: asset.name,
-        fileType: asset.type,
-        category,
+        fileName: file.name,
+        fileType: file.type,
+        category: "image",
       }),
     });
 
-    if (!res.ok) throw new Error("Failed to get presigned URL");
-
+    if (!res.ok) throw new Error("Failed to get upload URL");
     const { uploadUrl, fileUrl } = await res.json();
 
-    // 2️⃣ Upload to S3 with progress
-    await new Promise<void>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open("PUT", uploadUrl, true);
-      xhr.setRequestHeader("Content-Type", asset.type);
-
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          const percent = Math.round((event.loaded / event.total) * 100);
-          onProgress(percent);
-        }
-      };
-
-      xhr.onload = () => (xhr.status === 200 ? resolve() : reject(new Error(`Upload failed with status ${xhr.status}`)));
-      xhr.onerror = () => reject(new Error("Upload network error"));
-
-      xhr.send(asset);
+    await fetch(uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": file.type },
+      body: file,
     });
 
-    return fileUrl; // Return CloudFront URL
+    setHeaderImage(fileUrl); // ✅ store CloudFront URL
   };
 
 
-  const handlePublish = async () => {
-    try {
-      setSaving(true);
-      // 🔥 STEP 1: Upload hero image if present
-      let heroImageUrl = formData.hero_image_url;
-
-      if (formData.heroImageFile) {
-        const toastId = toast.loading("Uploading hero image... 0%");
-
-        heroImageUrl = await uploadMediaToS3(
-          formData.heroImageFile,
-          (progress) => {
-            toast.update(toastId, {
-              render: `Uploading hero image... ${progress}%`,
-              isLoading: true,
-            });
-          }
-        );
-
-        toast.update(toastId, {
-          render: "Hero image uploaded!",
-          type: "success",
-          isLoading: false,
-          autoClose: 1200,
-        });
-      }
-      const updatedBackgroundSections = await Promise.all(
-        formData.background_sections.map(async (section) => {
-          if (section.type !== "image" || !section.file) return section;
-
-          const toastId = toast.loading("Uploading background image... 0%");
-
-          const fileUrl = await uploadMediaToS3(section.file, (progress) => {
-            toast.update(toastId, {
-              render: `Uploading background image... ${progress}%`,
-              isLoading: true,
-            });
-          });
-
-          toast.update(toastId, {
-            render: "Background image uploaded!",
-            type: "success",
-            isLoading: false,
-            autoClose: 1200,
-          });
-
-          return {
-            ...section,
-            value: fileUrl, // ✅ CloudFront URL
-            file: undefined, // 🔥 remove File before saving
-          };
-        })
-      );
-
-      const updatedContent = await Promise.all(
-        formData.content.map(async (block, index) => {
-          if (block.type === "image" || block.type === "video") {
-            const asset = block.file; // actual file from input
-            if (!asset) return block;
-
-            const toastId = toast.loading(`Uploading ${asset.name}... 0%`);
-
-            const fileUrl = await uploadMediaToS3(asset, (progress) => {
-              toast.update(toastId, {
-                render: `Uploading ${asset.name}... ${progress}%`,
-                isLoading: true,
-              });
-            });
-
-            toast.update(toastId, {
-              render: `${asset.name} uploaded!`,
-              type: "success",
-              isLoading: false,
-              autoClose: 1200,
-            });
-
-            return { ...block, content: fileUrl };
-          }
-          return block;
-        })
-      );
-
-      // Replace content in formData with uploaded URLs
-      const finalCanvas = { ...formData, hero_image_url: heroImageUrl, content: updatedContent, background_sections: updatedBackgroundSections, };
-
-      // 3️⃣ Save canvas
-      const res = await fetch(`${BACKEND_URL}/api/article/publish`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(finalCanvas),
-      });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Failed to publish canvas");
-      }
-
-      const savedCanvas = await res.json();
-      toast.success("Canvas published successfully!");
-      console.log("Published canvas:", savedCanvas);
-
-      // Optional: redirect to canvas view
-      // navigate(`/canvas/${savedCanvas._id}`);
-    } catch (error: any) {
-      console.error("Publish error:", error);
-      toast.error(error.message || "Failed to publish canvas");
-    } finally {
-      setSaving(false);
-    }
-  };
-  const handlePublishClick = () => {
-    if (!formData.title) return;
-
-    if (isArticleInfoIncomplete()) {
-      setShowPublishConfirm(true);
-      return;
-    }
-
-    handlePublish(); // direct publish
-  };
-
-
-  const renderContentBlock = (block: ContentBlock) => {
-    const blockStyle = {
-      color: block.colors?.text || formData.theme_colors.text,
-      background: block.colors?.background || 'transparent',
-    };
-
-    switch (block.type) {
-      case 'paragraph':
-        return (
-          <div className="p-3 rounded" style={blockStyle}>
-            <textarea
-              value={block.content}
-              onChange={(e) => updateContentBlock(block.id, { content: e.target.value })}
-              className="w-full h-full bg-transparent border-none outline-none resize-none text-base leading-relaxed"
-              placeholder="Write your paragraph..."
-              style={{ color: blockStyle.color }}
-            />
-
-          </div>
-        );
-
-      case 'heading':
-        return (
-          <div className="p-3 rounded" style={blockStyle}>
-            <input
-              type="text"
-              value={block.content}
-              onChange={(e) => updateContentBlock(block.id, { content: e.target.value })}
-              className="w-full h-full bg-transparent border-none outline-none text-2xl font-medium"
-              placeholder="Heading..."
-              style={{ color: blockStyle.color }}
-            />
-
-          </div>
-        );
-
-      case 'image':
-        return (
-          <div className="w-full h-full pointer-events-none" style={blockStyle}>
-            {block.content ? (
-              <img
-                src={block.content}
-                alt={block.metadata?.alt || ''}
-                className="w-full h-full object-cover rounded pointer-events-none select-none"
-                draggable={false}
-              />
-            ) : (
-              <div className="w-full h-full bg-[#0F0F0F] rounded flex flex-col items-center justify-center gap-3 p-4 pointer-events-auto">
-                <ImageIcon size={32} className="text-[#444444]" />
-                <input
-                  type="url"
-                  value={block.content}
-                  onChange={(e) => updateContentBlock(block.id, { content: e.target.value })}
-                  className="w-full form-input text-sm text-center"
-                  placeholder="Paste image URL"
-                  onClick={(e) => e.stopPropagation()}
-                />
-                <div className="text-[#666666] text-xs">or</div>
-                <ImageUpload
-                  type="image"
-                  onSelect={(file, previewUrl) =>
-                    updateContentBlock(block.id, {
-                      file,
-                      content: previewUrl, // preview only
-                    })
-                  }
-                />
-
-              </div>
-            )}
-          </div>
-        );
-
-      case 'video':
-        return (
-          <div className="w-full h-full relative pointer-events-none" style={blockStyle}>
-            {block.content ? (
-              <>
-                <video
-                  src={block.content}
-                  autoPlay
-                  className="w-full h-full object-cover rounded opacity-75 pointer-events-none select-none"
-                  draggable={false}
-                />
-                <div className="absolute bottom-3 left-3 text-xs bg-black/70 px-2 py-1 rounded pointer-events-none">
-                  {block.metadata?.duration || '0:00'}
-                </div>
-              </>
-            ) : (
-              <div className="w-full h-full bg-[#0F0F0F] rounded flex flex-col items-center justify-center gap-3 p-4 pointer-events-auto">
-                <VideoIcon size={32} className="text-[#444444]" />
-                <input
-                  type="url"
-                  value={block.content}
-                  onChange={(e) => updateContentBlock(block.id, { content: e.target.value })}
-                  className="w-full form-input text-sm text-center"
-                  placeholder="Paste thumbnail URL"
-                  onClick={(e) => e.stopPropagation()}
-                />
-                <div className="text-[#666666] text-xs">or</div>
-                <ImageUpload
-                  type="video"
-                  onSelect={(file, previewUrl) =>
-                    updateContentBlock(block.id, {
-                      file,
-                      content: previewUrl, // preview only
-                    })
-                  }
-                />
-
-              </div>
-            )}
-          </div>
-        );
-
-      case 'blockquote':
-        return (
-          <textarea
-            value={block.content}
-            onChange={(e) => updateContentBlock(block.id, { content: e.target.value })}
-            className="w-full h-full bg-transparent border-none outline-none resize-none italic text-base"
-            placeholder="Quote..."
-            style={{ color: blockStyle.color }}
-          />
-
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  const toolbarWidth = 280;
-  const sidebarWidth = 336;
-  const spacing = 32;
-  const totalReservedWidth = toolbarWidth + sidebarWidth + (spacing * 2);
-  const CANVAS_WIDTH = 750; // ✅ fixed logical page width
-  const canvasMargin =
-    typeof window !== 'undefined'
-      ? toolbarWidth + spacing + ((window.innerWidth - totalReservedWidth - CANVAS_WIDTH) / 2)
-      : toolbarWidth + spacing;
-
-  const maxSectionEnd = formData.background_sections.length > 0
-    ? Math.max(...formData.background_sections.map(s => s.endPosition))
-    : 2000;
-  const canvasHeight = Math.max(maxSectionEnd + 500, 2000);
+  if (!editor) return null;
 
   return (
-    <div ref={containerRef} className="relative w-full h-full overflow-y-auto bg-[#0A0A0A]">
-      {message && (
-        <div
-          className={`fixed top-20 left-1/2 transform -translate-x-1/2 z-[200] p-4 rounded-lg ${message.type === 'success'
-            ? 'bg-green-500/10 border border-green-500/20 text-green-400'
-            : 'bg-red-500/10 border border-red-500/20 text-red-400'
-            }`}
-        >
-          {message.text}
-        </div>
-      )}
+    <div className="min-h-screen bg-[#191919] text-gray-100 font-sans pb-20">
+      <div className="max-w-5xl mx-auto px-6 py-10 flex gap-10">
 
-      <div className="fixed top-4 left-4 z-[150] flex flex-col gap-2">
-        <button
-          onClick={() => addContentBlock('paragraph')}
-          className="btn-muted"
-          title="Add Paragraph"
-        >
-          <Plus size={14} />
-          <AlignLeft size={14} />
-        </button>
-        <button
-          onClick={() => addContentBlock('heading')}
-          className="btn-muted"
-          title="Add Heading"
-        >
-          <Plus size={14} />
-          <Type size={14} />
-        </button>
-        <button
-          onClick={() => addContentBlock('image')}
-          className="btn-muted"
-          title="Add Image"
-        >
-          <Plus size={14} />
-          <ImageIcon size={14} />
-        </button>
-        <button
-          onClick={() => addContentBlock('video')}
-          className="btn-muted"
-          title="Add Video"
-        >
-          <Plus size={14} />
-          <VideoIcon size={14} />
-        </button>
-        <button
-          onClick={() => addContentBlock('blockquote')}
-          className="btn-muted"
-          title="Add Quote"
-        >
-          <Plus size={14} />
-          <Quote size={14} />
-        </button>
-      </div>
-      {showPublishConfirm && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-[#111111] rounded-xl p-6 w-full max-w-md">
-            <h3 className="text-[#EEEEEE] text-sm font-semibold mb-2">
-              Publish without complete article info?
-            </h3>
+        {/* --- LEFT SIDE: FLOATING TOOLBAR --- */}
+        <aside className="shrink-0 relative">
+          <div className="sticky top-10 flex flex-col gap-3 p-2 bg-[#252525] border border-white/10 rounded-2xl shadow-xl z-20">
+            <ToolbarButton onClick={() => editor.chain().focus().setParagraph().run()} active={editor.isActive('paragraph')} icon={<Type size={18} />} label="Text" />
+            <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} icon={<Bold size={18} />} label="Bold" />
+            <ToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} icon={<Italic size={18} />} label="Italic" />
 
-            <p className="text-[#999999] text-xs mb-4 leading-relaxed">
-              Author profile details, links, or hero image are not filled.
-              This may affect how your article appears publicly.
-            </p>
+            <div className="h-px bg-white/10 mx-2 my-1" />
 
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowPublishConfirm(false)}
-                className="px-4 py-2 text-xs rounded-lg bg-[rgba(255,255,255,0.06)] text-[#AAAAAA] hover:bg-[rgba(255,255,255,0.1)]"
-              >
-                Cancel
-              </button>
-
-              <button
+            {/* Custom Link Logic */}
+            <div className="relative">
+              <ToolbarButton
                 onClick={() => {
-                  setShowPublishConfirm(false);
-                  handlePublish();
+                  setLinkUrl(editor.getAttributes('link').href || '');
+                  setShowLinkInput(!showLinkInput);
                 }}
-                className="px-4 py-2 text-xs rounded-lg bg-[#2563EB] text-white hover:bg-[#1D4ED8]"
-              >
-                Publish anyway
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <aside className="fixed top-4 right-4 w-80 z-[60] space-y-3 max-h-[calc(100vh-2rem)] overflow-y-auto">
-        <div className="sidebar-panel">
-          <button
-            onClick={() => handleSave(false)}
-            disabled={saving || !formData.title}
-            className="btn-muted w-full justify-center py-2.5 mb-2"
-          >
-            <Save size={14} />
-            Save Draft
-          </button>
-          <button
-            onClick={handlePublishClick}
-            disabled={saving || !formData.title}
-            className="w-full px-6 py-2.5 bg-[rgba(255,255,255,0.08)] hover:bg-[rgba(255,255,255,0.12)] text-[#EEEEEE] rounded-lg transition-all duration-300 flex items-center justify-center gap-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Eye size={14} />
-            Publish
-          </button>
-          {!formData.title && (
-            <p className="text-red-400 text-xs mt-1 text-center">
-              Title is required to publish
-            </p>
-          )}
-
-        </div>
-        <div className="sidebar-panel">
-          <h4 className="mb-3">Article Info</h4>
-          <div className="space-y-2">
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => updateField('title', e.target.value)}
-              className="w-full form-input text-sm"
-              placeholder="Article Title *"
-            />
-            <input
-              type="text"
-              value={formData.subtitle}
-              onChange={(e) => updateField('subtitle', e.target.value)}
-              className="w-full form-input text-sm"
-              placeholder="Subtitle"
-            />
-            <input
-              type="text"
-              value={formData.category}
-              onChange={(e) => updateField('category', e.target.value)}
-              className="w-full form-input text-sm"
-              placeholder="Category"
-            />
-            <input
-              type="text"
-              value={formData.author_name}
-              onChange={(e) => updateField('author_name', e.target.value)}
-              className="w-full form-input text-sm"
-              placeholder="Author Name"
-            />
-            <div className="pt-2">
-              <label className="text-[#666666] text-xs mb-1.5 block">Hero Image</label>
-              <input
-                type="text"
-                value={formData.hero_image_url}
-                onChange={(e) => updateField('hero_image_url', e.target.value)}
-                className="w-full form-input text-sm mb-2"
-                placeholder="Paste image URL"
+                active={editor.isActive('link')}
+                icon={<LinkIcon size={18} />}
+                label="Add Link"
               />
-              <ImageUpload
-                type="image"
-                onSelect={(file, previewUrl) => {
-                  updateField('hero_image_url', previewUrl);
 
-                  // OPTIONAL: store file separately if you want to upload hero image on publish
-                  setFormData(prev => ({
-                    ...prev,
-                    heroImageFile: file, // add this to FormData type
-                  }));
-                }}
-                className="w-full"
-              />
+              {/* --- PRODUCTION LINK POPUP --- */}
+              {showLinkInput && (
+                <div className="absolute left-16 top-0 w-64 p-3 bg-[#2a2a2a] border border-white/10 rounded-xl shadow-2xl z-50 animate-in fade-in slide-in-from-left-2">
+                  <div className="flex flex-col gap-2">
+                    <input
+                      autoFocus
+                      type="text"
+                      placeholder="Paste or type link..."
+                      className="w-full bg-[#191919] border border-white/5 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-blue-500 transition-colors"
+                      value={linkUrl}
+                      onChange={(e) => setLinkUrl(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleLinkConfirm()}
+                    />
+                    <div className="flex justify-end gap-1">
+                      <button onClick={() => setShowLinkInput(false)} className="p-1.5 hover:bg-white/5 rounded-md text-gray-400"><X size={16} /></button>
+                      <button onClick={handleLinkConfirm} className="p-1.5 bg-blue-600 hover:bg-blue-500 rounded-md text-white"><Check size={16} /></button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        </div>
-        <div className="sidebar-panel">
-          <div className="flex items-center justify-between mb-3">
-            <h4>Profiles</h4>
-            <button onClick={addProfile} className="text-[#666666] hover:text-[#999999] transition-colors">
-              <Plus size={12} />
-            </button>
-          </div>
-          <div className="space-y-2">
-            {formData.profiles.map((profile, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <div className="flex-1 space-y-1">
-                  <input
-                    type="text"
-                    value={profile.name}
-                    onChange={(e) => updateProfile(index, 'name', e.target.value)}
-                    className="w-full form-input text-xs"
-                    placeholder="Name"
-                  />
-                  <input
-                    type="text"
-                    value={profile.role}
-                    onChange={(e) => updateProfile(index, 'role', e.target.value)}
-                    className="w-full form-input text-xs"
-                    placeholder="Role"
-                  />
-                </div>
-                <button
-                  onClick={() => deleteProfile(index)}
-                  className="text-[#444444] hover:text-red-400"
-                >
-                  <Trash2 size={10} />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="sidebar-panel">
-          <div className="flex items-center justify-between mb-3">
-            <h4>Links</h4>
-            <button onClick={addLink} className="text-[#666666] hover:text-[#999999] transition-colors">
-              <Plus size={12} />
-            </button>
-          </div>
-          <div className="space-y-2">
-            {formData.links.map((link, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <div className="flex-1 space-y-1">
-                  <input
-                    type="text"
-                    value={link.title}
-                    onChange={(e) => updateLink(index, 'title', e.target.value)}
-                    className="w-full form-input text-xs"
-                    placeholder="Title"
-                  />
-                  <input
-                    type="url"
-                    value={link.url}
-                    onChange={(e) => updateLink(index, 'url', e.target.value)}
-                    className="w-full form-input text-xs"
-                    placeholder="URL"
-                  />
-                </div>
-                <button
-                  onClick={() => deleteLink(index)}
-                  className="text-[#444444] hover:text-red-400"
-                >
-                  <Trash2 size={10} />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="sidebar-panel">
-          <h4 className="mb-3 flex items-center gap-2">
-            <Palette size={14} />
-            Theme Colors
-          </h4>
-          <div className="space-y-2">
-            <ColorPicker
-              label="Background"
-              color={formData.theme_colors.background}
-              onChange={(color) =>
-                updateField('theme_colors', { ...formData.theme_colors, background: color })
-              }
-            />
-            <ColorPicker
-              label="Text"
-              color={formData.theme_colors.text}
-              onChange={(color) =>
-                updateField('theme_colors', { ...formData.theme_colors, text: color })
-              }
-            />
-            <ColorPicker
-              label="Primary"
-              color={formData.theme_colors.primary}
-              onChange={(color) =>
-                updateField('theme_colors', { ...formData.theme_colors, primary: color })
-              }
-            />
-          </div>
-        </div>
 
-        <BackgroundManager
-          sections={formData.background_sections}
-          onChange={(sections) => updateField('background_sections', sections)}
-        />
-      </aside>
-
-      <div className="relative w-full" style={{ height: `${canvasHeight}px` }}>
-        <div
-          className="absolute top-0 z-[5] overflow-hidden"
-          style={{
-            left: `${canvasMargin}px`,
-            width: `${CANVAS_WIDTH}px`,
-            height: `${canvasHeight}px`
-          }}
-
-        >
-          {renderBackgroundSections()}
-
-          <AlignmentGuides
-            activeX={alignmentX}
-            activeY={alignmentY}
-            elements={formData.content.map((block) => ({
-              x: block.position.x,
-              y: block.position.y,
-              width: block.size?.width || 0,
-              height: block.size?.height || 0,
-            }))}
-          />
-
-          <main className="relative z-10 p-20" style={{ minHeight: `${canvasHeight}px` }}>
-            {formData.content.length === 0 && (
-              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center">
-                <p className="text-[#666666] text-lg mb-3">Click buttons above to add elements</p>
-                <p className="text-[#444444] text-sm">Drag them anywhere to position</p>
-              </div>
+            {editor.isActive('link') && (
+              <ToolbarButton onClick={() => editor.chain().focus().unsetLink().run()} icon={<Unlink size={18} />} label="Remove Link" />
             )}
 
+            <div className="h-px bg-white/10 mx-2 my-1" />
+            <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive('heading', { level: 1 })} icon={<Heading1 size={18} />} label="Heading 1" />
+            <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive('heading', { level: 2 })} icon={<Heading2 size={18} />} label="Heading 2" />
+            <div className="h-px bg-white/10 mx-2 my-1" />
+            <ToolbarButton onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} icon={<List size={18} />} label="Bullets" />
+            <ToolbarButton onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} icon={<ListOrdered size={18} />} label="Numbered" />
+            <div className="h-px bg-white/10 mx-2 my-1" />
+            <ToolbarButton onClick={handleImageInsert} icon={<ImagePlus size={18} />} label="Insert Image" />
+            <ToolbarButton onClick={() => editor.chain().focus().setHorizontalRule().run()} icon={<Minus size={18} />} label="Divider" />
+          </div>
+        </aside>
 
-            {formData.content.map((block) => (
-              <DraggableElement
-                key={block.id}
-                id={block.id}
-                position={block.position}
-                size={block.size}
-                onPositionChange={(position) => updateContentBlock(block.id, { position })}
-                onSizeChange={(size) => updateContentBlock(block.id, { size })}
-                onDelete={() => deleteContentBlock(block.id)}
-                onAlignmentChange={handleAlignmentChange}
-                resizable={true}
+        {/* --- RIGHT SIDE: UNIFIED VERTICAL CONTENT --- */}
+        <div className="flex-1 max-w-3xl space-y-12">
+          <header className="bg-[#222222] border border-white/5 rounded-3xl p-10 shadow-2xl">
+            <div className="space-y-6">
+              <input
+                type="text"
+                placeholder="Article Title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full bg-transparent text-5xl font-black border-none outline-none placeholder:text-gray-700 text-white tracking-tighter"
+              />
+              <textarea
+                placeholder="Write a brief, catchy description..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="w-full bg-transparent text-xl text-gray-400 border-none outline-none resize-none placeholder:text-gray-700 leading-relaxed"
+                rows={2}
+              />
+              <div className="flex flex-wrap items-center gap-6 pt-4 border-t border-white/5">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <User size={16} className="text-blue-500" />
+                  <input type="text" placeholder="Author Name" value={author} onChange={(e) => setAuthor(e.target.value)} className="bg-transparent border-none outline-none focus:text-white transition-colors" />
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Calendar size={16} />
+                  <span>{currentDate}</span>
+                </div>
+              </div>
+            </div>
+          </header>
 
+          <section>
+            {headerImage ? (
+              <div className="relative group overflow-hidden rounded-2xl border border-white/10">
+                <img src={headerImage} alt="Cover" className="w-full h-[450px] object-cover transition-transform duration-700 group-hover:scale-105" />
+                <button onClick={() => setHeaderImage('')} className="absolute top-4 right-4 bg-black/60 backdrop-blur-md text-white px-4 py-2 rounded-full text-xs font-bold">Change Cover</button>
+              </div>
+            ) : (
+              <div className="border-2 border-dashed border-white/10 rounded-2xl p-20 text-center hover:border-blue-500/50 hover:bg-white/[0.02] transition-all group cursor-pointer" onClick={() => document.getElementById('header-upload')?.click()}>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => e.target.files && handleCoverUpload(e.target.files[0])}
+                  className="hidden"
+                  id="header-upload"
+                />
 
+                <div className="flex flex-col items-center">
+                  <div className="w-16 h-16 bg-[#252525] rounded-full flex items-center justify-center mb-4 group-hover:bg-blue-600/10 transition-colors">
+                    <ImagePlus className="w-8 h-8 text-gray-500 group-hover:text-blue-400" />
+                  </div>
+                  <span className="text-gray-400 font-medium">Upload high-resolution cover image</span>
+                </div>
+              </div>
+            )}
+          </section>
+
+          <main className="relative">
+            <EditorContent editor={editor} />
+            <div className="mt-20 pt-10 border-t border-white/10 flex justify-end">
+              <button
+                onClick={handlePublish}
+                disabled={publishing || !title.trim() || editor.isEmpty}
               >
-                {renderContentBlock(block)}
-              </DraggableElement>
-            ))}
+                {publishing ? "Publishing..." : "Publish Article"}
+              </button>
+            </div>
           </main>
         </div>
       </div>
     </div>
+  );
+}
+
+function ToolbarButton({ onClick, active = false, icon, label }: { onClick: () => void, active?: boolean, icon: React.ReactNode, label: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`p-3 rounded-xl transition-all duration-200 group relative ${active
+        ? 'bg-blue-600 text-white shadow-lg'
+        : 'text-gray-500 hover:bg-[#323232] hover:text-gray-200'
+        }`}
+    >
+      {icon}
+      <span className="absolute left-16 bg-black text-white text-[11px] px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap border border-white/10 shadow-xl transition-opacity z-50">
+        {label}
+      </span>
+    </button>
   );
 }

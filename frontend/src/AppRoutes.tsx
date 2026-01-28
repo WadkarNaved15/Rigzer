@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation, data } from "react-router-dom";
 import { Suspense, lazy } from "react";
 
 // Pages
@@ -33,7 +33,6 @@ import GamePost from "./components/Home/GamePost";
 export default function AppRoutes() {
   const location = useLocation();
   const state = location.state as { background?: Location };
-
   return (
     <>
       {/* MAIN ROUTES */}
@@ -45,14 +44,7 @@ export default function AppRoutes() {
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/stream/:sessionId" element={<StreamPage />} />
           <Route path="/wishlist" element={<WishlistPage />} />  
-          <Route
-            path="/publisher"
-            element={
-              <div className="fixed inset-0 z-[100]">
-                <PublisherForm onPreview={() => { }} />
-              </div>
-            }
-          />
+          <Route path="/publisher" element={<PublisherForm />}/>
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/editprofile" element={<EditProfilePage />} />
           <Route path="/createpost" element={<CreatePostPage />} />
