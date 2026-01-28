@@ -406,12 +406,10 @@ router.get("/:sessionId/stream-token", verifyToken, async (req, res) => {
     // res.json({
     //   streamUrl: `/api/stream/proxy/${token}`,
     // });
-
       // ✅ DIRECT INSTANCE URL (TEMP)
-  res.json({
-    streamUrl: `http://${session.instanceIp}:8080`,
+ res.json({
+    streamUrl: "https://stream.rigzer.com",
   });
-
 });
 
 
