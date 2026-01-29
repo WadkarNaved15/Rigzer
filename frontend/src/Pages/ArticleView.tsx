@@ -84,39 +84,41 @@ const ArticleOverlay: React.FC<ArticleOverlayProps> = ({ canvasId, onClose }) =>
         <div className="flex-1 max-w-3xl space-y-12">
 
           {/* --- TITLE CARD (HEADER) --- */}
+          {/* --- TITLE CARD (HEADER) --- */}
           <header
-            className={`relative overflow-hidden rounded-3xl p-10 shadow-2xl border transition-all duration-500 ${article.hero_image_url ? 'border-transparent' : 'bg-[#222222] border-white/5'
+            className={`relative overflow-hidden rounded-3xl p-10 shadow-2xl border transition-all duration-500 flex flex-col justify-center ${article.hero_image_url ? 'border-transparent' : 'bg-[#222222] border-white/5'
               }`}
+            style={{ minHeight: '303.4px' }} // Force the exact height from the publisher
           >
-            {/* Background Image Logic - Exact Mirror */}
+            {/* Background Image Logic */}
             {article.hero_image_url && (
               <>
                 <img
                   src={article.hero_image_url}
                   alt="Cover"
-                  className="absolute inset-0 w-full h-full object-cover z-0 transition-transform duration-700 hover:scale-105"
+                  className="absolute inset-0 w-full h-full object-cover z-0 transition-transform duration-700"
                 />
                 <div className="absolute inset-0 bg-black/60 z-10" />
               </>
             )}
 
-            <div className="relative z-20 space-y-6">
-              <div className="flex justify-between items-start gap-4">
-                {/* TITLE: Using 5xl, font-black, and tracking-tighter to match 
-         the input in your editor exactly. 
-      */}
-                <h1 className="w-full bg-transparent text-5xl font-black text-white tracking-tighter leading-tight">
-                  {article.title}
-                </h1>
-              </div>
+            <div className="relative z-20 space-y-6 flex-1 flex flex-col justify-between">
+              <div className="space-y-6">
+                <div className="flex justify-between items-start gap-4">
+                  {/* Adjusted leading to match input field height exactly */}
+                  <h1 className="w-full bg-transparent text-5xl font-black text-white tracking-tighter leading-[1.1]">
+                    {article.title}
+                  </h1>
+                </div>
 
-              {/* subtitle: Added 'min-h-[3rem]' and 'leading-relaxed' to mirror 
-       the height of the 2-row textarea in the editor. 
-    */}
-              <p className={`w-full bg-transparent text-xl leading-relaxed min-h-[3rem] ${article.hero_image_url ? 'text-gray-200' : 'text-gray-400'
-                }`}>
-                {article.subtitle}
-              </p>
+                {/* The textarea in the editor has a natural height based on rows={2}.
+        We use leading-relaxed and a specific margin to match it.
+      */}
+                <p className={`w-full bg-transparent text-xl leading-relaxed ${article.hero_image_url ? 'text-gray-200' : 'text-gray-400'
+                  }`}>
+                  {article.subtitle}
+                </p>
+              </div>
 
               <div className={`flex flex-wrap items-center gap-6 pt-4 border-t ${article.hero_image_url ? 'border-white/10' : 'border-white/5'
                 }`}>
