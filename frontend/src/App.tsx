@@ -8,7 +8,7 @@ import FeedbackProvider from "./context/FeedbackProvider";
 import { SocketProvider } from "./context/SocketContext";
 import { useUser } from "./context/user";
 import { SearchProvider } from "./components/Home/SearchContext";
-
+import { PublishedArticlesProvider } from "./context/PublishedArticleContext";
 import AppRoutes from "./AppRoutes";
 
 function App() {
@@ -17,6 +17,7 @@ function App() {
     <SocketProvider userId={user?._id}>
       <UsersProvider>
         <SearchProvider>
+          <PublishedArticlesProvider>
           <GoogleOAuthProvider clientId="970893892840-8ecshtmle4kip6ps0bl7vbkg3nogl5od.apps.googleusercontent.com">
             <FeedProvider>
               <FeedbackProvider>
@@ -27,6 +28,7 @@ function App() {
               </FeedbackProvider>
             </FeedProvider>
           </GoogleOAuthProvider>
+          </PublishedArticlesProvider>
         </SearchProvider>
       </UsersProvider>
     </SocketProvider>
