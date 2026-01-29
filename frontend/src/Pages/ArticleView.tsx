@@ -72,19 +72,10 @@ const ArticleOverlay: React.FC<ArticleOverlayProps> = ({ canvasId, onClose }) =>
           <ArrowLeft size={20} />
         </button>
       </div>
-      {/* Main Container: Matches <div className="max-w-5xl mx-auto px-6 py-10 flex gap-10"> */}
-      <div className="max-w-5xl mx-auto px-6 py-10 flex gap-10">
 
-        {/* Left Side Spacer: Mirrors the <aside> width from your Editor */}
-        <aside className="shrink-0 w-[52px] hidden lg:block">
-          {/* Empty to preserve the gap/offset */}
-        </aside>
 
         {/* Right Side: Matches <div className="flex-1 max-w-3xl space-y-12"> */}
         <div className="flex-1 max-w-3xl space-y-12">
-
-          {/* --- TITLE CARD (HEADER) --- */}
-          {/* --- TITLE CARD (HEADER) --- */}
           <header
             className={`relative overflow-hidden rounded-3xl p-10 shadow-2xl border transition-all duration-500 flex flex-col justify-center ${article.hero_image_url ? 'border-transparent' : 'bg-[#222222] border-white/5'
               }`}
@@ -111,9 +102,6 @@ const ArticleOverlay: React.FC<ArticleOverlayProps> = ({ canvasId, onClose }) =>
                   </h1>
                 </div>
 
-                {/* The textarea in the editor has a natural height based on rows={2}.
-        We use leading-relaxed and a specific margin to match it.
-      */}
                 <p className={`w-full bg-transparent text-xl leading-relaxed ${article.hero_image_url ? 'text-gray-200' : 'text-gray-400'
                   }`}>
                   {article.subtitle}
@@ -154,7 +142,6 @@ const ArticleOverlay: React.FC<ArticleOverlayProps> = ({ canvasId, onClose }) =>
 
         </div>
       </div>
-    </div>
   );
 };
 
