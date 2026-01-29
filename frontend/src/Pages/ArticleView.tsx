@@ -87,13 +87,13 @@ const ArticleOverlay: React.FC<ArticleOverlayProps> = ({ canvasId, onClose }) =>
           {/* --- TITLE CARD (HEADER) --- */}
           <header
             className={`relative overflow-hidden rounded-3xl p-10 shadow-2xl border transition-all duration-500 ${
-              article.headerImage ? 'border-transparent' : 'bg-[#222222] border-white/5'
+              article.hero_image_url ? 'border-transparent' : 'bg-[#222222] border-white/5'
             }`}
           >
-            {article.headerImage && (
+            {article.hero_image_url && (
               <>
                 <img
-                  src={article.headerImage}
+                  src={article.hero_image_url}
                   alt="Cover"
                   className="absolute inset-0 w-full h-full object-cover z-0"
                 />
@@ -107,13 +107,13 @@ const ArticleOverlay: React.FC<ArticleOverlayProps> = ({ canvasId, onClose }) =>
               </h1>
 
               {article.description && (
-                <p className={`text-xl leading-relaxed ${article.headerImage ? 'text-gray-200' : 'text-gray-400'}`}>
+                <p className={`text-xl leading-relaxed ${article.hero_image_url ? 'text-gray-200' : 'text-gray-400'}`}>
                   {article.description}
                 </p>
               )}
 
               <div className={`flex items-center gap-2 text-sm pt-4 border-t ${
-                article.headerImage ? 'border-white/10 text-gray-400' : 'border-white/5 text-gray-500'
+                article.hero_image_url ? 'border-white/10 text-gray-400' : 'border-white/5 text-gray-500'
               }`}>
                 <Calendar size={16} />
                 <span>
