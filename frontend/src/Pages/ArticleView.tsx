@@ -52,7 +52,7 @@ const ArticleOverlay: React.FC<ArticleOverlayProps> = ({ canvasId, onClose }) =>
       .catch(err => console.error("Fetch error:", err))
       .finally(() => setLoading(false));
   }, [canvasId, editor, BACKEND_URL]);
-
+  console.log("Article:", article);
   if (loading) return (
     <div className="min-h-screen bg-[#191919] flex items-center justify-center">
       <div className="h-8 w-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
@@ -72,10 +72,9 @@ const ArticleOverlay: React.FC<ArticleOverlayProps> = ({ canvasId, onClose }) =>
           <ArrowLeft size={20} />
         </button>
       </div>
-
       {/* Main Container: Matches <div className="max-w-5xl mx-auto px-6 py-10 flex gap-10"> */}
       <div className="max-w-5xl mx-auto px-6 py-10 flex gap-10">
-        
+
         {/* Left Side Spacer: Mirrors the <aside> width from your Editor */}
         <aside className="shrink-0 w-[52px] hidden lg:block">
           {/* Empty to preserve the gap/offset */}
@@ -83,44 +82,55 @@ const ArticleOverlay: React.FC<ArticleOverlayProps> = ({ canvasId, onClose }) =>
 
         {/* Right Side: Matches <div className="flex-1 max-w-3xl space-y-12"> */}
         <div className="flex-1 max-w-3xl space-y-12">
-          
+
           {/* --- TITLE CARD (HEADER) --- */}
           <header
-            className={`relative overflow-hidden rounded-3xl p-10 shadow-2xl border transition-all duration-500 ${
-              article.hero_image_url ? 'border-transparent' : 'bg-[#222222] border-white/5'
-            }`}
+            className={`relative overflow-hidden rounded-3xl p-10 shadow-2xl border transition-all duration-500 ${article.hero_image_url ? 'border-transparent' : 'bg-[#222222] border-white/5'
+              }`}
           >
+            {/* Background Image Logic - Exact Mirror */}
             {article.hero_image_url && (
               <>
                 <img
                   src={article.hero_image_url}
                   alt="Cover"
-                  className="absolute inset-0 w-full h-full object-cover z-0"
+                  className="absolute inset-0 w-full h-full object-cover z-0 transition-transform duration-700 hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-black/60 z-10" />
               </>
             )}
 
             <div className="relative z-20 space-y-6">
-              <h1 className="text-5xl font-black text-white tracking-tighter leading-tight">
-                {article.title}
-              </h1>
+              <div className="flex justify-between items-start gap-4">
+                {/* TITLE: Using 5xl, font-black, and tracking-tighter to match 
+         the input in your editor exactly. 
+      */}
+                <h1 className="w-full bg-transparent text-5xl font-black text-white tracking-tighter leading-tight">
+                  {article.title}
+                </h1>
+              </div>
 
-              {article.description && (
-                <p className={`text-xl leading-relaxed ${article.hero_image_url ? 'text-gray-200' : 'text-gray-400'}`}>
-                  {article.description}
-                </p>
-              )}
+              {/* subtitle: Added 'min-h-[3rem]' and 'leading-relaxed' to mirror 
+       the height of the 2-row textarea in the editor. 
+    */}
+              <p className={`w-full bg-transparent text-xl leading-relaxed min-h-[3rem] ${article.hero_image_url ? 'text-gray-200' : 'text-gray-400'
+                }`}>
+                {article.subtitle}
+              </p>
 
-              <div className={`flex items-center gap-2 text-sm pt-4 border-t ${
-                article.hero_image_url ? 'border-white/10 text-gray-400' : 'border-white/5 text-gray-500'
-              }`}>
-                <Calendar size={16} />
-                <span>
-                  {new Date(article.publishedAt || Date.now()).toLocaleDateString('en-US', {
-                    month: 'long', day: 'numeric', year: 'numeric'
-                  })}
-                </span>
+              <div className={`flex flex-wrap items-center gap-6 pt-4 border-t ${article.hero_image_url ? 'border-white/10' : 'border-white/5'
+                }`}>
+                <div className={`flex items-center gap-2 text-sm ${article.hero_image_url ? 'text-gray-400' : 'text-gray-500'
+                  }`}>
+                  <Calendar size={16} />
+                  <span>
+                    {new Date(article.publishedAt || Date.now()).toLocaleDateString('en-US', {
+                      month: 'long',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}
+                  </span>
+                </div>
               </div>
             </div>
           </header>
