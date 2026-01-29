@@ -32,6 +32,8 @@ export default function ArticleEditor() {
   const [description, setDescription] = useState('');
   const [author, setAuthor] = useState('');
   const [headerImage, setHeaderImage] = useState<string>('');
+  const [coverUploading, setCoverUploading] = useState(false);
+  const [editorImageUploading, setEditorImageUploading] = useState(false);
   const [isEditorEmpty, setIsEditorEmpty] = useState(true);
   const navigate = useNavigate();
   // Custom Link State
@@ -103,7 +105,7 @@ export default function ArticleEditor() {
       if (!res.ok) throw new Error("Publish failed");
       const data = await res.json();
       console.log("Article published:", data);
-      toast.success("Sent", {
+      toast.success("Article published", {
         position: "bottom-center",
         autoClose: 1500,
         hideProgressBar: true,
@@ -126,10 +128,21 @@ export default function ArticleEditor() {
 
     input.onchange = async (e: Event) => {
       const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
+      if (!file || !editor) return;
+
+      setEditorImageUploading(true);
+
+      // 👇 Insert temporary placeholder
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: "paragraph",
+          content: [{ type: "text", text: "Uploading image…" }],
+        })
+        .run();
 
       try {
-        // 1️⃣ Get presigned URL
         const res = await fetch(`${BACKEND_URL}/api/upload/presigned-url`, {
           method: "POST",
           credentials: "include",
@@ -142,50 +155,69 @@ export default function ArticleEditor() {
         });
 
         if (!res.ok) throw new Error("Failed to get upload URL");
+
         const { uploadUrl, fileUrl } = await res.json();
 
-        // 2️⃣ Upload to S3
         await fetch(uploadUrl, {
           method: "PUT",
           headers: { "Content-Type": file.type },
           body: file,
         });
 
-        // 3️⃣ Insert CloudFront URL into editor
+        // 🔁 Replace placeholder with image
         editor
-          ?.chain()
+          .chain()
           .focus()
+          .deleteRange({
+            from: editor.state.selection.from - 17,
+            to: editor.state.selection.from,
+          })
           .setImage({ src: fileUrl })
           .run();
       } catch (err) {
-        console.error("Image upload failed", err);
+        console.error("Editor image upload failed", err);
+        toast.error("Image upload failed");
+      } finally {
+        setEditorImageUploading(false);
       }
     };
 
     input.click();
   };
+
   const handleCoverUpload = async (file: File) => {
-    const res = await fetch(`${BACKEND_URL}/api/upload/presigned-url`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        fileName: file.name,
-        fileType: file.type,
-        category: "image",
-      }),
-    });
+    try {
+      setCoverUploading(true);
 
-    if (!res.ok) throw new Error("Failed to get upload URL");
-    const { uploadUrl, fileUrl } = await res.json();
+      const res = await fetch(`${BACKEND_URL}/api/upload/presigned-url`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileType: file.type,
+          category: "image",
+        }),
+      });
 
-    await fetch(uploadUrl, {
-      method: "PUT",
-      headers: { "Content-Type": file.type },
-      body: file,
-    });
+      if (!res.ok) throw new Error("Failed to get upload URL");
 
-    setHeaderImage(fileUrl); // ✅ store CloudFront URL
+      const { uploadUrl, fileUrl } = await res.json();
+
+      await fetch(uploadUrl, {
+        method: "PUT",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+
+      setHeaderImage(fileUrl);
+    } catch (err) {
+      console.error("Cover upload failed", err);
+      toast.error("Cover image upload failed");
+    } finally {
+      setCoverUploading(false);
+    }
   };
+
 
 
   if (!editor) return null;
@@ -248,7 +280,7 @@ export default function ArticleEditor() {
             <ToolbarButton onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive('bulletList')} icon={<List size={18} />} label="Bullets" />
             <ToolbarButton onClick={() => editor.chain().focus().toggleOrderedList().run()} active={editor.isActive('orderedList')} icon={<ListOrdered size={18} />} label="Numbered" />
             <div className="h-px bg-white/10 mx-2 my-1" />
-            <ToolbarButton onClick={handleImageInsert} icon={<ImagePlus size={18} />} label="Insert Image" />
+            <ToolbarButton onClick={handleImageInsert} icon={<ImagePlus size={18} />} label="Insert Image" active={false} disabled={editorImageUploading} />
             <ToolbarButton onClick={() => editor.chain().focus().setHorizontalRule().run()} icon={<Minus size={18} />} label="Divider" />
           </div>
         </aside>
@@ -261,17 +293,28 @@ export default function ArticleEditor() {
               }`}
           >
             {/* Background Image Logic */}
-            {headerImage && (
+            {/* Cover Image */}
+            {headerImage && !coverUploading && (
               <>
                 <img
                   src={headerImage}
                   alt="Cover"
                   className="absolute inset-0 w-full h-full object-cover z-0 transition-transform duration-700 hover:scale-105"
                 />
-                {/* Dark overlay to ensure text is always readable */}
                 <div className="absolute inset-0 bg-black/60 z-10" />
               </>
             )}
+
+            {/* Cover Upload Loader */}
+            {coverUploading && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/70">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="h-8 w-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span className="text-sm text-gray-300">Uploading cover image…</span>
+                </div>
+              </div>
+            )}
+
 
             <div className="relative z-20 space-y-6">
               <div className="flex justify-between items-start gap-4">
@@ -285,7 +328,14 @@ export default function ArticleEditor() {
 
                 {/* Compact Image Actions */}
                 <div className="flex gap-2 shrink-0">
-                  <label className="cursor-pointer p-2 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white transition-all shadow-lg">
+                  <label
+                    className={`cursor-pointer p-2 backdrop-blur-md rounded-full text-white transition-all shadow-lg
+                      ${coverUploading
+                        ? 'opacity-40 pointer-events-none'
+                        : 'bg-white/10 hover:bg-white/20'
+                      }`}
+                  >
+
                     {!headerImage && (
                       <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center text-red-500 font-bold text-lg select-none">
                         *
@@ -301,9 +351,15 @@ export default function ArticleEditor() {
                   </label>
                   {headerImage && (
                     <button
+                      disabled={coverUploading}
                       onClick={() => setHeaderImage('')}
-                      className="p-2 bg-red-500/20 hover:bg-red-500/40 backdrop-blur-md rounded-full text-red-200 transition-all"
+                      className={`p-2 backdrop-blur-md rounded-full transition-all
+                      ${coverUploading
+                          ? 'opacity-40 cursor-not-allowed bg-red-500/20'
+                          : 'bg-red-500/20 hover:bg-red-500/40 text-red-200'
+                        }`}
                     >
+
                       <X size={18} />
                     </button>
                   )}
@@ -340,6 +396,13 @@ export default function ArticleEditor() {
             </div>
 
             <main className="relative">
+              {editorImageUploading && (
+                <div className="mb-4 flex items-center gap-3 text-sm text-blue-400">
+                  <div className="h-4 w-4 border-2 border-blue-400/30 border-t-blue-400 rounded-full animate-spin" />
+                  Uploading image…
+                </div>
+              )}
+
               <EditorContent editor={editor} />
 
               <div className="mt-20 pt-10 border-t border-white/10 flex justify-end">
@@ -359,20 +422,39 @@ export default function ArticleEditor() {
   );
 }
 
-function ToolbarButton({ onClick, active = false, icon, label }: { onClick: () => void, active?: boolean, icon: React.ReactNode, label: string }) {
+function ToolbarButton({
+  onClick,
+  active = false,
+  disabled = false,
+  icon,
+  label,
+}: {
+  onClick: () => void;
+  active?: boolean;
+  disabled?: boolean;
+  icon: React.ReactNode;
+  label: string;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`p-3 rounded-xl transition-all duration-200 group relative ${active
-        ? 'bg-blue-600 text-white shadow-lg'
-        : 'text-gray-500 hover:bg-[#323232] hover:text-gray-200'
+      disabled={disabled}
+      className={`p-3 rounded-xl transition-all duration-200 group relative
+        ${disabled
+          ? 'opacity-40 cursor-not-allowed'
+          : active
+            ? 'bg-blue-600 text-white shadow-lg'
+            : 'text-gray-500 hover:bg-[#323232] hover:text-gray-200'
         }`}
     >
       {icon}
-      <span className="absolute left-16 bg-black text-white text-[11px] px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap border border-white/10 shadow-xl transition-opacity z-50">
-        {label}
-      </span>
+
+      {!disabled && (
+        <span className="absolute left-16 bg-black text-white text-[11px] px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap border border-white/10 shadow-xl transition-opacity z-50">
+          {label}
+        </span>
+      )}
     </button>
   );
 }
