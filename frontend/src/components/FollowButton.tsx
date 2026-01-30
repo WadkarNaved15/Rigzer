@@ -64,9 +64,9 @@ const FollowButton: React.FC<FollowButtonProps> = ({ userId, targetId }) => {
     >
       {isFollowing ? (
         /* Reduced size to 14px (w-3.5) for that tiny, precise look */
-        <UserRoundCheck className="w-3.5 h-3.5 text-green-400" strokeWidth={2} />
+        <UserRoundCheck className="w-3.5 h-3 text-green-400" strokeWidth={2} />
       ) : (
-        <UserRoundPlus className="w-3.5 h-3.5 text-white/80" strokeWidth={2} />
+        <UserRoundPlus className="w-3.5 h-3 text-white/80" strokeWidth={2} />
       )}
     </button>
   );
