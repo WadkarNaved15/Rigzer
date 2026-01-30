@@ -17,6 +17,7 @@ import type { ExePostProps, PostProps, NormalPostProps } from "../types/Post";
 import CircleLoader from "../components/Loader/CircleLoader";
 import TickerBar from "../components/Home/TickerBar";
 import ArticleOverlay from "./ArticleView";
+import ArticleRecommendations from "../components/Articles/ArticleRecommendations";
 import UploadBox from "../components/Home/Upload";
 import { useSearch } from "../components/Home/SearchContext";
 import { ArrowLeft } from "lucide-react";
@@ -289,20 +290,36 @@ function Home() {
             )}
           {/* ARTICLE POST → replace center + right */}
           {articleOpen && activeCanvasId && !isUploading && !profileOpen && (
-            <div className="lg:col-span-10 min-h-[80vh] w-full pt-3">
-              <Suspense fallback={null}>
-                <ArticleOverlay
-                  canvasId={activeCanvasId}
-                  onClose={() => {
-                    setArticleOpen(false);
-                    setActiveCanvasId(null);
-                  }}
-                />
-              </Suspense>
-            </div>
+            <>
+              {/* CENTER: Article */}
+              <div className="lg:col-span-7 min-h-[80vh] w-full pt-3">
+                <Suspense fallback={null}>
+                  <ArticleOverlay
+                    canvasId={activeCanvasId}
+                    onClose={() => {
+                      setArticleOpen(false);
+                      setActiveCanvasId(null);
+                    }}
+                  />
+                </Suspense>
+              </div>
+
+              {/* RIGHT: Recommendations */}
+              <div className="lg:col-span-3 hidden lg:block">
+                <div className="sticky top-20 space-y-6">
+                  <Suspense fallback={null}>
+                    <ArticleRecommendations
+                      currentCanvasId={activeCanvasId}
+                      onOpenArticle={(id) => {
+                        setActiveCanvasId(id);
+                        setArticleOpen(true);
+                      }}
+                    />
+                  </Suspense>
+                </div>
+              </div>
+            </>
           )}
-
-
           {/* CENTER */}
           {!isUploading &&
             !articleOpen &&
