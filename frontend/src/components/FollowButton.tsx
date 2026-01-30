@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { UserPlus, UserCheck } from "lucide-react";
+import { UserRoundPlus, UserRoundCheck, UserPlus, UserCheck } from "lucide-react";
 
 interface FollowButtonProps {
   userId: string;    // current logged-in user
@@ -56,12 +56,12 @@ const FollowButton: React.FC<FollowButtonProps> = ({ userId, targetId }) => {
     <button
       onClick={toggleFollow}
       disabled={loading}
-      className="p-1 rounded-full transition-colors duration-150 hover:bg-gray-200 dark:hover:bg-gray-700"
+      className="flex items-center justify-center p-1 rounded-md bg-[#1e1e1e]/30 hover:bg-black/40 border border-white/10 backdrop-blur-sm transition-all disabled:opacity-50"
     >
       {isFollowing ? (
-        <UserCheck className="w-4 h-4 text-green-500" />
+        <UserRoundCheck className="w-4 h-4 text-green-400" strokeWidth={2} />
       ) : (
-        <UserPlus className="w-4 h-4 text-blue-500" />
+        <UserRoundPlus className="w-4 h-4 text-white/90" strokeWidth={2} />
       )}
     </button>
   );
