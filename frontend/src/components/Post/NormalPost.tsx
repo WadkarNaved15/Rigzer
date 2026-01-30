@@ -112,8 +112,11 @@ const NormalPost: React.FC<NormalPostProps> = ({
       observer.disconnect();
       video.pause();
     };
-  }, [primaryVideoIndex, activeVideo, viewerOpen]);
+  }, [primaryVideoIndex, viewerOpen]);
 
+  useEffect(() => {
+    videoRefs.current = [];
+  }, [assets]);
 
   useEffect(() => {
     if (!viewerOpen) return;
