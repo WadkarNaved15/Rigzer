@@ -13,18 +13,21 @@ const ArticleRecommendations: React.FC<Props> = ({
 }) => {
   const { articles, loading } = usePublishedArticles();
 
+  // Increased slice to allow for enough content to actually scroll
   const recommendations = useMemo(() => {
     return articles
       .filter((a) => a._id !== currentCanvasId)
-      .slice(0, 6);
+      .slice(0, 15); 
   }, [articles, currentCanvasId]);
 
   if (loading || recommendations.length === 0) return null;
 
   return (
-    <aside className="flex flex-col h-full bg-white dark:bg-[#191919] border-l border-gray-100 dark:border-[#252525]">
-      {/* Header - Matching your Billboard style */}
-      <div className="flex items-center justify-between p-4 border-b border-purple-600 dark:border-gray-700">
+    /* h-full ensures it fills the height of the right column in your | A | B | C | layout */
+    <aside className="flex flex-col h-full max-h-screen bg-white dark:bg-[#191919] border-l border-gray-100 dark:border-[#252525]">
+      
+      {/* Fixed Header: Stays at the top while list scrolls */}
+      <div className="sticky top-0 z-10 bg-white dark:bg-[#191919] flex items-center justify-between p-4 border-b border-purple-600 dark:border-gray-700">
         <h2 className="text-sm font-bold dark:text-white uppercase tracking-widest">
           Unexplored
         </h2>
@@ -33,8 +36,12 @@ const ArticleRecommendations: React.FC<Props> = ({
         </span>
       </div>
 
-      {/* Structured 2D List */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-6">
+      {/* Scrollable Area: 
+          'flex-1' allows it to take all available space.
+          'overflow-y-auto' enables scrolling.
+          'scrollbar-hide' or 'custom-scrollbar' for aesthetics.
+      */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-6 scroll-smooth scrollbar-thin scrollbar-thumb-purple-600/20 hover:scrollbar-thumb-purple-600/40">
         {recommendations.map((article) => (
           <div
             key={article._id}
@@ -47,6 +54,7 @@ const ArticleRecommendations: React.FC<Props> = ({
                 <img
                   src={article.hero_image_url}
                   alt={article.title}
+                  loading="lazy"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
                 />
               ) : (
@@ -81,13 +89,6 @@ const ArticleRecommendations: React.FC<Props> = ({
             </div>
           </div>
         ))}
-      </div>
-
-      {/* Footer / CTA */}
-      <div className="p-4 bg-gray-50 dark:bg-[#151515] border-t border-gray-100 dark:border-[#252525]">
-        <button className="w-full py-2 text-[11px] font-bold text-gray-400 hover:text-purple-500 uppercase tracking-widest transition-colors">
-          View All Library
-        </button>
       </div>
     </aside>
   );
