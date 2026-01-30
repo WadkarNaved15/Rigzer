@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-
 /* Tiptap Specific Styles */
 @layer components {
   .tiptap {

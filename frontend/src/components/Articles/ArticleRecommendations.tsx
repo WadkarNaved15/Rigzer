@@ -89,6 +89,7 @@ const ArticleRecommendations: React.FC<Props> = ({
             </div>
           </div>
         ))}
+        <div className="h-20 w-full flex-shrink-0" aria-hidden="true" />
       </div>
     </aside>
   );
