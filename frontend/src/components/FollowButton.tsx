@@ -56,12 +56,17 @@ const FollowButton: React.FC<FollowButtonProps> = ({ userId, targetId }) => {
     <button
       onClick={toggleFollow}
       disabled={loading}
-      className="flex items-center justify-center p-1 rounded-md bg-[#1e1e1e]/30 hover:bg-black/40 border border-white/10 backdrop-blur-sm transition-all disabled:opacity-50"
+      /* - px-3 py-1.5: This creates the horizontal rectangle shape
+         - w-fit: Ensures the button only takes up the space it needs
+         - rounded-md: Keeps the corners slightly soft but structured
+      */
+      className="flex items-center justify-center px-3 py-1.5 w-fit rounded-md bg-[#1e1e1e]/20 hover:bg-black/40 border border-white/10 backdrop-blur-md transition-all disabled:opacity-50"
     >
       {isFollowing ? (
-        <UserRoundCheck className="w-4 h-4 text-green-400" strokeWidth={2} />
+        /* Reduced size to 14px (w-3.5) for that tiny, precise look */
+        <UserRoundCheck className="w-3.5 h-3.5 text-green-400" strokeWidth={2} />
       ) : (
-        <UserRoundPlus className="w-4 h-4 text-white/90" strokeWidth={2} />
+        <UserRoundPlus className="w-3.5 h-3.5 text-white/80" strokeWidth={2} />
       )}
     </button>
   );
