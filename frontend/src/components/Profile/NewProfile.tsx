@@ -84,51 +84,55 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
           </div>
         </div>
         {/* Profile Hero Section */}
-        <div className="w-full max-w-6xl mx-auto px-4 pt-2">
-          {/* Main Profile Card Container */}
-          <div className="relative overflow-hidden rounded-3xl bg-[#191919] border border-white/10 shadow-2xl">
+        {/* Parent Container - Added 'flex' and 'items-start' */}
+        <div className="w-full max-w-6xl mx-auto px-4 pt-2 flex justify-between items-start">
 
-            {/* 1. Banner Section with the specific Blend Logic */}
-            <div className="relative h-48 md:h-64 overflow-hidden">
-              <img
-                src="https://fastly.picsum.photos/id/299/800/200.jpg?hmac=xMdRbjiNM_IogJDEgKIJ0GeCxZ8nwOGd5_Wf_ODZ94s"
-                className="w-full h-full object-cover"
-                alt="Cover"
-              />
-
-              {/* The "Blending" Overlay */}
-              <div
-                className="absolute inset-0"
-                style={{
-                  background: `linear-gradient(180deg, 
-            transparent 0%, 
-            rgba(25, 25, 25, 0.2) 30%, 
-            rgba(25, 25, 25, 0.7) 60%, 
-            #191919 100%)`
-                }}
-              />
-            </div>
-
-            {/* 2. Info Overlay Section */}
-            <div className="relative px-6 pb-8 -mt-20 flex flex-col md:flex-row md:items-end gap-6 z-10">
-
-              {/* Circular Avatar that matches the blend background */}
-              <div className="relative group shrink-0">
+          {/* LEFT SIDE: Profile Card Section */}
+          <div className="w-full max-w-5xl px-4 pt-2">
+            <div className="relative overflow-hidden rounded-3xl bg-[#191919] border border-white/10 shadow-2xl">
+              {/* 1. Banner Section */}
+              <div className="relative h-48 md:h-64 overflow-hidden">
                 <img
-                  src={user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=256&h=256&auto=format&fit=crop"}
-                  className="relative w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-8 border-[#191919] shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer"
-                  alt="Avatar"
+                  src="https://fastly.picsum.photos/id/299/800/200.jpg?hmac=xMdRbjiNM_IogJDEgKIJ0GeCxZ8nwOGd5_Wf_ODZ94s"
+                  className="w-full h-full object-cover"
+                  alt="Cover"
+                />
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    background: `linear-gradient(180deg, transparent 0%, rgba(25, 25, 25, 0.2) 30%, rgba(25, 25, 25, 0.7) 60%, #191919 100%)`
+                  }}
                 />
               </div>
 
-              {/* User Identity - Placed next to Avatar */}
-              <div className="mb-2">
-                <p className="text-gray-400 font-medium"> With an <span className="text-white">authoritative voice</span> and calm demeanor,
-                  this ever popular American actor has grown into one of the most respected figures
-                  in modern US cinema.</p>
+              {/* 2. Info Overlay Section */}
+              <div className="relative px-6 pb-8 -mt-20 flex flex-col items-center text-center md:flex-row md:items-end md:text-left gap-6 z-10">
+                <div className="relative group shrink-0">
+                  <img
+                    src={user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=256&h=256&auto=format&fit=crop"}
+                    className="relative w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-8 border-[#191919] shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer"
+                    alt="Avatar"
+                  />
+                </div>
+                <div className="md:mb-4">
+                  <p className="text-gray-400 font-medium text-sm md:text-base leading-relaxed">
+                    With an <span className="text-white">authoritative voice</span> and calm demeanor,
+                    this ever popular American actor...
+                  </p>
+                </div>
               </div>
             </div>
           </div>
+
+          {/* RIGHT SIDE: Your other component goes here */}
+          <div className="w-40 shrink-0 pt-2">
+            {/* Replace this with your actual component */}
+            <div className="bg-[#191919] p-6 rounded-3xl border border-white/10 text-white">
+              <h3 className="text-xl font-bold">Right Side Component</h3>
+              <p className="text-gray-400">Content goes here...</p>
+            </div>
+          </div>
+
         </div>
 
         {/* Spacer for content below to account for the overlapping avatar */}
