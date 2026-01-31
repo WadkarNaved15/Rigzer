@@ -85,31 +85,47 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
         {/* Profile Hero Section */}
         <div className="w-full max-w-6xl mx-auto px-4 pt-6">
           {/* Main Profile Card Container */}
-          <div className="relative overflow-hidden rounded-3xl bg-white/5 border border-white/10 shadow-2xl">
+          <div className="relative overflow-hidden rounded-3xl bg-[#191919] border border-white/10 shadow-2xl">
 
-            {/* 1. Banner Section */}
+            {/* 1. Banner Section with the specific Blend Logic */}
             <div className="relative h-48 md:h-64 overflow-hidden">
               <img
                 src="https://fastly.picsum.photos/id/299/800/200.jpg?hmac=xMdRbjiNM_IogJDEgKIJ0GeCxZ8nwOGd5_Wf_ODZ94s"
                 className="w-full h-full object-cover"
                 alt="Cover"
               />
-              {/* Dark overlay for text readability blending into the #191919 theme */}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#191919] via-[#191919]/40 to-transparent" />
+
+              {/* The "Blending" Overlay */}
+              <div
+                className="absolute inset-0"
+                style={{
+                  background: `linear-gradient(180deg, 
+            transparent 0%, 
+            rgba(25, 25, 25, 0.2) 30%, 
+            rgba(25, 25, 25, 0.7) 60%, 
+            #191919 100%)`
+                }}
+              />
             </div>
 
             {/* 2. Info Overlay Section */}
-            <div className="relative px-6 pb-8 -mt-20 flex flex-col md:flex-row md:items-end gap-6">
+            <div className="relative px-6 pb-8 -mt-20 flex flex-col md:flex-row md:items-end gap-6 z-10">
 
-              {/* Avatar - Circular Implementation */}
+              {/* Circular Avatar that matches the blend background */}
               <div className="relative group shrink-0">
-                {/* Glow effect adjusted to circular */}
-                <div className="absolute -inset-1 bg-gradient-to-tr"></div>
                 <img
                   src={user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=256&h=256&auto=format&fit=crop"}
-                  className="relative w-36 h-36 md:w-44 md:h-44 rounded-full object-cover border-8 border-[#191919] shadow-2xl"
+                  className="relative w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-8 border-[#191919] shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer"
                   alt="Avatar"
                 />
+              </div>
+
+              {/* User Identity - Placed next to Avatar */}
+              <div className="mb-2">
+                <h1 className="text-3xl font-black text-white tracking-tight uppercase italic">
+                  {user?.username || "John Developer"}
+                </h1>
+                <p className="text-gray-400 font-medium">Software Engineer</p>
               </div>
             </div>
           </div>
