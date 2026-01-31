@@ -1,5 +1,5 @@
 import React from "react";
-import { Star, Heart, Plus, Play, Image, Video, X } from "lucide-react";
+import { Star, Heart, Plus, Play, Image, Video, X, Settings } from "lucide-react";
 import FollowButton from "../FollowButton";
 import FollowersList from "../FollowersList";
 import { useEffect, useState, useRef, useLayoutEffect } from "react";
@@ -62,100 +62,61 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
       {/* Main Content - 75% width */}
       <div className="mx-auto px-2 ">
         {/* Header Section */}
-        <div className="flex justify-start items-start">
-          <div>
-            {/* Container for Name and Buttons */}
-            <div className="flex items-center gap-6 mb-3">
-              {/* Name - Large and Bold */}
-              <h1 className="text-4xl font-extrabold tracking-tight flex items-baseline">
-                John Developer
-              </h1>
+        <div className="w-full border-b border-white/10 bg-[#191919] pb-8 mb-8 pt-4">
+          {/* Main Header Container */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between px-6 max-w-6xl mx-auto">
 
-              {/* Buttons - Using flex and self-center for pixel-perfect alignment */}
-              <div className="flex items-center gap-2 pt-1">
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-full text-sm font-bold transition-all shadow-sm active:scale-95">
-                  Follow
-                </button>
-                <button className="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-black dark:text-white px-6 py-2 rounded-full text-sm font-bold transition-all shadow-sm active:scale-95 border border-transparent dark:border-gray-700">
-                  Message
+            <div className="flex flex-col gap-1">
+              {/* Name and Action Button Row */}
+              <div className="flex items-center gap-5 flex-wrap">
+                <h1 className="text-4xl font-black tracking-tight text-white italic uppercase">
+                  John Developer
+                </h1>
+
+                <button className="bg-white hover:bg-gray-200 text-[#191919] px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] active:scale-95">
+                  Edit Profile
                 </button>
               </div>
             </div>
 
-            {/* Roles / Subtitle */}
-            <div className="flex items-center space-x-4 mb-2 text-gray-600 dark:text-gray-400 font-medium">
-              <span>Game Designer</span>
-              <span className="text-xs opacity-50">•</span>
-              <span>Software Engineer</span>
-              <span className="text-xs opacity-50">•</span>
-              <span>3D Artist</span>
-            </div>
-          </div>
-
-          {/* Followers List remains on the right */}
-          <div className="ml-16 pt-2">
             <FollowersList userId={user?._id} />
           </div>
         </div>
+        {/* Profile Hero Section */}
+        <div className="w-full max-w-6xl mx-auto px-4 pt-6">
+          {/* Main Profile Card Container */}
+          <div className="relative overflow-hidden rounded-3xl bg-white/5 border border-white/10 shadow-2xl">
 
-        {/* Main Profile Section */}
-        <div className="flex gap-8 mb-4">
-          {/* Left Side - Profile Image */}
-          <div className="flex-shrink-0">
-            <img
-              src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e"
-              alt="Morgan Freeman"
-              className="w-52 h-52 object-cover rounded-lg"
-            />
-          </div>
-
-          {/* Center - Movie Still */}
-          <div className="flex-1">
-            <div className="relative bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden h-52">
+            {/* 1. Banner Section */}
+            <div className="relative h-48 md:h-64 overflow-hidden">
               <img
-                src="/api/placeholder/600/400"
-                alt="Driving Miss Daisy scene"
+                src="https://fastly.picsum.photos/id/299/800/200.jpg?hmac=xMdRbjiNM_IogJDEgKIJ0GeCxZ8nwOGd5_Wf_ODZ94s"
                 className="w-full h-full object-cover"
+                alt="Cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent">
-                <div className="absolute bottom-4 left-4 right-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-xl font-bold mb-1 text-white">DRIVING MISS DAISY (1989)</h3>
-                    </div>
-                    <div className="flex items-center space-x-4 text-white">
-                      <div className="flex items-center space-x-1">
-                        <span className="text-sm">👍</span>
-                        <span className="text-sm">38</span>
-                      </div>
-                      <div className="flex items-center space-x-1">
-                        <Heart className="w-4 h-4 text-red-500" />
-                        <span className="text-sm">23</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+              {/* Dark overlay for text readability blending into the #191919 theme */}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#191919] via-[#191919]/40 to-transparent" />
+            </div>
+
+            {/* 2. Info Overlay Section */}
+            <div className="relative px-6 pb-8 -mt-20 flex flex-col md:flex-row md:items-end gap-6">
+
+              {/* Avatar - Circular Implementation */}
+              <div className="relative group shrink-0">
+                {/* Glow effect adjusted to circular */}
+                <div className="absolute -inset-1 bg-gradient-to-tr"></div>
+                <img
+                  src={user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=256&h=256&auto=format&fit=crop"}
+                  className="relative w-36 h-36 md:w-44 md:h-44 rounded-full object-cover border-8 border-[#191919] shadow-2xl"
+                  alt="Avatar"
+                />
               </div>
-              <button className="absolute top-4 left-4 bg-[#191919]/50 p-2 rounded-full hover:bg-[#191919]/70">
-                <Play className="w-5 h-5" />
-              </button>
             </div>
           </div>
-
-          {/* Right Side - Stats */}
-          {/* <div className="flex flex-col space-y-2">
-            <div className="text-center bg-gray-100 dark:bg-gray-800 rounded-xl shadow-md">
-              <Video className="w-24 h-12 mx-auto text-gray-600 dark:text-gray-400" />
-              <div className="text-xl font-bold">99+</div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">VIDEOS</div>
-            </div>
-            <div className="text-center bg-gray-100 dark:bg-gray-800 rounded-xl shadow-md">
-              <Image className="w-24 h-12 mx-auto text-gray-600 dark:text-gray-400" />
-              <div className="text-xl font-bold">99+</div>
-              <div className="text-sm text-gray-500 dark:text-gray-400">PHOTOS</div>
-            </div>
-          </div> */}
         </div>
+
+        {/* Spacer for content below to account for the overlapping avatar */}
+        <div className="h-16 w-full" />
 
         {/* Biography Text */}
         <div className="mb-8 text-gray-700 dark:text-gray-300">
@@ -214,32 +175,32 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
                   <div className="text-gray-400">You haven’t uploaded any posts yet.</div>
                 )}
 
-                  {postDetailsOpen && selectedPost ? (
-                    <Suspense fallback={null}>
-                      <NormalPostDetails
-                        post={selectedPost as NormalPostProps}
-                        BACKEND_URL={BACKEND_URL}
-                        onClose={() => {
-                          setPostDetailsOpen(false);
-                          setSelectedPost(null);
+                {postDetailsOpen && selectedPost ? (
+                  <Suspense fallback={null}>
+                    <NormalPostDetails
+                      post={selectedPost as NormalPostProps}
+                      BACKEND_URL={BACKEND_URL}
+                      onClose={() => {
+                        setPostDetailsOpen(false);
+                        setSelectedPost(null);
+                      }}
+                    />
+                  </Suspense>
+                ) : (
+                  <div className="flex flex-col">
+                    {userPosts.map((post) => (
+                      <Post
+                        key={post._id}
+                        {...post}
+                        onOpenDetails={() => {
+                          setSelectedPost(post);
+                          setPostDetailsOpen(true);
                         }}
                       />
-                    </Suspense>
-                  ) : (
-                    <div className="flex flex-col">
-                      {userPosts.map((post) => (
-                        <Post
-                          key={post._id}
-                          {...post}
-                          onOpenDetails={() => {
-                            setSelectedPost(post);
-                            setPostDetailsOpen(true);
-                          }}
-                        />
-                      ))}
-                    </div>
-                  )}
-                
+                    ))}
+                  </div>
+                )}
+
               </div>
 
               {/* RIGHT COLUMN — ONLY FOR NON-MODEL POSTS */}
