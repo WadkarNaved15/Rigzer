@@ -70,20 +70,21 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
               {/* Name and Action Button Row */}
               <div className="flex items-center gap-5 flex-wrap">
                 <h1 className="text-4xl font-black tracking-tight text-white italic uppercase">
-                   {user?.username || "John Developer"}
+                  {user?.username || "John Developer"}
                 </h1>
 
-                <button className="bg-white hover:bg-gray-200 text-[#191919] px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] active:scale-95">
+                <button className="bg-white hover:bg-gray-200 text-[#191919] px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] active:scale-95">
                   Edit Profile
                 </button>
               </div>
             </div>
-
-            <FollowersList userId={user?._id} />
+            <div className="md:mr-20 lg:mr-8">
+              <FollowersList userId={user?._id} />
+            </div>
           </div>
         </div>
         {/* Profile Hero Section */}
-        <div className="w-full max-w-6xl mx-auto px-4 pt-6">
+        <div className="w-full max-w-6xl mx-auto px-4 pt-2">
           {/* Main Profile Card Container */}
           <div className="relative overflow-hidden rounded-3xl bg-[#191919] border border-white/10 shadow-2xl">
 
@@ -123,10 +124,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
               {/* User Identity - Placed next to Avatar */}
               <div className="mb-2">
                 <p className="text-gray-400 font-medium"> With an <span className="text-white">authoritative voice</span> and calm demeanor,
-              this ever popular American actor has grown into one of the most respected figures
-              in modern US cinema. <span className="text-white">Morgan</span> was born on
-              June 1, 1937 in Memphis, Tennessee, to Mayme Edna (Revere), a teacher,
-              and Morgan Porterfield Freeman, a barber...</p>
+                  this ever popular American actor has grown into one of the most respected figures
+                  in modern US cinema.</p>
               </div>
             </div>
           </div>
