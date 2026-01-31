@@ -70,7 +70,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
               {/* Name and Action Button Row */}
               <div className="flex items-center gap-5 flex-wrap">
                 <h1 className="text-4xl font-black tracking-tight text-white italic uppercase">
-                  John Developer
+                   {user?.username || "John Developer"}
                 </h1>
 
                 <button className="bg-white hover:bg-gray-200 text-[#191919] px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] active:scale-95">
