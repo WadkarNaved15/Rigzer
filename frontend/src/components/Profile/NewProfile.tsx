@@ -125,7 +125,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
                 <h1 className="text-3xl font-black text-white tracking-tight uppercase italic">
                   {user?.username || "John Developer"}
                 </h1>
-                <p className="text-gray-400 font-medium">Software Engineer</p>
+                <p className="text-gray-400 font-medium">Game Developer</p>
               </div>
             </div>
           </div>
@@ -135,23 +135,15 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
         <div className="h-16 w-full" />
 
         {/* Biography Text */}
-        <div className="mb-8 text-gray-700 dark:text-gray-300">
-          <p className="leading-relaxed mb-4">
-            With an authoritative voice and calm demeanor, this ever popular American actor has grown into one of
-            the most respected figures in modern US cinema. Morgan was born on June 1, 1937 in Memphis,
-            Tennessee, to Mayme Edna (Revere), a teacher, and Morgan Porterfield Freeman, a barber...
-          </p>
-          {/* <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-6 text-blue-600 dark:text-blue-400">
-              <a href="#" className="hover:underline">More at IMDbPro</a>
-              <a href="#" className="hover:underline">Contact info</a>
-              <a href="#" className="hover:underline">Agent info</a>
-              <a href="#" className="hover:underline">Resume</a>
-            </div>
-            <div className="bg-gray-200 dark:bg-gray-800 px-4 py-2 rounded">
-              <span className="text-sm text-gray-700 dark:text-gray-300">Born: June 1, 1937</span>
-            </div>
-          </div> */}
+        {/* Biography Text - Aligned with Header and Hero */}
+        <div className="max-w-6xl mx-auto px-6 mb-12">
+            <p className="text-lg leading-relaxed text-gray-400 font-medium selection:bg-blue-500/30">
+              With an <span className="text-white">authoritative voice</span> and calm demeanor,
+              this ever popular American actor has grown into one of the most respected figures
+              in modern US cinema. <span className="text-white">Morgan</span> was born on
+              June 1, 1937 in Memphis, Tennessee, to Mayme Edna (Revere), a teacher,
+              and Morgan Porterfield Freeman, a barber...
+            </p>
         </div>
 
         {/* Add to List Button */}
