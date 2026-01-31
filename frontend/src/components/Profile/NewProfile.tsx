@@ -122,10 +122,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
 
               {/* User Identity - Placed next to Avatar */}
               <div className="mb-2">
-                <h1 className="text-3xl font-black text-white tracking-tight uppercase italic">
-                  {user?.username || "John Developer"}
-                </h1>
-                <p className="text-gray-400 font-medium">Game Developer</p>
+                <p className="text-gray-400 font-medium"> With an <span className="text-white">authoritative voice</span> and calm demeanor,
+              this ever popular American actor has grown into one of the most respected figures
+              in modern US cinema. <span className="text-white">Morgan</span> was born on
+              June 1, 1937 in Memphis, Tennessee, to Mayme Edna (Revere), a teacher,
+              and Morgan Porterfield Freeman, a barber...</p>
               </div>
             </div>
           </div>
@@ -133,26 +134,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
 
         {/* Spacer for content below to account for the overlapping avatar */}
         <div className="h-16 w-full" />
-
-        {/* Biography Text */}
-        {/* Biography Text - Aligned with Header and Hero */}
-        <div className="max-w-6xl mx-auto px-6 mb-12">
-            <p className="text-lg leading-relaxed text-gray-400 font-medium selection:bg-blue-500/30">
-              With an <span className="text-white">authoritative voice</span> and calm demeanor,
-              this ever popular American actor has grown into one of the most respected figures
-              in modern US cinema. <span className="text-white">Morgan</span> was born on
-              June 1, 1937 in Memphis, Tennessee, to Mayme Edna (Revere), a teacher,
-              and Morgan Porterfield Freeman, a barber...
-            </p>
-        </div>
-
-        {/* Add to List Button */}
-        {/* <div className="mb-12">
-          <button className="bg-yellow-400 text-black px-8 py-3 rounded-full font-semibold hover:bg-yellow-300 flex items-center space-x-2">
-            <Plus className="w-5 h-5" />
-            <span>Add to list</span>
-          </button>
-        </div> */}
       </div>
 
       {/* Two Component Cards Section */}
