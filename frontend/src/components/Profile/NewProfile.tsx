@@ -1,5 +1,5 @@
 import React from "react";
-import { Star, Heart, Plus, Play, Image, Video, X, Settings } from "lucide-react";
+import { Star, Heart, Plus, Play, Image, Video, X, Settings ,Youtube,Instagram} from "lucide-react";
 import FollowButton from "../FollowButton";
 import FollowersList from "../FollowersList";
 import { useEffect, useState, useRef, useLayoutEffect } from "react";
@@ -84,8 +84,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
           </div>
         </div>
         {/* Profile Hero Section */}
-        {/* Parent Container - Added 'flex' and 'items-start' */}
-        <div className="w-full max-w-6xl mx-auto px-4 pt-2 flex justify-between items-start">
+        <div className="w-full max-w-6xl flex justify-between items-start">
 
           {/* LEFT SIDE: Profile Card Section */}
           <div className="w-full max-w-5xl px-4 pt-2">
@@ -124,12 +123,59 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
             </div>
           </div>
 
-          {/* RIGHT SIDE: Your other component goes here */}
           <div className="w-40 shrink-0 pt-2">
-            {/* Replace this with your actual component */}
-            <div className="bg-[#191919] p-6 rounded-3xl border border-white/10 text-white">
-              <h3 className="text-xl font-bold">Right Side Component</h3>
-              <p className="text-gray-400">Content goes here...</p>
+            <div className="bg-[#191919] p-4 rounded-3xl border border-white/10 text-white shadow-2xl flex flex-col gap-4 items-center">
+              <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 mb-2">Socials</h3>
+
+              <div className="flex flex-col gap-3 w-full">
+
+                {/* X (Twitter) - Custom SVG for the 'X' logo */}
+                <a href="#" className="group relative flex items-center justify-center w-full h-12 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20 rounded-2xl transition-all duration-300">
+                  <svg className="w-5 h-5 fill-white group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                    <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z" />
+                  </svg>
+                  <div className="absolute right-[115%] opacity-0 group-hover:opacity-100 transition-all duration-300 bg-white text-black text-[10px] font-bold py-1 px-3 rounded-md pointer-events-none uppercase tracking-tighter">
+                    Twitter
+                  </div>
+                </a>
+
+                {/* YouTube */}
+                <a href="#" className="group relative flex items-center justify-center w-full h-12 bg-white/5 hover:bg-red-500/10 border border-white/5 hover:border-red-500/40 rounded-2xl transition-all duration-300">
+                  <Youtube className="w-5 h-5 text-gray-400 group-hover:text-red-500 group-hover:scale-110 transition-all" />
+                  <div className="absolute right-[115%] opacity-0 group-hover:opacity-100 transition-all duration-300 bg-red-600 text-white text-[10px] font-bold py-1 px-3 rounded-md pointer-events-none uppercase tracking-tighter">
+                    YouTube
+                  </div>
+                </a>
+
+                {/* Instagram */}
+                <a href="#" className="group relative flex items-center justify-center w-full h-12 bg-white/5 hover:bg-pink-500/10 border border-white/5 hover:border-pink-500/40 rounded-2xl transition-all duration-300">
+                  <Instagram className="w-5 h-5 text-gray-400 group-hover:text-pink-500 group-hover:scale-110 transition-all" />
+                  <div className="absolute right-[115%] opacity-0 group-hover:opacity-100 transition-all duration-300 bg-gradient-to-tr from-yellow-400 to-pink-600 text-white text-[10px] font-bold py-1 px-3 rounded-md pointer-events-none uppercase tracking-tighter">
+                    Instagram
+                  </div>
+                </a>
+
+                {/* Steam - Custom SVG for Steam logo */}
+                <a href="#" className="group relative flex items-center justify-center w-full h-12 bg-white/5 hover:bg-blue-500/10 border border-white/5 hover:border-blue-500/40 rounded-2xl transition-all duration-300">
+                  <svg className="w-6 h-6 fill-gray-400 group-hover:fill-blue-400 group-hover:scale-110 transition-all" viewBox="0 0 24 24">
+                    <path d="M11.979 0C5.678 0 .511 4.86.022 11.037l6.432 2.67c.527-.354 1.155-.519 1.777-.472l2.813-4.067V9.113c0-2.392 1.954-4.34 4.344-4.34 2.391 0 4.344 1.948 4.344 4.34 0 2.392-1.953 4.34-4.344 4.34-.14 0-.279-.01-.417-.027l-3.979 4.013c.032.19.047.385.047.583 0 1.952-1.595 3.54-3.556 3.54a3.53 3.53 0 0 1-3.21-2.03L.05 16.591C1.22 20.85 5.232 24 10 24c6.627 0 12-5.373 12-12S18.627 0 12 0h-.021z" />
+                  </svg>
+                  <div className="absolute right-[115%] opacity-0 group-hover:opacity-100 transition-all duration-300 bg-blue-600 text-white text-[10px] font-bold py-1 px-3 rounded-md pointer-events-none uppercase tracking-tighter">
+                    Steam
+                  </div>
+                </a>
+                {/* Discord */}
+                <a href="#" className="group relative flex items-center justify-center w-full h-12 bg-white/5 hover:bg-[#5865F2]/10 border border-white/5 hover:border-[#5865F2]/40 rounded-2xl transition-all duration-300">
+                  <svg className="w-5 h-5 fill-gray-400 group-hover:fill-[#5865F2] transition-all group-hover:scale-110" viewBox="0 0 24 24">
+                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.086 2.157 2.419c0 1.334-.947 2.419-2.157 2.419zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.086 2.157 2.419c0 1.334-.946 2.419-2.157 2.419z" />
+                  </svg>
+                  {/* Tooltip */}
+                  <div className="absolute right-[115%] opacity-0 group-hover:opacity-100 transition-all duration-300 bg-[#5865F2] text-white text-[10px] font-bold py-1.5 px-3 rounded-lg pointer-events-none shadow-xl border border-white/10 uppercase tracking-tighter">
+                    Discord
+                  </div>
+                </a>
+
+              </div>
             </div>
           </div>
 
