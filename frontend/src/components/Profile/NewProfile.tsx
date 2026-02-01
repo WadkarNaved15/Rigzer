@@ -101,13 +101,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
                 <div
                   className="absolute inset-0"
                   style={{
-                    background: `linear-gradient(180deg, transparent 50%, rgba(25, 25, 25, 0.8) 100%)`
+                    background: `linear-gradient(180deg, transparent 0%, rgba(25, 25, 25, 0.2) 30%, rgba(25, 25, 25, 0.7) 60%, #191919 100%)`
                   }}
                 />
               </div>
 
-              {/* 2. Info Overlay Section (The Overlap Logic) */}
-              {/* -mt-14 on mobile and -mt-20 on desktop creates the 50% overlap */}
               <div className="relative px-6 -mt-14 md:-mt-20 flex flex-col items-center text-center md:flex-row md:items-end md:text-left gap-6 z-10">
                 <div className="relative group shrink-0">
                   <img
