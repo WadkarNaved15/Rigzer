@@ -108,7 +108,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
 
               {/* 2. Info Overlay Section */}
               {/* I adjusted -mt to pull it higher and removed pb-8 to leave the bottom empty */}
-              <div className="relative px-6 -mt-16 md:-mt-10 flex flex-col items-center text-center md:flex-row md:items-end md:text-left gap-6 z-10">
+              <div className="relative px-6 -mt-16 md:-mt-5 flex flex-col items-center text-center md:flex-row md:items-end md:text-left gap-6 z-10">
                 <div className="relative group shrink-0">
                   <img
                     src={user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=256&h=256&auto=format&fit=crop"}
@@ -117,7 +117,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
                   />
                 </div>
 
-                <div className="md:mb-2">
+                <div className="md:mb-6">
                   <p className="text-gray-400 font-medium text-xs md:text-sm leading-relaxed max-w-sm">
                     With an <span className="text-white">authoritative voice</span> and calm demeanor...
                   </p>
