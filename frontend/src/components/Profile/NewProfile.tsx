@@ -1,5 +1,5 @@
 import React from "react";
-import { Star, Heart, Plus, Play, Image, Video, X, Settings ,Youtube,Instagram} from "lucide-react";
+import { Star, Heart, Plus, Play, Image, Video, X, Settings, Youtube, Instagram } from "lucide-react";
 import FollowButton from "../FollowButton";
 import FollowersList from "../FollowersList";
 import { useEffect, useState, useRef, useLayoutEffect } from "react";
@@ -88,9 +88,11 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
 
           {/* LEFT SIDE: Profile Card Section */}
           <div className="w-full max-w-5xl px-4 pt-2">
-            <div className="relative overflow-hidden rounded-3xl bg-[#191919] border border-white/10 shadow-2xl">
-              {/* 1. Banner Section */}
-              <div className="relative h-48 md:h-64 overflow-hidden">
+            {/* The main container - Keep the height as is */}
+            <div className="relative overflow-hidden rounded-3xl bg-[#191919] border border-white/10 shadow-2xl min-h-[400px]">
+
+              {/* 1. Banner Section - Reduced height to create more space below */}
+              <div className="relative h-32 md:h-40 overflow-hidden">
                 <img
                   src="https://fastly.picsum.photos/id/299/800/200.jpg?hmac=xMdRbjiNM_IogJDEgKIJ0GeCxZ8nwOGd5_Wf_ODZ94s"
                   className="w-full h-full object-cover"
@@ -105,21 +107,24 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
               </div>
 
               {/* 2. Info Overlay Section */}
-              <div className="relative px-6 pb-8 -mt-20 flex flex-col items-center text-center md:flex-row md:items-end md:text-left gap-6 z-10">
+              {/* I adjusted -mt to pull it higher and removed pb-8 to leave the bottom empty */}
+              <div className="relative px-6 -mt-16 md:-mt-10 flex flex-col items-center text-center md:flex-row md:items-end md:text-left gap-6 z-10">
                 <div className="relative group shrink-0">
                   <img
                     src={user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=256&h=256&auto=format&fit=crop"}
-                    className="relative w-32 h-32 md:w-40 md:h-40 rounded-full object-cover border-8 border-[#191919] shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer"
+                    className="relative w-28 h-28 md:w-36 md:h-36 rounded-full object-cover border-8 border-[#191919] shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer"
                     alt="Avatar"
                   />
                 </div>
-                <div className="md:mb-4">
-                  <p className="text-gray-400 font-medium text-sm md:text-base leading-relaxed">
-                    With an <span className="text-white">authoritative voice</span> and calm demeanor,
-                    this ever popular American actor...
+
+                <div className="md:mb-2">
+                  <p className="text-gray-400 font-medium text-xs md:text-sm leading-relaxed max-w-sm">
+                    With an <span className="text-white">authoritative voice</span> and calm demeanor...
                   </p>
                 </div>
               </div>
+
+              {/* The "40% space" is now naturally here because we didn't add any content or padding below the text */}
             </div>
           </div>
 
