@@ -46,7 +46,7 @@ export default function ProfileCover({
             className="w-full h-16 bg-cover bg-center"
             style={{
               backgroundImage:
-                "url('https://fastly.picsum.photos/id/299/800/200.jpg?hmac=xMdRbjiNM_IogJDEgKIJ0GeCxZ8nwOGd5_Wf_ODZ94s')",
+                `url(${user?.banner} || 'https://fastly.picsum.photos/id/299/800/200.jpg?hmac=xMdRbjiNM_IogJDEgKIJ0GeCxZ8nwOGd5_Wf_ODZ94s')`,
             }}
           />
           <div
