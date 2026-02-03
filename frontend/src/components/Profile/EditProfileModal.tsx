@@ -2,6 +2,7 @@ import { X, Camera, Check } from "lucide-react";
 import { useState, useRef, ChangeEvent, useCallback } from "react";
 import Cropper from "react-easy-crop"; // Import the cropper
 import axios from "axios";
+import { getCroppedImage } from "../../utils/cropImage";
 import { useUser } from "../../context/user";
 
 interface EditProfileModalProps {
@@ -12,7 +13,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose }) => {
   const { user, refreshUser } = useUser();
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const bannerInputRef = useRef<HTMLInputElement>(null);
-
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
   // States for the image adjustment UI
   const [editingImage, setEditingImage] = useState<{ url: string; type: 'avatar' | 'banner' } | null>(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -43,26 +44,62 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose }) => {
       reader.readAsDataURL(file);
     }
   };
+  const uploadToS3 = async (file: Blob, type: "avatar" | "banner") => {
+
+  const res = await axios.post(`${BACKEND_URL}/api/upload/presigned-url`, {
+    fileName: `${type}.jpg`,
+    fileType: file.type,
+    category: "image",
+  });
+
+  await axios.put(res.data.uploadUrl, file, {
+    headers: { "Content-Type": file.type },
+  });
+
+  return res.data.fileUrl as string;
+};
 
   const onCropComplete = useCallback((_: any, clippedPixels: any) => {
     setCroppedAreaPixels(clippedPixels);
   }, []);
 
   const applyCrop = async () => {
-    // In a production app, you would use a canvas to actually "cut" the image here.
-    // For now, we'll update the form with the selected image and close the cropper.
-    if (editingImage) {
-      setForm(prev => ({ ...prev, [editingImage.type]: editingImage.url }));
-      setEditingImage(null);
-      setZoom(1);
-    }
-  };
+  if (!editingImage || !croppedAreaPixels) return;
+
+  try {
+    const croppedBlob = await getCroppedImage(
+      editingImage.url,
+      croppedAreaPixels
+    );
+
+    const uploadedUrl = await uploadToS3(
+      croppedBlob,
+      editingImage.type
+    );
+
+    setForm((prev) => ({
+      ...prev,
+      [editingImage.type]: uploadedUrl,
+    }));
+
+    setEditingImage(null);
+    setZoom(1);
+  } catch (err) {
+    console.error("Image upload failed", err);
+  }
+};
 
   const saveProfile = async () => {
-    try {
-      const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-      await axios.patch(`${BACKEND_URL}/api/users/me`, {
-        ...form,
+  try {
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
+    await axios.patch(
+      `${BACKEND_URL}/api/me`,
+      {
+        username: form.username,
+        bio: form.bio,
+        avatar: form.avatar,
+        banner: form.banner,
         socials: {
           twitter: form.twitter,
           instagram: form.instagram,
@@ -70,13 +107,17 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ onClose }) => {
           steam: form.steam,
           discord: form.discord,
         },
-      });
-      await refreshUser();
-      onClose();
-    } catch (err) {
-      console.error("Update failed", err);
-    }
-  };
+      },
+      { withCredentials: true }
+    );
+
+    await refreshUser();
+    onClose();
+  } catch (err) {
+    console.error("Update failed", err);
+  }
+};
+
 
   return (
     <div className="fixed inset-0 z-[100] bg-[#5b7083]/40 backdrop-blur-[2px] flex items-center justify-center p-4">

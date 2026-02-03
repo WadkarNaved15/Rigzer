@@ -101,7 +101,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
                 {/* 1. Banner Section */}
                 <div className="relative h-32 md:h-48 shrink-0 overflow-hidden">
                   <img
-                    src="https://fastly.picsum.photos/id/299/800/200.jpg?hmac=xMdRbjiNM_IogJDEgKIJ0GeCxZ8nwOGd5_Wf_ODZ94s"
+                    src={user?.banner || "https://fastly.picsum.photos/id/299/800/200.jpg?hmac=xMdRbjiNM_IogJDEgKIJ0GeCxZ8nwOGd5_Wf_ODZ94s"}
                     className="w-full h-full object-cover"
                     alt="Cover"
                   />
