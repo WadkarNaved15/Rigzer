@@ -120,12 +120,16 @@ router.get("/filter_posts", async (req, res) => {
   }
 });
 // routes/posts.js
-// routes/posts.js
 router.get("/user_posts/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const posts = await Post.find({ user: userId })
+    const posts = await Post.find({
+      user: userId,
+
+      // ✅ Exclude canvas articles
+      type: { $ne: "canvas_article" },
+    })
       .populate("user", "username")
       .sort({ _id: -1 })
       .lean();
@@ -136,6 +140,7 @@ router.get("/user_posts/:userId", async (req, res) => {
     res.status(500).json({ error: "Failed to fetch user posts" });
   }
 });
+
 router.get("/:postId", async (req, res) => {
   try {
     const post = await Post.findById(req.params.postId)

@@ -37,6 +37,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
           `${BACKEND_URL}/api/posts/user_posts/${user._id}`
         );
         setUserPosts(res.data.posts);
+        console.log("User posts in ProfilePage:", res.data.posts);
       } catch (err) {
         console.error("Failed to load user posts", err);
       } finally {
@@ -200,9 +201,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
           </div>
         </div>
       </div>
-
-      {/* Two Component Cards Section */}
-      {/* <div className="bg-gray-200 dark:bg-gray-900 py-12"> */}
       {/* Two Component Cards Section */}
       <div className="max-w-6xl mx-auto px-6 mt-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative">
@@ -261,31 +259,33 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
               {/* RIGHT COLUMN — ONLY FOR NON-MODEL POSTS */}
               <div className="lg:col-span-5 hidden lg:block">
                 <div className="sticky top-4">
-                  <div className="bg-gray-200 dark:bg-gray-900 rounded-2xl p-6 w-full flex flex-col max-h-[calc(100vh-40px)] shadow-sm">
+                  {/* Match the background and border to your Hero/Socials cards */}
+                  <div className="bg-[#191919] rounded-3xl p-8 w-full border border-white/10 shadow-2xl flex flex-col max-h-[calc(100vh-40px)]">
 
-                    <h2 className="text-2xl font-bold mb-6 dark:text-[#3D7A6E]">
-                      Support Morgan&apos;s Causes
+                    {/* Updated Header: Matching the "Socials" header style */}
+                    <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 mb-8 text-center lg:text-left">
+                      Support {user?.username || "Author"}'s Causes
                     </h2>
 
-                    <div className="overflow-y-auto pr-4 space-y-6 flex-grow
-              [&::-webkit-scrollbar]:w-1.5
-              [&::-webkit-scrollbar-thumb]:bg-gray-400/50
-              [&::-webkit-scrollbar-thumb]:rounded-full
-              [&::-webkit-scrollbar-track]:bg-transparent
-              dark:[&::-webkit-scrollbar-thumb]:bg-gray-600/50">
+                    {/* Content area with custom scrollbar */}
+                    <div className="overflow-y-auto pr-2 space-y-8 flex-grow
+        [&::-webkit-scrollbar]:w-1
+        [&::-webkit-scrollbar-thumb]:bg-white/10
+        [&::-webkit-scrollbar-thumb]:rounded-full
+        [&::-webkit-scrollbar-track]:bg-transparent">
 
                       {[
                         {
                           title: "Environmental Initiative",
-                          desc: "Support Morgan Freeman's bee sanctuary and environmental conservation efforts.",
-                          btn: "Donate to Bee Sanctuary",
-                          btnClass: "bg-green-600 hover:bg-green-700 text-white",
+                          desc: "Support the bee sanctuary and environmental conservation efforts.",
+                          btn: "Donate Now",
+                          btnClass: "bg-white text-black hover:bg-gray-200",
                         },
                         {
                           title: "Education Fund",
                           desc: "Contribute to scholarship programs for aspiring actors and filmmakers.",
                           btn: "Support Education",
-                          btnClass: "bg-blue-600 hover:bg-blue-700 text-white",
+                          btnClass: "bg-white/5 text-white hover:bg-white/10 border border-white/10",
                         },
                         {
                           title: "Hurricane Relief",
@@ -295,21 +295,23 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
                         },
                         {
                           title: "Fan Club",
-                          desc: "Join the official Morgan Freeman fan community for exclusive content and updates.",
-                          btn: "Join Fan Club – $9.99/month",
-                          btnClass: "bg-yellow-500 hover:bg-yellow-600 text-black",
+                          desc: "Join the official community for exclusive content and updates.",
+                          btn: "Join – $9.99/month",
+                          btnClass: "bg-white/5 text-white hover:bg-white/10 border border-white/10",
                           divider: true,
                         },
                       ].map((item, idx) => (
                         <div
                           key={idx}
-                          className={`pt-6 ${item.divider ? "border-t border-gray-300 dark:border-gray-700" : ""}`}
+                          className={`pt-6 ${item.divider ? "border-t border-white/10" : ""}`}
                         >
-                          <h3 className="font-semibold mb-3">{item.title}</h3>
-                          <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
+                          <h3 className="text-sm font-black uppercase tracking-tight text-white mb-2 italic">
+                            {item.title}
+                          </h3>
+                          <p className="text-xs text-gray-400 mb-4 leading-relaxed">
                             {item.desc}
                           </p>
-                          <button className={`w-full px-4 py-2.5 rounded-lg ${item.btnClass}`}>
+                          <button className={`w-full py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${item.btnClass}`}>
                             {item.btn}
                           </button>
                         </div>
