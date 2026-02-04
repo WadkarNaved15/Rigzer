@@ -1,6 +1,7 @@
 import React from "react";
 import { Star, Heart, Plus, Play, Image, Video, X, Settings, Youtube, Instagram } from "lucide-react";
 import FollowButton from "../FollowButton";
+import type { ArticleProps } from "../../types/Article";
 import FollowersList from "../FollowersList";
 import { useEffect, useState, useRef, useLayoutEffect } from "react";
 import Post from "../Post";
@@ -19,6 +20,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [userPosts, setUserPosts] = useState<PostProps[]>([]);
   const leftRef = useRef<HTMLDivElement>(null);
+  const [userArticles, setUserArticles] = useState<ArticleProps[]>([]);
+  const [loadingArticles, setLoadingArticles] = useState(false);
   const [postDetailsOpen, setPostDetailsOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<PostProps | null>(null);
   const rightRef = useRef<HTMLDivElement>(null);
@@ -46,6 +49,29 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
     };
 
     fetchUserPosts();
+  }, [user?._id]);
+
+  useEffect(() => {
+    if (!user?._id) return;
+
+    const fetchUserArticles = async () => {
+      setLoadingArticles(true);
+
+      try {
+        const res = await axios.get(
+          `${BACKEND_URL}/api/articles/published/user/${user._id}`
+        );
+
+        setUserArticles(res.data);
+        console.log("User articles:", res.data);
+      } catch (err) {
+        console.error("Failed to load user articles", err);
+      } finally {
+        setLoadingArticles(false);
+      }
+    };
+
+    fetchUserArticles();
   }, [user?._id]);
 
 
@@ -261,6 +287,68 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
                 <div className="sticky top-4">
                   {/* Match the background and border to your Hero/Socials cards */}
                   <div className="bg-[#191919] rounded-3xl p-8 w-full border border-white/10 shadow-2xl flex flex-col max-h-[calc(100vh-40px)]">
+                    {/* ================================ */}
+                    {/* USER ARTICLES SECTION (TOP) */}
+                    {/* ================================ */}
+                    <div className="mb-10">
+                      <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 mb-4">
+                        Articles by {user?.username || "User"}
+                      </h2>
+
+                      {loadingArticles && (
+                        <p className="text-gray-400 text-xs">Loading articles...</p>
+                      )}
+
+                      {!loadingArticles && userArticles.length === 0 && (
+                        <p className="text-gray-500 text-xs">
+                          No articles published yet.
+                        </p>
+                      )}
+
+                      {!loadingArticles && userArticles.length > 0 && (
+                        <div
+                          className="flex gap-4 overflow-x-auto pb-3
+      [&::-webkit-scrollbar]:h-1
+      [&::-webkit-scrollbar-thumb]:bg-white/10
+      [&::-webkit-scrollbar-thumb]:rounded-full
+      [&::-webkit-scrollbar-track]:bg-transparent"
+                        >
+                          {userArticles.map((article) => (
+                            <div
+                              key={article._id}
+                              className="min-w-[220px] max-w-[220px] bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:bg-white/10 transition-all cursor-pointer shrink-0"
+                            >
+                              {/* Thumbnail */}
+                              <div className="h-24 w-full overflow-hidden">
+                                <img
+                                  src={
+                                    article.hero_image_url ||
+                                    "https://picsum.photos/300/200"
+                                  }
+                                  alt="article"
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+
+                              {/* Text */}
+                              <div className="p-4">
+                                <h3 className="text-sm font-bold text-white line-clamp-2">
+                                  {article.title}
+                                </h3>
+
+                                <p className="text-xs text-gray-400 mt-1 line-clamp-2">
+                                  {article.subtitle || "No subtitle provided"}
+                                </p>
+
+                                <p className="text-[10px] text-gray-500 mt-2">
+                                  {new Date(article.publishedAt).toDateString()}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
 
                     {/* Updated Header: Matching the "Socials" header style */}
                     <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-500 mb-8 text-center lg:text-left">
@@ -269,10 +357,10 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
 
                     {/* Content area with custom scrollbar */}
                     <div className="overflow-y-auto pr-2 space-y-8 flex-grow
-        [&::-webkit-scrollbar]:w-1
-        [&::-webkit-scrollbar-thumb]:bg-white/10
-        [&::-webkit-scrollbar-thumb]:rounded-full
-        [&::-webkit-scrollbar-track]:bg-transparent">
+                    [&::-webkit-scrollbar]:w-1
+                    [&::-webkit-scrollbar-thumb]:bg-white/10
+                    [&::-webkit-scrollbar-thumb]:rounded-full
+                    [&::-webkit-scrollbar-track]:bg-transparent">
 
                       {[
                         {

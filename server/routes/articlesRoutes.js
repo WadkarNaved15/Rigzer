@@ -5,6 +5,7 @@ import authMiddleware from "../middlewares/authMiddleware.js";
 import {
   getPublishedArticleById,
   getPublishedArticles,
+  getUserPublishedArticles,
 } from "../controllers/canvas.controller.js";
 
 const router = express.Router();
@@ -62,6 +63,11 @@ router.post("/publish", authMiddleware, async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
+
+/**
+ * Profile user published articles
+ */
+router.get("/published/user/:userId", getUserPublishedArticles);
 
 
 export default router;
