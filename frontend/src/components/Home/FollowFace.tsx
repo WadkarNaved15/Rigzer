@@ -9,7 +9,7 @@ const FollowFace = ({ translateZ }: { translateZ: number }) => {
   const { user } = useUser();
   const [users, setUsers] = useState<any[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const avatar="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+  const avatar= user?.banner||"https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
   useEffect(() => {
     if (!user?._id) return;
 
