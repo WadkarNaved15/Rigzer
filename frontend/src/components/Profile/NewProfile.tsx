@@ -66,8 +66,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
         {/* Header Section */}
         <div className="w-full border-b border-white/10 bg-[#191919] pb-8 mb-8 pt-4">
           {/* Main Header Container */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between px-6 max-w-6xl mx-auto">
-
+          {/* Main Header Container */}
+          <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex flex-col gap-1">
               {/* Name and Action Button Row */}
               <div className="flex items-center gap-5 flex-wrap">
@@ -90,7 +90,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
           </div>
         </div>
         {/* Profile Hero Section */}
-        <div className="w-full max-w-6xl mx-auto p-4">
+        <div className="max-w-6xl mx-auto px-4 mt-4">
           {/* Main Wrapper: items-stretch ensures both columns are the same height */}
           <div className="flex flex-col md:flex-row justify-between items-stretch gap-6">
 
@@ -199,13 +199,12 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
 
           </div>
         </div>
-        {/* Spacer for content below to account for the overlapping avatar */}
-        <div className="h-16 w-full" />
       </div>
 
       {/* Two Component Cards Section */}
       {/* <div className="bg-gray-200 dark:bg-gray-900 py-12"> */}
-      <div className=" mx-auto ">
+      {/* Two Component Cards Section */}
+      <div className="max-w-6xl mx-auto px-6 mt-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative">
 
           {/* MODEL POST → replace LEFT + RIGHT */}
