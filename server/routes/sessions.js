@@ -5,7 +5,10 @@ import { body, validationResult } from "express-validator";
 
 import AllPost from "../models/Allposts.js";
 import GameSession from "../models/GameSession.js";
-import { assignOrStartInstance , releaseInstance} from "../services/instanceAllocator.js";
+import {
+  assignOrStartInstance,
+  releaseInstance,
+} from "../services/instanceAllocator.js";
 import verifyToken from "../middlewares/authMiddleware.js";
 import cacheService from "../services/cacheService.js";
 import { SessionMetrics } from "../services/sessionMetrics.js";
@@ -18,32 +21,27 @@ const metrics = new SessionMetrics();
 const CONFIG = {
   DEFAULT_DURATION: 600,
   FREE_GAME_DURATION: 1800,
-  PAID_GAME_DURATION: 3600, 
+  PAID_GAME_DURATION: 3600,
   MAX_CONCURRENT_SESSIONS: 3,
-  INSTANCE_TIMEOUT: 10000, 
+  INSTANCE_TIMEOUT: 10000,
   RETRY_ATTEMPTS: 2,
 };
 
 /**
  * POST /api/sessions/start
- * Start a new game session with comprehensive validation and error handling
+ * Start a new game session
  */
 router.post(
   "/start",
   verifyToken,
-  [
-    body("gamePostId")
-      .isMongoId()
-      .withMessage("Invalid gamePostId format"),
-  ],
+  [body("gamePostId").isMongoId().withMessage("Invalid gamePostId format")],
   async (req, res) => {
     try {
-      // Validate input
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
-        return res.status(400).json({ 
-          error: "Validation failed", 
-          details: errors.array() 
+        return res.status(400).json({
+          error: "Validation failed",
+          details: errors.array(),
         });
       }
 
@@ -57,29 +55,26 @@ router.post(
       });
 
       if (activeSessions >= CONFIG.MAX_CONCURRENT_SESSIONS) {
-        return res.status(429).json({ 
+        return res.status(429).json({
           error: "Maximum concurrent sessions reached",
           limit: CONFIG.MAX_CONCURRENT_SESSIONS,
-          active: activeSessions
+          active: activeSessions,
         });
       }
 
-      // Try cache first for game post
+      // Get game post
       let post = await cacheService.getGamePost(gamePostId);
-      
+
       if (!post) {
-        post = await AllPost.findById(gamePostId)
-          .select("type gamePost")
-          .lean();
-        
+        post = await AllPost.findById(gamePostId).select("type gamePost").lean();
+
         if (!post || post.type !== "game_post" || !post.gamePost) {
           return res.status(404).json({ error: "Game not found" });
         }
 
-        // Validate game post structure
         if (!post.gamePost.file?.url || !post.gamePost.startPath) {
-          return res.status(400).json({ 
-            error: "Game configuration incomplete" 
+          return res.status(400).json({
+            error: "Game configuration incomplete",
           });
         }
 
@@ -88,14 +83,18 @@ router.post(
 
       const game = post.gamePost;
 
-      // Determine session duration with better logic
+      // Determine session duration
       const maxDurationSeconds = calculateSessionDuration(game);
 
-      // Create optimized session record
+      // Determine cleanup policy
+      const cleanupPolicy = determineCleanupPolicy(game);
+
+      // Create session
       const session = await GameSession.create({
         user: userId,
         gamePost: gamePostId,
         status: "starting",
+        phase: null,
         maxDurationSeconds,
         metadata: {
           gameVersion: game.version,
@@ -104,10 +103,8 @@ router.post(
         },
       });
 
-      // Assign instance with retry logic
+      // Assign instance with retry
       let instance;
-      let lastError;
-      
       for (let attempt = 0; attempt < CONFIG.RETRY_ATTEMPTS; attempt++) {
         try {
           instance = await assignOrStartInstance({
@@ -118,25 +115,29 @@ router.post(
           });
           break;
         } catch (err) {
-          lastError = err;
           if (attempt < CONFIG.RETRY_ATTEMPTS - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+            await new Promise((resolve) =>
+              setTimeout(resolve, 1000 * (attempt + 1))
+            );
           }
         }
       }
 
       if (!instance) {
-        await session.updateOne({ status: "failed" });
+        await session.updateOne({
+          status: "failed",
+          error: "No instances available",
+        });
         metrics.recordFailure("instance_allocation", userId);
-        
-        return res.status(503).json({ 
+
+        return res.status(503).json({
           error: "No instances available",
           message: "Please try again in a few moments",
-          retryAfter: 30
+          retryAfter: 30,
         });
       }
 
-      // Generate secure viewer token
+      // Generate viewer token
       const viewerToken = jwt.sign(
         {
           sessionId: session._id.toString(),
@@ -148,87 +149,100 @@ router.post(
         { expiresIn: maxDurationSeconds }
       );
 
-      
-const s3Url = `${process.env.GAME_S3_URL}/${game.file.url.replace(/^\/+/, "")}`
+      const s3Url = `${process.env.GAME_S3_URL}/${game.file.url.replace(
+        /^\/+/,
+        ""
+      )}`;
 
-console.log("s3_url",s3Url);
+      console.log("s3_url", s3Url);
 
-const controllerPayload = {
-  session_id: session._id.toString(),
-  game_id: game.gameName,
-  build_id: game.file.name,
-  s3_url: s3Url,
-  format: game.file.format,
-  start_path: game.startPath,
-  max_duration_seconds: maxDurationSeconds,
-  backend_api_url: process.env.BACKEND_PUBLIC_URL,
-  backend_api_key: process.env.INSTANCE_BACKEND_KEY,
-};
+      // Build controller payload with cleanup policy
+      const controllerPayload = {
+        session_id: session._id.toString(),
+        game_id: game.gameName,
+        build_id: game.file.name,
+        s3_url: s3Url,
+        format: game.file.format,
+        start_path: game.startPath,
+        max_duration_seconds: maxDurationSeconds,
+        backend_api_url: process.env.BACKEND_PUBLIC_URL,
+        backend_api_key: process.env.INSTANCE_BACKEND_KEY,
 
+        // ✅ Cleanup policy from backend
+        cleanup_on_normal_exit: cleanupPolicy.on_normal_exit,
+        cleanup_on_violation: cleanupPolicy.on_violation,
+        cleanup_on_timeout: cleanupPolicy.on_timeout,
+        delete_game_files: cleanupPolicy.delete_game_files,
+        shared_build: cleanupPolicy.shared_build,
+      };
 
-      // Call instance controller with timeout
-// ✅ ASYNC FIRE-AND-FORGET
-fetch(`http://${instance.ip}:4443/start-session`, {
-  method: "POST",
-  headers: { 
-    "Content-Type": "application/json",
-    "X-Session-Id": session._id.toString(),
-  },
-  body: JSON.stringify(controllerPayload),
-})
-  .then(() => {
-    console.log("[Session] Controller start triggered:", session._id.toString());
-  })
-  .catch(err => {
-    console.error("[Session] Controller start failed:", err);
+      // Fire-and-forget controller start
+      fetch(`http://${instance.ip}:4443/start-session`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Session-Id": session._id.toString(),
+        },
+        body: JSON.stringify(controllerPayload),
+      })
+        .then(() => {
+          console.log(
+            "[Session] Controller start triggered:",
+            session._id.toString()
+          );
+        })
+        .catch((err) => {
+          console.error("[Session] Controller start failed:", err);
 
-    // mark failed asynchronously
-    GameSession.findByIdAndUpdate(session._id, {
-      status: "failed",
-    }).catch(() => {});
-  });
+          GameSession.findByIdAndUpdate(session._id, {
+            status: "failed",
+            error: "Controller start failed",
+          }).catch(() => {});
+        });
 
-      // Update session to running state
-await session.updateOne({
-  instanceId: instance.id,
-  instanceIp: instance.ip,
-});
-
-
+      // Update session with instance info and expiration
       const now = new Date();
+      const expiresAt = new Date(now.getTime() + maxDurationSeconds * 1000);
+
+      await session.updateOne({
+        instanceId: instance.id,
+        instanceIp: instance.ip,
+        expiresAt,
+      });
+
       // Cache active session
       await cacheService.setActiveSession(session._id.toString(), {
         userId,
         instanceId: instance.id,
-        expiresAt: new Date(now.getTime() + maxDurationSeconds * 1000),
+        expiresAt,
       });
 
       // Record metrics
       metrics.recordSessionStart(userId, gamePostId, instance.id);
 
       // Return response
-return res.status(201).json({
-  sessionId: session._id,
-  status: "starting",
-  viewerToken,
-  maxDurationSeconds,
-  instanceRegion: instance.region,
-});
-
+      return res.status(201).json({
+        sessionId: session._id,
+        status: "starting",
+        phase: null,
+        viewerToken,
+        maxDurationSeconds,
+        instanceRegion: instance.region,
+      });
     } catch (err) {
       console.error("Session start error:", err);
       metrics.recordFailure("unknown", req.user?.id);
-      
-      return res.status(500).json({ 
+
+      return res.status(500).json({
         error: "Internal server error",
-        message: "An unexpected error occurred"
+        message: "An unexpected error occurred",
       });
     }
   }
 );
 
 /**
- * GET /api/sessions/:sessionId/status
+ * GET /api/sessions/status/:sessionId
  * Get current session status
  */
 router.get("/status/:sessionId", verifyToken, async (req, res) => {
@@ -236,17 +250,15 @@ router.get("/status/:sessionId", verifyToken, async (req, res) => {
     const { sessionId } = req.params;
     const userId = req.user.id;
 
-    // Check cache first
     const cached = await cacheService.getActiveSession(sessionId);
-    
+
     if (cached && cached.userId !== userId) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
-const session = await GameSession.findById(sessionId)
-  .select("status phase startedAt expiresAt maxDurationSeconds")
-  .lean();
-;
+    const session = await GameSession.findById(sessionId)
+      .select("user status phase startedAt expiresAt maxDurationSeconds")
+      .lean();
 
     if (!session) {
       return res.status(404).json({ error: "Session not found" });
@@ -257,29 +269,26 @@ const session = await GameSession.findById(sessionId)
     }
 
     const now = Date.now();
-    const remainingSeconds = session.expiresAt 
+    const remainingSeconds = session.expiresAt
       ? Math.max(0, Math.floor((new Date(session.expiresAt) - now) / 1000))
       : session.maxDurationSeconds;
 
     return res.json({
-  sessionId,
-  status: session.status,
-  phase: session.phase,   // ✅ REQUIRED
-  remainingSeconds,
-  startedAt: session.startedAt,
-  expiresAt: session.expiresAt,
-});
-
-
+      sessionId,
+      status: session.status,
+      phase: session.phase,
+      remainingSeconds,
+      startedAt: session.startedAt,
+      expiresAt: session.expiresAt,
+    });
   } catch (err) {
     console.error("Session status error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 });
 
-
 /**
- * POST /api/sessions/:sessionId/end
+ * POST /api/sessions/end/:sessionId
  * Manually end a session
  */
 router.post("/end/:sessionId", verifyToken, async (req, res) => {
@@ -301,43 +310,40 @@ router.post("/end/:sessionId", verifyToken, async (req, res) => {
       return res.status(400).json({ error: "Session already ended" });
     }
 
-    // Notify instance to stop
+    // Request controller to stop (it will handle cleanup)
     if (session.instanceIp) {
       try {
         await fetch(`http://${session.instanceIp}:4443/stop-session`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ sessionId }),
+          body: JSON.stringify({ session_id: sessionId }),
           timeout: 5000,
-        }).catch(() => {}); // Best effort
+        }).catch(() => {});
       } catch (err) {
-        // Non-critical, continue
+        console.warn("Failed to notify controller:", err);
       }
     }
-    await releaseInstance(session.instanceId);
 
-    session.status = "ended";
-    session.endedAt = new Date();
+    // Mark as ending (controller will notify us when done)
+    session.status = "ending";
     await session.save();
 
-    // Clear cache
-    await cacheService.deleteActiveSession(sessionId);
 
-    metrics.recordSessionEnd(userId, sessionId);
-
-    return res.json({ 
-      message: "Session ended successfully",
-      sessionId 
+    return res.json({
+      message: "Session stop requested",
+      sessionId,
+      status: "ending",
     });
-
   } catch (err) {
     console.error("Session end error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 });
 
-
-// ✅ SSE — no ambiguity, no collisions
+/**
+ * GET /api/sessions/:sessionId/events
+ * SSE stream for session status updates
+ */
 router.get("/:sessionId/events", verifyToken, async (req, res) => {
   const { sessionId } = req.params;
   const userId = req.user.id;
@@ -353,13 +359,13 @@ router.get("/:sessionId/events", verifyToken, async (req, res) => {
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
-  res.setHeader("X-Accel-Buffering", "no"); // 🔥 important for nginx later
+  res.setHeader("X-Accel-Buffering", "no");
 
   const send = (data) => {
     res.write(`data: ${JSON.stringify(data)}\n\n`);
   };
 
-  // 🔥 send initial state
+  // Send initial state
   send({
     status: session.status,
     phase: session.phase,
@@ -379,8 +385,6 @@ router.get("/:sessionId/stream-token", verifyToken, async (req, res) => {
   const { sessionId } = req.params;
   const userId = req.user.id;
 
-  console.log("sessionId , userId",sessionId , userId);
-
   const session = await GameSession.findById(sessionId)
     .select("user status instanceIp")
     .lean();
@@ -393,39 +397,81 @@ router.get("/:sessionId/stream-token", verifyToken, async (req, res) => {
     return res.status(400).json({ error: "Session not ready" });
   }
 
-    // const token = jwt.sign(
-    //   {
-    //     sessionId,
-    //     instanceIp: session.instanceIp,
-    //     exp: Math.floor(Date.now() / 1000) + 60, // 🔐 60s
-    //   },
-    //   process.env.STREAM_SECRET
-    // );
-
-    // console.log("token",token);
-    // res.json({
-    //   streamUrl: `/api/stream/proxy/${token}`,
-    // });
-      // ✅ DIRECT INSTANCE URL (TEMP)
- res.json({
+  res.json({
     streamUrl: "https://stream.rigzer.com",
   });
 });
 
+/**
+ * POST /api/sessions/complete
+ * FINAL authoritative session completion (from supervisor)
+ */
+router.post("/complete", async (req, res) => {
+  const {
+    session_id,
+    exit_reason,
+    exit_code,
+    duration_seconds,
+    game_exit_code,
+  } = req.body;
+
+  const session = await GameSession.findById(session_id);
+  if (!session) {
+    return res.status(404).json({ error: "Session not found" });
+  }
+
+  // 🔑 THIS is the only place session becomes ended
+  session.status = "ended";
+  session.endedAt = new Date();
+  session.exitReason = exit_reason;
+  session.exitCode = exit_code;
+
+  await session.save();
+
+  // Notify SSE listeners
+  const send = sessionStreams.get(session_id);
+  if (send) {
+    send({
+      status: "ended",
+      reason: exit_reason,
+    });
+  }
+
+  // Metrics here (ONLY HERE)
+  metrics.recordSessionEnd(session.user.toString(), session_id);
+
+  res.json({ success: true });
+});
+
 
 /**
- * Calculate session duration based on game pricing and user tier
+ * Calculate session duration based on game pricing
  */
 function calculateSessionDuration(game) {
   if (game.price === 0) {
     return CONFIG.FREE_GAME_DURATION;
   }
-  
+
   if (game.price > 0) {
     return CONFIG.PAID_GAME_DURATION;
   }
 
   return CONFIG.DEFAULT_DURATION;
+}
+
+/**
+ * Determine cleanup policy based on game characteristics
+ */
+function determineCleanupPolicy(game) {
+  const isLargeGame = game.file?.size > 1024 * 1024 * 1024; // > 1GB
+
+  return {
+    on_normal_exit: true,
+    on_violation: true,
+    on_timeout: true,
+    delete_game_files: isLargeGame,
+    shared_build: false,
+  };
 }
 
 export default router;

@@ -6,33 +6,33 @@ const GameSessionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      index: true, // 🔥
+      index: true,
     },
 
     gamePost: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "AllPost",
       required: true,
-      index: true, // 🔥
+      index: true,
     },
 
     status: {
       type: String,
-      enum: ["starting", "running", "ended", "failed"],
+      enum: ["starting", "running", "ending", "ended", "failed"],
       default: "starting",
-      index: true, // 🔥 very important
+      index: true,
     },
-phase: {
-  type: String,
-  enum: ["downloading", "launching"],
-  default: null,
-  index: true,
-},
 
+    phase: {
+      type: String,
+      enum: ["downloading", "launching", null],
+      default: null,
+      index: true,
+    },
 
     instanceId: {
       type: String,
-      index: true, // 🔥
+      index: true,
     },
 
     instanceIp: String,
@@ -44,7 +44,7 @@ phase: {
 
     startedAt: {
       type: Date,
-      index: true, // 🔥
+      index: true,
     },
 
     endedAt: {
@@ -54,12 +54,18 @@ phase: {
 
     expiresAt: {
       type: Date,
-      index: true, // 🔥 critical for cleanup
+      index: true,
     },
-    error: {
-  type: String,
-},
 
+    error: {
+      type: String,
+    },
+
+    metadata: {
+      gameVersion: String,
+      platform: String,
+      gpuRequired: Boolean,
+    },
 
     metrics: {
       totalPlayTime: {
@@ -71,12 +77,15 @@ phase: {
   { timestamps: true }
 );
 
+// Compound indexes for efficient queries
+GameSessionSchema.index({ user: 1, status: 1 });
+GameSessionSchema.index({ status: 1, expiresAt: 1 });
+
 GameSessionSchema.statics.findExpiredSessions = function () {
   return this.find({
     status: "running",
     expiresAt: { $lte: new Date() },
   });
 };
-
 
 export default mongoose.model("GameSession", GameSessionSchema);
