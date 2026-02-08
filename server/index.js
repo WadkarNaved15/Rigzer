@@ -30,6 +30,7 @@ import gameRoutes from "./routes/gameRoutes.js";
 import interactionRoutes from "./routes/interactions.js"
 import gameZip from "./routes/game.js";
 import devlogsRoutes from "./routes/devlogs.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 import likesRoutes from "./routes/likes.js";
 import userRoutes from "./routes/userRoutes.js";
 import metadataRoutes from "./routes/metadata.js";
@@ -120,6 +121,7 @@ app.use("/api/feedback", feedBackRoutes);
 app.use("/api/recommend", recommendationRoutes);
 app.use("/api/compression", modelUploadRouter);
 app.use("/api/gameupload", gameZip);
+app.use("/api/notifications", notificationRoutes);
 app.use("/api/games", gameFetch);
 app.use("/api/metadata", metadataRoutes);
 app.use("/api/comments", commentRoutes);

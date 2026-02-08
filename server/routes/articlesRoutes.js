@@ -16,6 +16,11 @@ const router = express.Router();
 router.get("/published", getPublishedArticles);
 
 /**
+ * Profile user published articles
+ */
+router.get("/published/user/:userId", getUserPublishedArticles);
+
+/**
  * Public article read
  */
 router.get("/:id", getPublishedArticleById);
@@ -64,10 +69,6 @@ router.post("/publish", authMiddleware, async (req, res) => {
   }
 });
 
-/**
- * Profile user published articles
- */
-router.get("/published/user/:userId", getUserPublishedArticles);
 
 
 export default router;

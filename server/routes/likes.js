@@ -1,5 +1,7 @@
 import express from 'express';
 import Like from '../models/Like.js';
+import { sendEventToQueue } from "../utils/sendEventToQueue.js";
+import AllPost from "../models/Allposts.js"; // post model
 // import { updateInteraction } from "../helper/interactionController.js";
 import authMiddleware from '../middlewares/authMiddleware.js';
 
@@ -18,6 +20,26 @@ router.post('/', authMiddleware, async (req, res) => {
     // Create new like
     const like = new Like({ post: postId, user: userId });
     await like.save();
+    // 3. Find post owner (recipient)
+    const post = await AllPost.findById(postId);
+
+    if (!post)
+      return res.status(404).json({ message: "Post not found" });
+
+    const recipientId = post.user;
+
+    // 4. Prevent self-notification
+    if (recipientId.toString() !== userId.toString()) {
+      // 5. Push event into SQS
+      await sendEventToQueue({
+        type: "LIKE",
+        actorId: userId,
+        recipientId,
+        postId,
+        timestamp: Date.now(),
+      });
+      console.log("Event pushed into SQS");
+    }
     // UPDATE USER INTERACTION
     // await updateInteraction(userId, postId, { liked: true });
     res.status(200).json({ message: 'Post liked successfully' });
