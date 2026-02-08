@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { ArrowLeft, Camera, Github, Globe, Linkedin } from 'lucide-react';
-import { EditProfileModal } from '../components/Profile/EditProfileModal';
+// import { EditProfileModal } from '../components/Profile/EditProfileModal';
 import type { ProfileData } from '../types/Profile';
 
 const DEFAULT_IMAGE =
@@ -151,12 +151,12 @@ export default function EditProfilePage() {
         </div>
       </div>
 
-      <EditProfileModal
+      {/* <EditProfileModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSelectNewImage={handleSelectNewImage}
         onRemoveImage={handleRemoveImage}
-      />
+      /> */}
     </div>
   );
 }

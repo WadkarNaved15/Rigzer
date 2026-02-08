@@ -14,6 +14,17 @@ type User = {
   username: string;
   email: string;
   avatar?: string;
+  banner?: string;
+
+  bio?: string;
+
+  socials?: {
+    twitter?: string;
+    instagram?: string;
+    youtube?: string;
+    discord?: string;
+    steam?: string;
+  };
   followersCount?: number;
   followingCount?: number;
 };
@@ -43,77 +54,77 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
   useEffect(() => {
-  const verifySession = async () => {
+    const verifySession = async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/auth/verify`, {
+          method: "GET",
+          credentials: "include",
+        });
+
+        if (res.ok) {
+          const { user } = await res.json();
+          setUser(user);
+          console.log("user verified:", user);
+          // ✅ store account for switcher
+          saveAccount({
+            userId: user._id,
+            username: user.username,
+            avatar: user.avatar,
+          });
+
+          console.log("✅ Session verified & account stored");
+        }
+      } catch (err) {
+        console.warn("Session check failed:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    verifySession();
+  }, []);
+  const refreshUser = async () => {
     try {
       const res = await fetch(`${BACKEND_URL}/api/auth/verify`, {
-        method: "GET",
-        credentials: "include",
+        credentials: "include"
       });
 
       if (res.ok) {
         const { user } = await res.json();
         setUser(user);
-        console.log("user verified:", user);
-        // ✅ store account for switcher
-        saveAccount({
-          userId: user._id,
-          username: user.username,
-          avatar: user.avatar,
-        });
-
-        console.log("✅ Session verified & account stored");
       }
     } catch (err) {
-      console.warn("Session check failed:", err);
-    } finally {
-      setLoading(false);
+      console.error("Failed to refresh user", err);
     }
   };
-
-  verifySession();
-}, []);
-const refreshUser = async () => {
-  try {
-    const res = await fetch(`${BACKEND_URL}/api/auth/verify`, {
-      credentials: "include"
-    });
-
-    if (res.ok) {
-      const { user } = await res.json();
-      setUser(user);
-    }
-  } catch (err) {
-    console.error("Failed to refresh user", err);
-  }
-};
 
   const login = (userData: User) => {
     setUser(userData);
   };
 
   const logout = async () => {
-  if (!user) return;
+    if (!user) return;
 
-  try {
-    await fetch(`${BACKEND_URL}/api/auth/logout`, {
-      method: "POST",
-      credentials: "include",
-    });
-    window.location.href = "/"; 
-  } catch (err) {
-    console.warn("Logout request failed", err);
-  }
+    try {
+      await fetch(`${BACKEND_URL}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+      window.location.href = "/";
+    } catch (err) {
+      console.warn("Logout request failed", err);
+    }
 
-  // 🔥 remove only this account from device storage
-  removeAccount(user._id);
+    // 🔥 remove only this account from device storage
+    removeAccount(user._id);
 
-  // clear app state
-  setUser(null);
-};
+    // clear app state
+    setUser(null);
+  };
 
 
   return (
-    <UserContext.Provider value={{ user, loading, login, logout,refreshUser}}>
+    <UserContext.Provider value={{ user, loading, login, logout, refreshUser }}>
       {!loading && children}
     </UserContext.Provider>
   );

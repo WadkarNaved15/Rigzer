@@ -15,16 +15,15 @@ export default function ProfileCover({
 }: ProfileCoverProps) {
   const [accountOverlayOpen, setAccountOverlayOpen] = useState(false);
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
-  
   const cardBg = "#191919";
   const navigate = useNavigate();
   const { user, logout } = useUser();
-
+  const bannerUrl = user?.banner || 'https://fastly.picsum.photos/id/299/800/200.jpg?hmac=xMdRbjiNM_IogJDEgKIJ0GeCxZ8nwOGd5_Wf_ODZ94s';
   const handleAvatarClick = (e: React.MouseEvent<HTMLImageElement>) => {
     setAnchorRect(e.currentTarget.getBoundingClientRect());
     setAccountOverlayOpen(true);
   };
-
+  console.log("bannerUrl", bannerUrl)
   const navItems = [
     { icon: CircleUser, label: "Profile", action: () => setProfileOpen(true) },
     { icon: Gamepad2, label: "Games", action: () => console.log("Games clicked") },
@@ -46,7 +45,7 @@ export default function ProfileCover({
             className="w-full h-16 bg-cover bg-center"
             style={{
               backgroundImage:
-                "url('https://fastly.picsum.photos/id/299/800/200.jpg?hmac=xMdRbjiNM_IogJDEgKIJ0GeCxZ8nwOGd5_Wf_ODZ94s')",
+                `url(${bannerUrl})`
             }}
           />
           <div

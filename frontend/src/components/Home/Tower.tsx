@@ -3,6 +3,7 @@ import axios from "axios";
 import { PlusCircle } from "lucide-react";
 import FollowFace from "./FollowFace";
 import { useUser } from "../../context/user";
+import { usePublishedArticles } from "../../context/PublishedArticleContext";
 import FollowButton from "../FollowButton";
 interface CanvasPreview {
   _id: string;
@@ -18,10 +19,10 @@ const Tower: React.FC<{
   activeFace: Face;
   onOpenArticle: (canvasId: string) => void;
 }> = ({ activeFace, onOpenArticle }) => {
-  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+  const { articles, loading } = usePublishedArticles();
+  console.log("articles",articles)
   const { user } = useUser();
   const cubeRef = useRef<HTMLDivElement>(null);
-  const [readingCanvases, setReadingCanvases] = useState<CanvasPreview[]>([]);
   const [translateZ, setTranslateZ] = useState(150);
 
   // Recompute translateZ on mount + resize
@@ -35,16 +36,6 @@ const Tower: React.FC<{
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
   }, []);
-useEffect(() => {
-  axios
-    .get(`${BACKEND_URL}/api/article/published`)
-    .then(res => setReadingCanvases(res.data))
-    .catch(console.error);
-}, []);
-// This logs the data every time it changes
-useEffect(() => {
-  console.log("Current Reading Canvases:", readingCanvases);
-}, [readingCanvases]);
   // Map active face to rotation
   const rotation = useMemo(() => {
     // 0 degrees for follow, 180 degrees for reading
@@ -58,7 +49,7 @@ const ReadingFace = () => (
     style={{ transform: `rotateY(180deg) translateZ(${translateZ}px)` }}
   >
     <div className="grid grid-cols-2 gap-4 px-3 py-4">
-      {readingCanvases.map((canvas) => (
+      {articles.map((canvas) => (
         <div
           key={canvas._id}
           onClick={() => onOpenArticle(canvas._id)}

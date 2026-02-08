@@ -12,6 +12,30 @@ const userSchema = new mongoose.Schema(
       select: false, // Don’t return by default
     },
     isGoogleUser: { type: Boolean, default: false },
+    
+    avatar: {
+      type: String, // CDN / Cloudinary URL
+      default: "",
+    },
+
+    banner: {
+      type: String,
+      default: "",
+    },
+
+    bio: {
+      type: String,
+      maxlength: 160,
+      default: "",
+    },
+
+    socials: {
+      twitter: String,
+      instagram: String,
+      youtube: String,
+      discord: String,
+    },
+
     followersCount: { type: Number, default: 0 },
     followingCount: { type: Number, default: 0 },
     resetPasswordToken: {

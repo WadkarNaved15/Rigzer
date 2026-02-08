@@ -393,7 +393,7 @@ const MessagingComponent = () => {
             : "relative bg-white dark:bg-black w-80 border border-gray-200 shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md rounded-lg flex flex-col"
             } ${isMinimized ? "h-16" : isMaximized ? "h-full" : "h-96"}`}
         >
-        {isMaximized && <Header />}
+        {/* {isMaximized && <Header />} */}
           {/* Header */}
           <div
             className={`flex-shrink-0 h-16 ${isMaximized

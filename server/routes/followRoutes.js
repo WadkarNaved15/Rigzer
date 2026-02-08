@@ -1,7 +1,7 @@
 import express from "express";
 import FollowService from "../services/followService.js";
 import  verifyToken  from "../middlewares/authMiddleware.js";
-
+import { sendEventToQueue } from "../utils/sendEventToQueue.js";
 const router = express.Router();
 
 // Follow a user
@@ -10,6 +10,15 @@ router.post("/:id/follow",verifyToken, async (req, res) => {
     const followerId = req.user.id; // req.user added via auth middleware
     const followingId = req.params.id;
     await FollowService.followUser(followerId, followingId);
+    // ✅ Push Follow Event to SQS
+    if (followerId !== followingId) {
+      await sendEventToQueue({
+        type: "FOLLOW",
+        actorId: followerId,
+        recipientId: followingId,
+        createdAt: new Date(),
+      });
+    }
     res.json({ success: true, message: "Followed successfully" });
   } catch (err) {
     res.status(400).json({ error: err.message });

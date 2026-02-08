@@ -9,7 +9,6 @@ const FollowFace = ({ translateZ }: { translateZ: number }) => {
   const { user } = useUser();
   const [users, setUsers] = useState<any[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const avatar="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
   useEffect(() => {
     if (!user?._id) return;
 
@@ -20,6 +19,7 @@ const FollowFace = ({ translateZ }: { translateZ: number }) => {
           { withCredentials: true }
         );
         setUsers(res.data.users || []);
+        console.log("Suggested users:", res.data.users);
       } catch (err) {
         console.error(err);
       } finally {
@@ -43,7 +43,7 @@ const FollowFace = ({ translateZ }: { translateZ: number }) => {
         ) : (
           users.map((u) => (
             <div key={u._id} className="flex justify-between items-center gap-4">
-              <img src={avatar} className="w-12 h-12 rounded-full" />
+              <img src={u.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"} className="w-12 h-12 rounded-full" />
               <div>
                 <h3 className="font-semibold">{u.name}</h3>
                 <p className="text-sm text-gray-500">@{u.username}</p>

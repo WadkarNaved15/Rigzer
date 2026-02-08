@@ -43,8 +43,9 @@ const ArticleSchema = new mongoose.Schema(
     publishedAt: {
       type: Date,
     },
+
   },
   { timestamps: true }
 );
-
+ArticleSchema.index({ ownerId: 1, status: 1, publishedAt: -1 });
 export default mongoose.model("Article", ArticleSchema);

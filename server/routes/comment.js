@@ -1,5 +1,7 @@
 import express from "express";
 import Comment from "../models/Comment.js";
+import { sendEventToQueue } from "../utils/sendEventToQueue.js";
+import AllPost from "../models/Allposts.js"; // post model
 // import { updateInteraction } from "../helper/interactionController.js";
 import authMiddleware from "../middlewares/authMiddleware.js"; // assuming same middleware as likes
 
@@ -15,6 +17,20 @@ router.post("/", authMiddleware, async (req, res) => {
 
     const comment = new Comment({ post: postId, user: userId, text });
     await comment.save();
+    // ✅ Find post owner
+    const post = await AllPost.findById(postId).select("user");
+
+    // ✅ Push Comment Event to SQS
+    if (post.user.toString() !== userId) {
+      await sendEventToQueue({
+        type: "COMMENT",
+        actorId: userId,
+        recipientId: post.user,
+        postId,
+        commentId: comment._id,
+        createdAt: new Date(),
+      });
+    }
     // UPDATE USER INTERACTION
     // await updateInteraction(userId, postId, { commented: true });
     const populatedComment = await comment.populate("user", "username");

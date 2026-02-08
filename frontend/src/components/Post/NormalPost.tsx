@@ -6,6 +6,8 @@ import { useLikes } from "../../hooks/useLikes";
 import MediaViewer from "../Media/MediaViewer"
 import { useWishlist } from "../../hooks/useWishlist";
 import type { NormalPostProps } from "../../types/Post";
+import { VideoPlaybackContext } from "../../context/VideoPlaybackContext";
+import { useContext } from "react";
 import { Play } from "lucide-react";
 
 const NormalPost: React.FC<NormalPostProps> = ({
@@ -19,10 +21,12 @@ const NormalPost: React.FC<NormalPostProps> = ({
   comments = 0,
   avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330",
 }) => {
+  const { activeVideo, setActiveVideo } = useContext(VideoPlaybackContext);
   const postRef = useRef<HTMLDivElement>(null);
   const [showComments, setShowComments] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
+  const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const [viewerIndex, setViewerIndex] = useState(0);
   const BACKEND_URL =
     import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
@@ -31,6 +35,9 @@ const NormalPost: React.FC<NormalPostProps> = ({
   const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
 
   const assets = normalPost?.assets || [];
+  const primaryVideoIndex = useMemo(() => {
+    return assets.findIndex(a => a.type === "video");
+  }, [assets]);
 
   /* -------------------- TIME FORMAT -------------------- */
   const getRelativeTime = (date: string | Date) => {
@@ -77,6 +84,48 @@ const NormalPost: React.FC<NormalPostProps> = ({
     if (postRef.current) observer.observe(postRef.current);
     return () => observer.disconnect();
   }, [_id]);
+
+  useEffect(() => {
+    if (primaryVideoIndex === -1) return;
+
+    const video = videoRefs.current[primaryVideoIndex];
+    if (!video) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.6 && !viewerOpen) {
+          if (activeVideo && activeVideo !== video) {
+            activeVideo.pause();
+          }
+          setActiveVideo(video);
+          video.play().catch(() => { });
+        } else {
+          video.pause();
+        }
+      },
+      { threshold: [0.6] }
+    );
+
+    observer.observe(video);
+
+    return () => {
+      observer.disconnect();
+      video.pause();
+    };
+  }, [primaryVideoIndex, viewerOpen]);
+
+  useEffect(() => {
+    videoRefs.current = [];
+  }, [assets]);
+
+  useEffect(() => {
+    if (!viewerOpen) return;
+
+    videoRefs.current.forEach(video => {
+      if (video) video.pause();
+    });
+  }, [viewerOpen]);
+
 
   /* -------------------- GRID LOGIC -------------------- */
   const getGridClass = (count: number) => {
@@ -181,16 +230,25 @@ const NormalPost: React.FC<NormalPostProps> = ({
                   {asset.type === "video" ? (
                     <div className="w-full h-full overflow-hidden relative group"> {/* added group */}
                       <video
+                        ref={(el) => {
+                          if (el) {
+                            videoRefs.current[index] = el;
+                          }
+                        }}
                         muted
                         playsInline
+                        loop
                         preload="metadata"
-                        // Added group-hover:scale-105 so it triggers when the container is hovered
                         className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                         src={asset.url}
                       />
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                        <Play className="h-10 w-10 text-white/80" />
-                      </div>
+
+
+                      {asset.type === "video" && index !== primaryVideoIndex && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <Play className="h-10 w-10 text-white/80" />
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <img

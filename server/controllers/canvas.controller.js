@@ -54,3 +54,40 @@ export const getPublishedArticles = async (req, res) => {
     res.status(500).json({ message: "Failed to fetch articles" });
   }
 };
+
+/**
+ * GET /api/articles/published/user/:userId
+ * Return only published articles owned by a specific user
+ */
+export const getUserPublishedArticles = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // ✅ Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid userId" });
+    }
+
+    const articles = await Article.find(
+      {
+        status: "published",
+        ownerId: userId,
+      },
+      {
+        title: 1,
+        subtitle: 1,
+        hero_image_url: 1,
+        author_name: 1,
+        publishedAt: 1,
+      }
+    )
+      .sort({ publishedAt: -1 })
+      .lean();
+
+    res.status(200).json(articles);
+  } catch (error) {
+    console.error("Error fetching user published articles:", error);
+    res.status(500).json({ message: "Failed to fetch user articles" });
+  }
+};
+

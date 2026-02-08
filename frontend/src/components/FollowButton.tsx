@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
-import { UserPlus, UserCheck } from "lucide-react";
+import { UserRoundPlus, UserRoundCheck, UserPlus, UserCheck } from "lucide-react";
 
 interface FollowButtonProps {
   userId: string;    // current logged-in user
@@ -56,12 +56,17 @@ const FollowButton: React.FC<FollowButtonProps> = ({ userId, targetId }) => {
     <button
       onClick={toggleFollow}
       disabled={loading}
-      className="p-1 rounded-full transition-colors duration-150 hover:bg-gray-200 dark:hover:bg-gray-700"
+      /* - px-3 py-1.5: This creates the horizontal rectangle shape
+         - w-fit: Ensures the button only takes up the space it needs
+         - rounded-md: Keeps the corners slightly soft but structured
+      */
+      className="flex items-center justify-center px-3 py-1.5 w-fit rounded-md bg-[#1e1e1e]/20 hover:bg-black/40 border border-white/10 backdrop-blur-md transition-all disabled:opacity-50"
     >
       {isFollowing ? (
-        <UserCheck className="w-4 h-4 text-green-500" />
+        /* Reduced size to 14px (w-3.5) for that tiny, precise look */
+        <UserRoundCheck className="w-3.5 h-3 text-green-400" strokeWidth={2} />
       ) : (
-        <UserPlus className="w-4 h-4 text-blue-500" />
+        <UserRoundPlus className="w-3.5 h-3 text-white/80" strokeWidth={2} />
       )}
     </button>
   );
