@@ -27,6 +27,7 @@ import RecommendationPosts from "./components/Home/RecommendationPost";
 import PublisherForm from "./Pages/PublisherForm"
 import ModelViewer from "./components/ModelViewer";
 import GamePost from "./components/Home/GamePost";
+import NotificationsPage from "./Pages/NotificationsPage";
 
 
 
@@ -43,7 +44,8 @@ export default function AppRoutes() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/stream/:sessionId" element={<StreamPage />} />
-          <Route path="/wishlist" element={<WishlistPage />} />  
+          <Route path="/wishlist" element={<WishlistPage />} /> 
+          <Route path="/notifications" element={<NotificationsPage />} />  
           <Route path="/publisher" element={<PublisherForm />}/>
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/editprofile" element={<EditProfilePage />} />

@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { CircleUser, Gamepad2, Bookmark, LogIn, LogOut } from "lucide-react";
+import { useNavigate,Link} from "react-router-dom";
+import { CircleUser, Gamepad2, Bookmark, LogIn, LogOut,Bell} from "lucide-react";
 import AccountSwitcherOverlay from "./AccountSwitchOverlay";
 import { useUser } from "../../context/user";
 
@@ -26,7 +26,7 @@ export default function ProfileCover({
   console.log("bannerUrl", bannerUrl)
   const navItems = [
     { icon: CircleUser, label: "Profile", action: () => setProfileOpen(true) },
-    { icon: Gamepad2, label: "Games", action: () => console.log("Games clicked") },
+    { icon: Bell, label: "Notifications", action: () => navigate("/notifications") },
     { icon: Bookmark, label: "Saved", action: onOpenWishlist },
     user 
       ? { icon: LogOut, label: "Logout", action: logout } 
