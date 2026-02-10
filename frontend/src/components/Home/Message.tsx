@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { Header } from "../Header"; // 1. Add your import
 import SharedPostMessage from "./SharedPostMessage";
 import { useUser } from "../../context/user";
+import { useUI } from "../../context/UIContext";
 import { useUsers } from "../../context/UsersContext";
 import { toast } from "react-toastify";
 import {
@@ -49,6 +50,7 @@ const MessagingComponent = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentChatId, setCurrentChatId] = useState(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { isAdPlaying } = useUI();
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useUser();
@@ -56,6 +58,9 @@ const MessagingComponent = () => {
   const currentUser = user?._id;
   const navigate = useNavigate();
   const socket = useSocket();
+  if (isAdPlaying) {
+    return null;
+  }
   // CSS animation for shine
   useEffect(() => {
     const style = document.createElement("style");

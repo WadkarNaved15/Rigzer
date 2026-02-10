@@ -7,6 +7,7 @@ import { FeedProvider } from "./context/FeedContext";
 import FeedbackProvider from "./context/FeedbackProvider";
 import { NotificationProvider } from "./context/Notifications";
 import { SocketProvider } from "./context/SocketContext";
+import { UIProvider } from "./context/UIContext";
 import { useUser } from "./context/user";
 import { SearchProvider } from "./components/Home/SearchContext";
 import { PublishedArticlesProvider } from "./context/PublishedArticleContext";
@@ -15,6 +16,7 @@ import AppRoutes from "./AppRoutes";
 function App() {
   const { user } = useUser();
   return (
+    <UIProvider>
     <SocketProvider userId={user?._id}>
       <UsersProvider>
         <NotificationProvider>
@@ -35,6 +37,7 @@ function App() {
         </NotificationProvider>
       </UsersProvider>
     </SocketProvider>
+    </UIProvider>
   );
 }
 

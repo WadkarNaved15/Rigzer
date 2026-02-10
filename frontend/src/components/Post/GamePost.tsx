@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import PostInteractions from './PostInteractions';
 import { Play, Gamepad2, Sparkles } from 'lucide-react';
 import type { GamePostProps } from '../../types/Post';
+import { useUI } from '../../context/UIContext';
 import AdWithStatus from '../Home/PlayGame';
 
 const GamePost: React.FC<GamePostProps> = ({
@@ -33,7 +34,7 @@ const GamePost: React.FC<GamePostProps> = ({
   const [showAdOverlay, setShowAdOverlay] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
-
+  const { setIsAdPlaying } = useUI();
 
   /* ---------------- Analytics Logic ---------------- */
   const startViewing = async () => {
@@ -113,7 +114,7 @@ const handleStartGame = async () => {
     const data = await res.json();
     setSessionId(data.sessionId);
     setShowAdOverlay(true);
-
+    setIsAdPlaying(true);
   } catch (err: any) {
     console.error("Failed to start game:", err);
     setSessionError(err.message || "Failed to start game. Please try again.");
