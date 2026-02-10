@@ -1,5 +1,13 @@
-import { useEffect, useState, useCallback } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  ReactNode,
+} from "react";
 import axios from "axios";
+import { useUser } from "./user";
 
 export interface NotificationType {
   _id: string;
@@ -21,30 +29,66 @@ export interface NotificationType {
   };
 }
 
-export const useNotifications = (BACKEND_URL: string) => {
+interface NotificationContextType {
+  notifications: NotificationType[];
+  unreadCount: number;
+  loading: boolean;
+
+  fetchNotifications: () => void;
+  markAsRead: (id: string) => void;
+  markAllAsRead: () => void;
+}
+
+const NotificationContext = createContext<
+  NotificationContextType | undefined
+>(undefined);
+
+export const useNotification = () => {
+  const ctx = useContext(NotificationContext);
+  if (!ctx)
+    throw new Error(
+      "useNotification must be used inside NotificationProvider"
+    );
+  return ctx;
+};
+
+export const NotificationProvider = ({
+  children,
+}: {
+  children: ReactNode;
+}) => {
+  const { user } = useUser();
+
+  const BACKEND_URL =
+    import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+
   const [notifications, setNotifications] = useState<NotificationType[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Fetch notifications
+  // ✅ Fetch Notifications
   const fetchNotifications = useCallback(async () => {
+    if (!user) return;
+
     try {
       setLoading(true);
 
       const res = await axios.get(`${BACKEND_URL}/api/notifications`, {
         withCredentials: true,
       });
-      console.log("Notifications:", res.data);
+
       setNotifications(res.data);
     } catch (err) {
       console.error("Failed to fetch notifications:", err);
     } finally {
       setLoading(false);
     }
-  }, [BACKEND_URL]);
+  }, [BACKEND_URL, user?._id]);
 
-  // ✅ Fetch unread count
+  // ✅ Fetch Unread Count
   const fetchUnreadCount = useCallback(async () => {
+    if (!user) return;
+
     try {
       const res = await axios.get(
         `${BACKEND_URL}/api/notifications/unread-count`,
@@ -55,9 +99,9 @@ export const useNotifications = (BACKEND_URL: string) => {
     } catch (err) {
       console.error("Failed to fetch unread count:", err);
     }
-  }, [BACKEND_URL]);
+  }, [BACKEND_URL, user?._id]);
 
-  // ✅ Mark one as read
+  // ✅ Mark One Read
   const markAsRead = async (id: string) => {
     try {
       await axios.patch(
@@ -66,7 +110,7 @@ export const useNotifications = (BACKEND_URL: string) => {
         { withCredentials: true }
       );
 
-      // Optimistic UI update
+      // Optimistic Update
       setNotifications((prev) =>
         prev.map((n) =>
           n._id === id ? { ...n, isRead: true } : n
@@ -75,11 +119,11 @@ export const useNotifications = (BACKEND_URL: string) => {
 
       fetchUnreadCount();
     } catch (err) {
-      console.error("Failed to mark notification as read:", err);
+      console.error("Failed to mark as read:", err);
     }
   };
 
-  // ✅ Mark all as read
+  // ✅ Mark All Read
   const markAllAsRead = async () => {
     try {
       await axios.patch(
@@ -98,17 +142,30 @@ export const useNotifications = (BACKEND_URL: string) => {
     }
   };
 
+  // ✅ Auto Refresh When User Switches
   useEffect(() => {
+    if (!user) return;
+
+    // Reset instantly (Instagram UX)
+    setNotifications([]);
+    setUnreadCount(0);
+
     fetchNotifications();
     fetchUnreadCount();
-  }, [fetchNotifications, fetchUnreadCount]);
+  }, [user?._id]);
 
-  return {
-    notifications,
-    unreadCount,
-    loading,
-    fetchNotifications,
-    markAsRead,
-    markAllAsRead,
-  };
+  return (
+    <NotificationContext.Provider
+      value={{
+        notifications,
+        unreadCount,
+        loading,
+        fetchNotifications,
+        markAsRead,
+        markAllAsRead,
+      }}
+    >
+      {children}
+    </NotificationContext.Provider>
+  );
 };

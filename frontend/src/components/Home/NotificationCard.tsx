@@ -1,4 +1,4 @@
-import { NotificationType } from "../../hooks/useNotifications";
+import { NotificationType } from "../../context/Notifications";
 import { Link } from "react-router-dom";
 
 interface Props {
@@ -22,17 +22,16 @@ export default function NotificationCard({ notification, onRead }: Props) {
     notification.type === "LIKE"
       ? "liked your post"
       : notification.type === "COMMENT"
-      ? "commented on your post"
-      : "followed you";
+        ? "commented on your post"
+        : "followed you";
 
   return (
     <div
       onClick={() => onRead(notification._id)}
       className={`flex items-start gap-3 p-4 rounded-2xl border cursor-pointer transition
-        ${
-          notification.isRead
-            ? "bg-[#191919] border-white/10"
-            : "bg-[#222] border-sky-500/40"
+        ${notification.isRead
+          ? "bg-[#191919] border-white/10"
+          : "bg-[#222] border-sky-500/40"
         }
       `}
     >
@@ -44,6 +43,9 @@ export default function NotificationCard({ notification, onRead }: Props) {
 
       {/* Content */}
       <div className="flex-1">
+        {!notification.isRead && (
+          <span className="h-2 w-2 rounded-full bg-red-500 mt-2"></span>
+        )}
         {/* Main Text */}
         <p className="text-sm text-white leading-snug">
           <span className="font-semibold">{actor?.username}</span>{" "}

@@ -1,5 +1,6 @@
 import NotificationCard from "../components/Home/NotificationCard";
-import { useNotifications } from "../hooks/useNotifications";
+import { useNotification } from "../context/Notifications";
+import { useEffect } from "react";
 
 export default function NotificationsPage() {
   const BACKEND_URL =
@@ -9,9 +10,14 @@ export default function NotificationsPage() {
     notifications,
     unreadCount,
     loading,
-    markAsRead,
+    markAsRead, 
     markAllAsRead,
-  } = useNotifications(BACKEND_URL);
+  } = useNotification();
+  useEffect(() => {
+    if (!loading && unreadCount > 0) {
+      markAllAsRead();
+    }
+  }, [loading, unreadCount]);
 
   return (
     <div className="max-w-2xl mx-auto py-8 px-4">
@@ -23,15 +29,6 @@ export default function NotificationsPage() {
             <span className="text-sky-500">({unreadCount})</span>
           )}
         </h1>
-
-        {unreadCount > 0 && (
-          <button
-            onClick={markAllAsRead}
-            className="text-sm text-sky-400 hover:text-sky-300"
-          >
-            Mark all as read
-          </button>
-        )}
       </div>
 
       {/* Loading */}

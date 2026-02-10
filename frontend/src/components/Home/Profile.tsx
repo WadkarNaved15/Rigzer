@@ -1,9 +1,9 @@
 import { useState, useRef } from "react";
-import { useNavigate,Link} from "react-router-dom";
-import { CircleUser, Gamepad2, Bookmark, LogIn, LogOut,Bell} from "lucide-react";
+import { useNavigate, Link } from "react-router-dom";
+import { CircleUser, Gamepad2, Bookmark, LogIn, LogOut, Bell } from "lucide-react";
 import AccountSwitcherOverlay from "./AccountSwitchOverlay";
 import { useUser } from "../../context/user";
-
+import { useNotification } from "../../context/Notifications";
 interface ProfileCoverProps {
   setProfileOpen: (open: boolean) => void;
   onOpenWishlist: () => void;
@@ -17,6 +17,8 @@ export default function ProfileCover({
   const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
   const cardBg = "#191919";
   const navigate = useNavigate();
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+  const { unreadCount } = useNotification()
   const { user, logout } = useUser();
   const bannerUrl = user?.banner || 'https://fastly.picsum.photos/id/299/800/200.jpg?hmac=xMdRbjiNM_IogJDEgKIJ0GeCxZ8nwOGd5_Wf_ODZ94s';
   const handleAvatarClick = (e: React.MouseEvent<HTMLImageElement>) => {
@@ -28,8 +30,8 @@ export default function ProfileCover({
     { icon: CircleUser, label: "Profile", action: () => setProfileOpen(true) },
     { icon: Bell, label: "Notifications", action: () => navigate("/notifications") },
     { icon: Bookmark, label: "Saved", action: onOpenWishlist },
-    user 
-      ? { icon: LogOut, label: "Logout", action: logout } 
+    user
+      ? { icon: LogOut, label: "Logout", action: logout }
       : { icon: LogIn, label: "Login", action: () => navigate("/auth") },
   ];
 
@@ -62,9 +64,8 @@ export default function ProfileCover({
                 src={user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"}
                 alt="Profile"
                 onClick={handleAvatarClick}
-                className={`w-16 h-16 rounded-full border-4 shadow-2xl object-cover cursor-pointer hover:brightness-90 transition-all ${
-                  accountOverlayOpen ? "opacity-0" : "opacity-100"
-                }`}
+                className={`w-16 h-16 rounded-full border-4 shadow-2xl object-cover cursor-pointer hover:brightness-90 transition-all ${accountOverlayOpen ? "opacity-0" : "opacity-100"
+                  }`}
                 style={{ borderColor: cardBg }}
               />
             </div>
@@ -87,6 +88,13 @@ export default function ProfileCover({
               className="p-2 rounded-full hover:bg-white/10 transition-all active:scale-90 group relative"
             >
               <item.icon className="h-5 w-5 text-gray-400 group-hover:text-white transition-colors" />
+              {/* 🔥 Unread Badge Logic */}
+              {item.label === "Notifications" && unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 h-4 min-w-[16px] px-1 
+          flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold">
+                  {unreadCount}
+                </span>
+              )}
             </button>
           ))}
         </div>
