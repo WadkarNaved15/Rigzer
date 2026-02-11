@@ -50,17 +50,15 @@ const MessagingComponent = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentChatId, setCurrentChatId] = useState(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { isAdPlaying } = useUI();
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { isAdPlaying } = useUI();
   const { user } = useUser();
   const { users, loading } = useUsers();
   const currentUser = user?._id;
   const navigate = useNavigate();
   const socket = useSocket();
-  if (isAdPlaying) {
-    return null;
-  }
+
   // CSS animation for shine
   useEffect(() => {
     const style = document.createElement("style");
@@ -169,7 +167,9 @@ const MessagingComponent = () => {
       socket.off("receive-message", handler);
     };
   }, [currentUser]);
-
+  if (isAdPlaying) {
+    return null;
+  }
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!socket || !currentUser) return;
     const file = e.target.files?.[0];
@@ -292,16 +292,12 @@ const MessagingComponent = () => {
     setMessage("");
   };
 
-
-
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
-
-
   const formatTime = (ts: Date) => ts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const getUnreadCount = () => users.reduce((t, u) => t + (u.unreadCount || 0), 0);
   const filteredUsers = users.filter((u) => u.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -398,7 +394,7 @@ const MessagingComponent = () => {
             : "relative bg-white dark:bg-black w-80 border border-gray-200 shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md rounded-lg flex flex-col"
             } ${isMinimized ? "h-16" : isMaximized ? "h-full" : "h-96"}`}
         >
-        {/* {isMaximized && <Header />} */}
+          {/* {isMaximized && <Header />} */}
           {/* Header */}
           <div
             className={`flex-shrink-0 h-16 ${isMaximized
