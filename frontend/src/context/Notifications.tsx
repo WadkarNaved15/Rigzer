@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import axios from "axios";
 import { useUser } from "./user";
-
+import { useSocket } from "./SocketContext";
 export interface NotificationType {
   _id: string;
   type: "LIKE" | "COMMENT" | "FOLLOW";
@@ -65,6 +65,26 @@ export const NotificationProvider = ({
   const [notifications, setNotifications] = useState<NotificationType[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const socket = useSocket();
+
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on("new-notification", (notification) => {
+      setNotifications((prev) => {
+        const exists = prev.some((n) => n._id === notification._id);
+        if (exists) return prev;
+        return [notification, ...prev];
+      });
+
+      setUnreadCount((prev) => prev + 1);
+    });
+
+
+    return () => {
+      socket.off("new-notification");
+    };
+  }, [socket]);
 
   // ✅ Fetch Notifications
   const fetchNotifications = useCallback(async () => {

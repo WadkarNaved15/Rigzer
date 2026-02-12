@@ -12,6 +12,7 @@ import { Server } from "socket.io";
 
 // ROUTES
 import modelUploadRouter from "./routes/compression.js";
+import internalNotificationRoutes from "./routes/internalNotification.js";
 import chatMediaUpload from "./routes/chatMediaUpload.js";
 import deviceMiddleware from "./middlewares/deviceMiddleware.js";
 import ArticleRoutes from "./routes/articlesRoutes.js";
@@ -144,7 +145,7 @@ const io = new Server(server, {
 });
 
 let onlineUsers = new Map(); // userId => Set(socketId)
-
+app.use("/api/internal-notify",internalNotificationRoutes(io, onlineUsers));
 io.on("connection", (socket) => {
   console.log("Socket connected:", socket.id);
 
@@ -217,8 +218,20 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    console.log("Socket disconnected:", socket.id);
-  });
+  for (const [userId, sockets] of onlineUsers.entries()) {
+    if (sockets.has(socket.id)) {
+      sockets.delete(socket.id);
+
+      if (sockets.size === 0) {
+        onlineUsers.delete(userId);
+      }
+      break;
+    }
+  }
+
+  console.log("Socket disconnected:", socket.id);
+});
+
 });
 
 
