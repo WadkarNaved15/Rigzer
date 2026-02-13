@@ -91,7 +91,7 @@ const DevlogPost: React.FC<DevlogPostProps> = ({
       <div className="flex gap-3 px-4 py-3">
         {/* AVATAR */}
         <img
-          src={avatarUrl}
+          src={user.avatar || avatarUrl}
           alt={user.username}
           className="h-10 w-10 rounded-full object-cover"
         />

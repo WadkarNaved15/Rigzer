@@ -6,7 +6,7 @@ export interface UserSummary {
   _id: string;
   username: string;
   email: string;
-  avatarUrl?: string;
+  avatar?: string;
 }
 export interface ModelMetadata {
   fileName: string;

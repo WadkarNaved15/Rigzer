@@ -180,7 +180,7 @@ const handleStartGame = async () => {
         <div className="flex gap-3 p-4">
           {/* User Avatar */}
           <img 
-            src={avatarUrl} 
+            src={user.avatar || avatarUrl} 
             alt={user.username} 
             className="h-10 w-10 rounded-full object-cover mt-1" 
           />

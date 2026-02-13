@@ -19,7 +19,7 @@ const NormalPost: React.FC<NormalPostProps> = ({
   normalPost,
   createdAt,
   comments = 0,
-  avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330",
+  avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
 }) => {
   const { activeVideo, setActiveVideo } = useContext(VideoPlaybackContext);
   const postRef = useRef<HTMLDivElement>(null);
@@ -154,7 +154,7 @@ const NormalPost: React.FC<NormalPostProps> = ({
       <div className="flex gap-3 px-4 py-3">
         {/* AVATAR */}
         <img
-          src={avatarUrl}
+          src={user.avatar || avatarUrl}
           alt={user.username}
           className="h-10 w-10 rounded-full object-cover"
         />
