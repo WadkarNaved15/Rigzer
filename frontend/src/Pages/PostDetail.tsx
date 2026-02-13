@@ -16,7 +16,7 @@ const PostDetail = ({ post, onClose }: { post: ExePostProps; onClose: () => void
   const [activeIndex, setActiveIndex] = useState(0);
   const activeAsset = assets[activeIndex];
   const meta = activeAsset?.metadata;
-
+  const avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
   return (
     <>
       <div className="w-full flex justify-center">
@@ -53,8 +53,7 @@ const PostDetail = ({ post, onClose }: { post: ExePostProps; onClose: () => void
                   <div className="h-10 w-10 rounded-full overflow-hidden flex-shrink-0">
                     <img
                       src={
-                        post.user.avatarUrl ??
-                        "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
+                        post.user.avatar || avatarUrl
                       }
                       alt={post.user.username}
                       className="h-full w-full object-cover"
