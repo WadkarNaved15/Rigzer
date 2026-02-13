@@ -15,6 +15,9 @@ export const SocketProvider = ({ userId, children }: any) => {
       withCredentials: true,
       transports: ["websocket"],
     });
+    newSocket.on("reconnect", () => {
+      newSocket.emit("join", userId);
+    });
 
     newSocket.on("connect", () => {
       console.log("Socket connected:", newSocket.id);

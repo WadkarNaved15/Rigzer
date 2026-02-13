@@ -73,18 +73,29 @@ export const NotificationProvider = ({
     socket.on("new-notification", (notification) => {
       setNotifications((prev) => {
         const exists = prev.some((n) => n._id === notification._id);
-        if (exists) return prev;
-        return [notification, ...prev];
+
+        if (!exists) {
+          setUnreadCount((c) => c + 1);
+          return [notification, ...prev];
+        }
+
+        // If exists → replace updated version (count increased)
+        return prev.map((n) =>
+          n._id === notification._id ? notification : n
+        );
       });
-
-      setUnreadCount((prev) => prev + 1);
     });
-
 
     return () => {
       socket.off("new-notification");
     };
   }, [socket]);
+
+  useEffect(() => {
+    if (!socket || !user?._id) return;
+    socket.emit("join", user._id);
+  }, [socket, user?._id]);
+
 
   // ✅ Fetch Notifications
   const fetchNotifications = useCallback(async () => {
