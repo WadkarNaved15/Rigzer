@@ -214,6 +214,9 @@ const ExePost: React.FC<ExePostProps> = ({
                 onClick={(e: React.MouseEvent) => e.stopPropagation()}
                 camera-controls
                 auto-rotate
+                autoplay
+                animation-controls
+                animation-name="*"
                 exposure="1.2"
                 environment-image="neutral"
                 shadow-intensity="1"
