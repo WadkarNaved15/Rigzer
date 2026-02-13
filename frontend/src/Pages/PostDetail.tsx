@@ -189,7 +189,7 @@ const PostDetail = ({ post, onClose }: { post: ExePostProps; onClose: () => void
                     shadow-intensity="2"
                     shadow-softness="1"
                     exposure="1.2"
-                    environment-image="neutral"
+                     environment-image="https://modelviewer.dev/shared-assets/environments/moon_1k.hdr"
                     loading="eager"
                     style={{ width: "100%", height: "100%", backgroundColor: "transparent" }}
                   >
