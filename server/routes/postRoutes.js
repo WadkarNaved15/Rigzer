@@ -84,7 +84,7 @@ router.get("/fetch_posts", async (req, res) => {
 
 
     const posts = await Post.find(query)
-      .populate("user", "username")
+      .populate("user", "username avatar" )
       .sort({ _id: -1 })
       .limit(Number(limit))
       .lean(); // 🔥 IMPORTANT for performance
