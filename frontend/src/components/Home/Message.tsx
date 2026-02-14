@@ -166,7 +166,7 @@ const MessagingComponent = () => {
     return () => {
       socket.off("receive-message", handler);
     };
-  }, [currentUser]);
+  }, [socket,currentUser]);
   if (isAdPlaying) {
     return null;
   }
@@ -252,7 +252,10 @@ const MessagingComponent = () => {
       );
 
       setCurrentChatId(data._id);
-
+      if (socket) {
+        socket.emit("join_chat", data._id);
+        console.log("Joined chat room:", data._id);
+      }
       // Fetch previous messages for this chat
       const messagesResponse = await axios.get(`${BACKEND_URL}/api/messages/${data._id}`, {
         withCredentials: true,
