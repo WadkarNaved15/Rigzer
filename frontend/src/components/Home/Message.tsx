@@ -602,7 +602,7 @@ const MessagingComponent = () => {
                         {filteredUsers.map((u) => (
                           <div
                             key={u.id}
-                            onClick={() => setActiveChat(u.id)}
+                            onClick={() => handleUserClick(u.id)}
                             className={`flex items-center p-4 cursor-pointer transition-colors border-b border-white/10 ${activeChat === u.id ? "bg-white/20" : "hover:bg-white/10"
                               }`}
                           >
