@@ -170,6 +170,7 @@ io.on("connection", (socket) => {
 
     const message = await Message.create({
       chatId,
+      receiverId,
       senderId,
       messageType: "post",
       sharedPostId: postId,
@@ -196,6 +197,7 @@ io.on("connection", (socket) => {
     const message = await Message.create({
       chatId,
       senderId,
+      receiverId,
       text,
       mediaUrl,
       mediaType,

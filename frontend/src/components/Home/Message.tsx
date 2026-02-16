@@ -48,6 +48,7 @@ const MessagingComponent = () => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [activeChat, setActiveChat] = useState<ChatId | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [currentChatId, setCurrentChatId] = useState(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
@@ -141,8 +142,30 @@ const MessagingComponent = () => {
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   useEffect(() => scrollToBottom(), [conversations, activeChat]);
 
+  useEffect(() => {
+    if (!isOpen) return;
 
+    const fetchUnreadCounts = async () => {
+      try {
+        const res = await axios.get(
+          `${BACKEND_URL}/api/messages/unread-counts`,
+          { withCredentials: true }
+        );
 
+        const counts: Record<string, number> = {};
+
+        res.data.forEach((item: any) => {
+          counts[item._id] = item.count;
+        });
+
+        setUnreadCounts(counts);
+      } catch (err) {
+        console.error("Failed to load unread counts", err);
+      }
+    };
+
+    fetchUnreadCounts();
+  }, [isOpen]);
 
 
   useEffect(() => {
@@ -159,14 +182,22 @@ const MessagingComponent = () => {
         ...prev,
         [otherUserId]: [...(prev[otherUserId] || []), msg],
       }));
+      // ✅ If chat is NOT open, increase unread count
+      if (activeChat !== otherUserId) {
+        setUnreadCounts((prev) => ({
+          ...prev,
+          [otherUserId]: (prev[otherUserId] || 0) + 1,
+        }));
+      }
     };
+
 
     socket.on("receive-message", handler);
 
     return () => {
       socket.off("receive-message", handler);
     };
-  }, [socket,currentUser]);
+  }, [socket, currentUser, activeChat]);
   if (isAdPlaying) {
     return null;
   }
@@ -265,6 +296,18 @@ const MessagingComponent = () => {
         ...prev,
         [receiverId]: messagesResponse.data,
       }));
+      // ✅ 4️⃣ Mark all received messages as SEEN
+      await axios.put(
+        `${BACKEND_URL}/api/messages/seen/${data._id}`,
+        {},
+        { withCredentials: true }
+      );
+      setUnreadCounts((prev) => ({
+        ...prev,
+        [receiverId]: 0,
+      }));
+      console.log("Messages marked as seen!");
+
     } catch (error) {
       console.error("Error starting chat:", error);
     }
@@ -550,12 +593,12 @@ const MessagingComponent = () => {
                           <div className="ml-3 flex-1">
                             <div className="flex items-center justify-between">
                               <h4 className={`${isMaximized ? "text-white" : "text-gray-900 dark:text-white"} font-semibold text-sm`}>{u.name}</h4>
-                              {u.unreadCount > 0 && (
+                              {unreadCounts[u.id] > 0 && (
                                 <div
                                   className={`text-xs rounded-full h-5 w-5 flex items-center justify-center ${isMaximized ? "bg-pink-500 text-white" : "bg-gray-600 dark:bg-gray-400 text-white dark:text-black"
                                     }`}
                                 >
-                                  {u.unreadCount}
+                                  {unreadCounts[u.id]}
                                 </div>
                               )}
                             </div>
@@ -618,9 +661,9 @@ const MessagingComponent = () => {
                             <div className="ml-3 flex-1">
                               <div className="flex items-center justify-between">
                                 <h4 className="font-semibold text-sm text-white">{u.name}</h4>
-                                {u.unreadCount > 0 && activeChat !== u.id && (
+                                {unreadCounts[u.id] > 0 && activeChat !== u.id && (
                                   <div className="bg-pink-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                                    {u.unreadCount}
+                                    {unreadCounts[u.id]}
                                   </div>
                                 )}
                               </div>
