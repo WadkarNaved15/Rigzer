@@ -26,7 +26,6 @@ interface ApiUser {
   username: string;
 }
 interface User {
-  _id: string,
   id: string;
   name: string;
   avatar: string;
@@ -158,7 +157,11 @@ const MessagingComponent = () => {
           counts[item._id] = item.count;
         });
 
-        setUnreadCounts(counts);
+        setUnreadCounts((prev) => ({
+          ...prev,
+          ...counts
+        }));
+
       } catch (err) {
         console.error("Failed to load unread counts", err);
       }
@@ -166,6 +169,24 @@ const MessagingComponent = () => {
 
     fetchUnreadCounts();
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!socket || !currentUser) return;
+    console.log("new read message socket got called");
+    const unreadHandler = ({ senderId }: any) => {
+      console.log("🔔 senderId received =", senderId);
+      setUnreadCounts((prev) => ({
+        ...prev,
+        [senderId]: (prev[senderId] || 0) + 1,
+      }));
+    };
+    console.log("new read message socket got called");
+    socket.on("new-unread-message", unreadHandler);
+
+    return () => {
+      socket.off("new-unread-message", unreadHandler);
+    };
+  }, [socket, currentUser]);
 
 
   useEffect(() => {
@@ -182,13 +203,6 @@ const MessagingComponent = () => {
         ...prev,
         [otherUserId]: [...(prev[otherUserId] || []), msg],
       }));
-      // ✅ If chat is NOT open, increase unread count
-      if (activeChat !== otherUserId) {
-        setUnreadCounts((prev) => ({
-          ...prev,
-          [otherUserId]: (prev[otherUserId] || 0) + 1,
-        }));
-      }
     };
 
 
@@ -273,6 +287,11 @@ const MessagingComponent = () => {
 
   const handleUserClick = async (receiverId: string) => {
     try {
+      // ✅ Leave old room first
+      if (currentChatId && socket) {
+        socket.emit("leave_chat", currentChatId);
+        console.log("Left previous room:", currentChatId);
+      }
       setActiveChat(receiverId);
       // console.log("receiverId", receiverId);
       // Hit backend to create or get the chat
@@ -345,7 +364,7 @@ const MessagingComponent = () => {
     }
   };
   const formatTime = (ts: Date) => ts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const getUnreadCount = () => users.reduce((t, u) => t + (u.unreadCount || 0), 0);
+  const getUnreadCount = () => Object.values(unreadCounts).reduce((a, b) => a + b, 0);
   const filteredUsers = users.filter((u) => u.name.toLowerCase().includes(searchTerm.toLowerCase()));
   const activeUser = users.find((u) => u.id === activeChat);
 
@@ -356,6 +375,10 @@ const MessagingComponent = () => {
   };
 
   const toggleClose = () => {
+    if (currentChatId && socket) {
+      socket.emit("leave_chat", currentChatId);
+    }
+
     setIsOpen(false);
     setIsMinimized(false);
     setIsMaximized(false);
@@ -476,11 +499,21 @@ const MessagingComponent = () => {
                 </div>
               </>
             ) : (
-              // Full/Maximized Header
+              // Full/Maximized Header"
               <>
                 <div className="flex items-center space-x-3">
                   {activeChat && (
-                    <button onClick={() => setActiveChat(null)} className="hover:bg-white/20 p-1 rounded">
+
+                    <button
+                      className="hover:bg-white/20 p-1 rounded"
+                      onClick={() => {
+                        if (currentChatId && socket) {
+                          socket.emit("leave_chat", currentChatId);
+                        }
+                        setActiveChat(null);
+                      }}
+                    >
+
                       <ArrowLeft size={16} />
                     </button>
                   )}
@@ -567,6 +600,9 @@ const MessagingComponent = () => {
 
                     {/* Users List */}
                     <div className="flex-1 overflow-y-auto">
+                      {/* The comma operator executes the log and returns null, satisfying TypeScript and React */}
+                      {(console.log("🔥 unreadCounts STATE =", unreadCounts), null)}
+
                       {filteredUsers.map((u) => (
                         <div
                           key={u.id}
@@ -590,19 +626,34 @@ const MessagingComponent = () => {
                                 } ${u.status === "online" ? "bg-green-400" : "bg-gray-300 dark:bg-gray-600"}`}
                             />
                           </div>
+
                           <div className="ml-3 flex-1">
                             <div className="flex items-center justify-between">
-                              <h4 className={`${isMaximized ? "text-white" : "text-gray-900 dark:text-white"} font-semibold text-sm`}>{u.name}</h4>
-                              {unreadCounts[u.id] > 0 && (
+                              <h4
+                                className={`${isMaximized ? "text-white" : "text-gray-900 dark:text-white"
+                                  } font-semibold text-sm`}
+                              >
+                                {u.name}
+                              </h4>
+
+                              {/* Using optional chaining and nullish coalescing to ensure unreadCounts[u.id] is a number */}
+                              {(unreadCounts[u.id] ?? 0) > 0 && (
                                 <div
-                                  className={`text-xs rounded-full h-5 w-5 flex items-center justify-center ${isMaximized ? "bg-pink-500 text-white" : "bg-gray-600 dark:bg-gray-400 text-white dark:text-black"
+                                  className={`text-xs rounded-full h-5 w-5 flex items-center justify-center ${isMaximized
+                                    ? "bg-pink-500 text-white"
+                                    : "bg-gray-600 dark:bg-gray-400 text-white dark:text-black"
                                     }`}
                                 >
                                   {unreadCounts[u.id]}
                                 </div>
                               )}
                             </div>
-                            <p className={`${isMaximized ? "text-white/70" : "text-gray-500 dark:text-gray-400"} text-xs mt-1`}>{u.lastSeen}</p>
+                            <p
+                              className={`${isMaximized ? "text-white/70" : "text-gray-500 dark:text-gray-400"
+                                } text-xs mt-1`}
+                            >
+                              {u.lastSeen}
+                            </p>
                           </div>
                         </div>
                       ))}

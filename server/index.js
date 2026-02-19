@@ -46,7 +46,7 @@ import sessionRoutes from "./routes/sessions.js";
 import internalRoutes from "./routes/internal.js";
 import { initializeInstancePool } from "./services/instanceAllocator.js";
 import { initializeSessionPubSub } from "./services/sessionPubSub.js";
-import  streamProxyRouter  from "./routes/streamProxy.js";
+import streamProxyRouter from "./routes/streamProxy.js";
 
 
 dotenv.config();
@@ -59,7 +59,7 @@ const corsWhitelist = [
   "http://localhost:5173",
   "https://localhost:5173",
   "https://xn--tlay-0ra.com",
-  "https://www.rigzer.com",  
+  "https://www.rigzer.com",
   "https://rigzer.com",
   process.env.FRONTEND_URL
 ];
@@ -145,7 +145,7 @@ const io = new Server(server, {
 });
 
 let onlineUsers = new Map(); // userId => Set(socketId)
-app.use("/api/internal-notify",internalNotificationRoutes(io, onlineUsers));
+app.use("/api/internal-notify", internalNotificationRoutes(io, onlineUsers));
 io.on("connection", (socket) => {
   console.log("Socket connected:", socket.id);
 
@@ -162,6 +162,11 @@ io.on("connection", (socket) => {
   socket.on("join_chat", (chatId) => {
     socket.join(chatId);
     console.log("Joined chat room:", chatId);
+  });
+  // Leave chat room
+  socket.on("leave_chat", (chatId) => {
+    socket.leave(chatId);
+    console.log("Left chat room:", chatId);
   });
 
   // Send Post
@@ -188,6 +193,20 @@ io.on("connection", (socket) => {
 
     // emit to chat room
     io.to(chatId).emit("receive-message", messageData);
+    // ✅ 2. Badge update only if receiver not inside room
+    const roomSockets = io.sockets.adapter.rooms.get(chatId);
+    const receiverSockets = onlineUsers.get(receiverId);
+
+    if (receiverSockets) {
+      receiverSockets.forEach((socketId) => {
+        if (!roomSockets || !roomSockets.has(socketId)) {
+          io.to(socketId).emit("new-unread-message", {
+            senderId,
+            chatId,
+          });
+        }
+      });
+    }
   });
 
   // normal message
@@ -215,24 +234,41 @@ io.on("connection", (socket) => {
       messageType: mediaUrl ? "media" : "text",
       createdAt: message.createdAt,
     };
-
+    // ✅ 1. Send message to active room
     io.to(chatId).emit("receive-message", messageData);
+    // ✅ 2. Badge update only if receiver not inside room
+    const roomSockets = io.sockets.adapter.rooms.get(chatId);
+    const receiverSockets = onlineUsers.get(receiverId);
+    console.log("receiverSockets", receiverSockets);
+    if (receiverSockets) {
+      receiverSockets.forEach((socketId) => {
+        console.log("socketId of reveiverSockets", socketId);
+        if (!roomSockets || !roomSockets.has(socketId)) {
+          console.log("new-read message event fired for", socketId);
+          io.to(socketId).emit("new-unread-message", {
+            senderId,
+            chatId,
+          });
+        }
+      });
+    }
+
   });
 
   socket.on("disconnect", () => {
-  for (const [userId, sockets] of onlineUsers.entries()) {
-    if (sockets.has(socket.id)) {
-      sockets.delete(socket.id);
+    for (const [userId, sockets] of onlineUsers.entries()) {
+      if (sockets.has(socket.id)) {
+        sockets.delete(socket.id);
 
-      if (sockets.size === 0) {
-        onlineUsers.delete(userId);
+        if (sockets.size === 0) {
+          onlineUsers.delete(userId);
+        }
+        break;
       }
-      break;
     }
-  }
 
-  console.log("Socket disconnected:", socket.id);
-});
+    console.log("Socket disconnected:", socket.id);
+  });
 
 });
 
