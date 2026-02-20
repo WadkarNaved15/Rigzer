@@ -50,6 +50,7 @@ const MessagingComponent = () => {
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [currentChatId, setCurrentChatId] = useState(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { isAdPlaying } = useUI();
@@ -169,6 +170,32 @@ const MessagingComponent = () => {
 
     fetchUnreadCounts();
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on("online-users", (users: string[]) => {
+      setOnlineUsers(users);
+    });
+
+    socket.on("user-online", (userId: string) => {
+      setOnlineUsers((prev) =>
+        prev.includes(userId) ? prev : [...prev, userId]
+      );
+    });
+
+    socket.on("user-offline", (userId: string) => {
+      setOnlineUsers((prev) =>
+        prev.filter((id) => id !== userId)
+      );
+    });
+
+    return () => {
+      socket.off("online-users");
+      socket.off("user-online");
+      socket.off("user-offline");
+    };
+  }, [socket]);
 
   useEffect(() => {
     if (!socket || !currentUser) return;
@@ -621,10 +648,14 @@ const MessagingComponent = () => {
                             >
                               {u.avatar}
                             </div>
-                            <div
-                              className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 ${isMaximized ? "border-white" : "border-white dark:border-black"
-                                } ${u.status === "online" ? "bg-green-400" : "bg-gray-300 dark:bg-gray-600"}`}
-                            />
+                             {onlineUsers.includes(u.id) && (
+                                <div
+                                  className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 ${isMaximized
+                                      ? "border-white"
+                                      : "border-white dark:border-black"
+                                    } bg-green-400`}
+                                />
+                              )}
                           </div>
 
                           <div className="ml-3 flex-1">
@@ -704,10 +735,6 @@ const MessagingComponent = () => {
                               <div className="w-10 h-10 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full flex items-center justify-center text-white font-semibold text-sm">
                                 {u.avatar}
                               </div>
-                              <div
-                                className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${u.status === "online" ? "bg-green-400" : "bg-gray-300"
-                                  }`}
-                              />
                             </div>
                             <div className="ml-3 flex-1">
                               <div className="flex items-center justify-between">

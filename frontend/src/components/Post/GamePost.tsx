@@ -171,7 +171,7 @@ const handleStartGame = async () => {
         className="
           relative w-full 
           border border-gray-200 dark:border-gray-700
-          bg-white dark:bg-[#191919]
+          bg-[#F9FAFB] dark:bg-[#191919]
           hover:bg-[#F7F9F9] dark:hover:bg-[#16181C]
           transition-colors duration-200
           cursor-pointer
@@ -224,7 +224,7 @@ const handleStartGame = async () => {
 
                 <div className="relative p-8 flex flex-col items-center justify-center text-center">
                   {/* Game Icon */}
-                  <div className="w-16 h-16 bg-white dark:bg-[#191919] rounded-2xl shadow-xl flex items-center justify-center mb-4 border border-gray-100 dark:border-zinc-800 group-hover:scale-110 transition-transform duration-300">
+                  <div className="w-16 h-16 bg-[#F9FAFB] dark:bg-[#191919] rounded-2xl shadow-xl flex items-center justify-center mb-4 border border-gray-100 dark:border-zinc-800 group-hover:scale-110 transition-transform duration-300">
                     <Gamepad2 className="text-sky-500 w-8 h-8" />
                   </div>
 

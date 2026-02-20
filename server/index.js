@@ -150,12 +150,18 @@ io.on("connection", (socket) => {
   console.log("Socket connected:", socket.id);
 
   socket.on("join", (userId) => {
+    socket.userId = userId; // attach to socket for cleanup
     if (!onlineUsers.has(userId)) {
       onlineUsers.set(userId, new Set());
     }
 
     onlineUsers.get(userId).add(socket.id);
     console.log("User joined:", userId);
+    // 🔥 Emit to everyone that this user is online
+    io.emit("user-online", userId);
+
+    // 🔥 Send full list to newly connected socket
+    socket.emit("online-users", Array.from(onlineUsers.keys()));
   });
 
   // Join chat room
@@ -256,15 +262,20 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnect", () => {
-    for (const [userId, sockets] of onlineUsers.entries()) {
-      if (sockets.has(socket.id)) {
-        sockets.delete(socket.id);
+    const userId = socket.userId;
+    if (!userId) return;
 
-        if (sockets.size === 0) {
-          onlineUsers.delete(userId);
-        }
-        break;
-      }
+    const sockets = onlineUsers.get(userId);
+
+    if (!sockets) return;
+
+    sockets.delete(socket.id);
+
+    if (sockets.size === 0) {
+      onlineUsers.delete(userId);
+
+      // 🔥 Emit offline only if ALL devices disconnected
+      io.emit("user-offline", userId);
     }
 
     console.log("Socket disconnected:", socket.id);

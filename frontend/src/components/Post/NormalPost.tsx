@@ -144,7 +144,7 @@ const NormalPost: React.FC<NormalPostProps> = ({
       className="
     relative w-full 
     border border-gray-200 dark:border-gray-700
-    bg-white dark:bg-[#191919]
+    bg-[#F9FAFB] dark:bg-[#191919]
     hover:bg-[#F7F9F9] dark:hover:bg-[#16181C]
     transition-colors duration-200
     cursor-pointer
