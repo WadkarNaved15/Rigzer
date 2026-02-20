@@ -556,7 +556,9 @@ const MessagingComponent = () => {
                         alt={activeUser.name}
                         className="w-8 h-8 rounded-full object-cover"
                         onError={(e) => {
-                          (e.currentTarget as HTMLImageElement).src = "/default-avatar.png";
+                          const target = e.currentTarget as HTMLImageElement;
+                          target.onerror = null; // Prevent infinite loops
+                          target.src = "./default_avatar.png";
                         }}
                       />
                     ) : (
@@ -745,9 +747,16 @@ const MessagingComponent = () => {
                               }`}
                           >
                             <div className="relative">
-                              <div className="w-10 h-10 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                                {u.avatar}
-                              </div>
+                              <div className="relative w-10 h-10">
+                              <img
+                                src={u.avatar}
+                                alt={u.name}
+                                className="w-10 h-10 rounded-full object-cover"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).src = "/default_avatar.png";
+                                }}
+                              />
+                            </div>
                             </div>
                             <div className="ml-3 flex-1">
                               <div className="flex items-center justify-between">
