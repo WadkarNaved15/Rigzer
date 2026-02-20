@@ -552,13 +552,13 @@ const MessagingComponent = () => {
                   >
                     {activeUser ? (
                       <img
-                        src={activeUser.avatar}
+                        src={activeUser.avatar ? activeUser.avatar : "/default_avatar.png"}
                         alt={activeUser.name}
-                        className="w-8 h-8 rounded-full object-cover"
+                        className="w-10 h-10 rounded-full object-cover"
                         onError={(e) => {
-                          const target = e.currentTarget as HTMLImageElement;
-                          target.onerror = null; // Prevent infinite loops
-                          target.src = "/default_avatar.png";
+                          const img = e.currentTarget;
+                          img.onerror = null;
+                          img.src = "/default_avatar.png";
                         }}
                       />
                     ) : (
@@ -655,11 +655,13 @@ const MessagingComponent = () => {
                           <div className="relative">
                             <div className="relative w-10 h-10">
                               <img
-                                src={u.avatar}
+                                src={u.avatar ? u.avatar : "/default_avatar.png"}
                                 alt={u.name}
                                 className="w-10 h-10 rounded-full object-cover"
                                 onError={(e) => {
-                                  (e.currentTarget as HTMLImageElement).src = "/default_avatar.png";
+                                  const img = e.currentTarget;
+                                  img.onerror = null;
+                                  img.src = "/default_avatar.png";
                                 }}
                               />
                             </div>
@@ -748,15 +750,15 @@ const MessagingComponent = () => {
                           >
                             <div className="relative">
                               <div className="relative w-10 h-10">
-                              <img
-                                src={u.avatar}
-                                alt={u.name}
-                                className="w-10 h-10 rounded-full object-cover"
-                                onError={(e) => {
-                                  (e.currentTarget as HTMLImageElement).src = "/default_avatar.png";
-                                }}
-                              />
-                            </div>
+                                <img
+                                  src={u.avatar}
+                                  alt={u.name}
+                                  className="w-10 h-10 rounded-full object-cover"
+                                  onError={(e) => {
+                                    (e.currentTarget as HTMLImageElement).src = "/default_avatar.png";
+                                  }}
+                                />
+                              </div>
                             </div>
                             <div className="ml-3 flex-1">
                               <div className="flex items-center justify-between">
