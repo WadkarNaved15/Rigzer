@@ -45,11 +45,7 @@ export function UsersProvider({ children }: { children: React.ReactNode }) {
         const formatted = res.data.filter((u:any) => u._id !== user._id).map((u: any) => ({
           id: u._id,
           name: u.username,
-          avatar: u.username
-            .split(" ")
-            .map((w: string) => w[0])
-            .join("")
-            .toUpperCase(),
+          avatar: u.avatar,
           status: "online",
           lastSeen: "Unknown",
           unreadCount: 0

@@ -550,7 +550,18 @@ const MessagingComponent = () => {
                       : "w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300"
                       }`}
                   >
-                    {activeUser ? activeUser.avatar : <MessageCircle size={16} />}
+                    {activeUser ? (
+                      <img
+                        src={activeUser.avatar}
+                        alt={activeUser.name}
+                        className="w-8 h-8 rounded-full object-cover"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = "/default-avatar.png";
+                        }}
+                      />
+                    ) : (
+                      <MessageCircle size={16} />
+                    )}
                   </div>
                   <div>
                     <h3
@@ -640,22 +651,24 @@ const MessagingComponent = () => {
                             }`}
                         >
                           <div className="relative">
-                            <div
-                              className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm ${isMaximized
-                                ? "bg-gradient-to-r from-pink-400 to-purple-400 text-white"
-                                : "bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200"
-                                }`}
-                            >
-                              {u.avatar}
+                            <div className="relative w-10 h-10">
+                              <img
+                                src={u.avatar}
+                                alt={u.name}
+                                className="w-10 h-10 rounded-full object-cover"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).src = "/default-avatar.png";
+                                }}
+                              />
                             </div>
-                             {onlineUsers.includes(u.id) && (
-                                <div
-                                  className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 ${isMaximized
-                                      ? "border-white"
-                                      : "border-white dark:border-black"
-                                    } bg-green-400`}
-                                />
-                              )}
+                            {onlineUsers.includes(u.id) && (
+                              <div
+                                className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 ${isMaximized
+                                  ? "border-white"
+                                  : "border-white dark:border-black"
+                                  } bg-green-400`}
+                              />
+                            )}
                           </div>
 
                           <div className="ml-3 flex-1">
