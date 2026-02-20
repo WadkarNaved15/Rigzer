@@ -558,7 +558,7 @@ const MessagingComponent = () => {
                         onError={(e) => {
                           const target = e.currentTarget as HTMLImageElement;
                           target.onerror = null; // Prevent infinite loops
-                          target.src = "./default_avatar.png";
+                          target.src = "/default_avatar.png";
                         }}
                       />
                     ) : (
@@ -659,7 +659,7 @@ const MessagingComponent = () => {
                                 alt={u.name}
                                 className="w-10 h-10 rounded-full object-cover"
                                 onError={(e) => {
-                                  (e.currentTarget as HTMLImageElement).src = "/default-avatar.png";
+                                  (e.currentTarget as HTMLImageElement).src = "/default_avatar.png";
                                 }}
                               />
                             </div>
