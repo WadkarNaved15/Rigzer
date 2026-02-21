@@ -154,7 +154,7 @@ const NormalPost: React.FC<NormalPostProps> = ({
       <div className="flex gap-3 px-4 py-3">
         {/* AVATAR */}
         <img
-          src={user.avatar || avatarUrl}
+          src={user.avatar || "/default_avatar.png"}
           alt={user.username}
           className="h-10 w-10 rounded-full object-cover"
         />

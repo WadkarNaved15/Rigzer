@@ -37,7 +37,7 @@ export default function NotificationCard({ notification, onRead }: Props) {
     >
       {/* Avatar */}
       <img
-        src={actor?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"}
+        src={actor?.avatar || "/default_avatar.png"}
         className="h-11 w-11 rounded-full object-cover"
       />
 

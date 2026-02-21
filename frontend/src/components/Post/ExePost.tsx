@@ -164,7 +164,7 @@ const ExePost: React.FC<ExePostProps> = ({
 
         {/* LEFT COLUMN — Avatar stays here */}
         <img
-          src={user.avatar || avatarUrl}
+          src={user.avatar || "/default_avatar.png"}
           alt={user.username}
           className="h-10 w-10 rounded-full object-cover mt-1"
         />

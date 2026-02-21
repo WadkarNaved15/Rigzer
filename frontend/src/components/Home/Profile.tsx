@@ -61,7 +61,7 @@ export default function ProfileCover({
           <div className="absolute -bottom-8 left-4 flex items-end z-10">
             <div className="relative">
               <img
-                src={user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"}
+                src={user?.avatar || "/default_avatar.png"}
                 alt="Profile"
                 onClick={handleAvatarClick}
                 className={`w-16 h-16 rounded-full border-4 shadow-2xl object-cover cursor-pointer hover:brightness-90 transition-all ${accountOverlayOpen ? "opacity-0" : "opacity-100"

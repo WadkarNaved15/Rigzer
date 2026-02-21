@@ -43,7 +43,7 @@ const FollowFace = ({ translateZ }: { translateZ: number }) => {
         ) : (
           users.map((u) => (
             <div key={u._id} className="flex justify-between items-center gap-4">
-              <img src={u.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"} className="w-12 h-12 rounded-full" />
+              <img src={u.avatar || "/default_avatar.png"} className="w-12 h-12 rounded-full" />
               <div>
                 <h3 className="font-semibold">{u.name}</h3>
                 <p className="text-sm text-gray-500">@{u.username}</p>
