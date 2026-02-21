@@ -546,21 +546,22 @@ const MessagingComponent = () => {
                   )}
                   <div
                     className={`${isMaximized
-                      ? "w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white"
-                      : "w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300"
+                      ? "w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white"
+                      : "w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300"
                       }`}
                   >
                     {activeUser ? (
-                      <img
-                        src={activeUser.avatar ? activeUser.avatar : "/default_avatar.png"}
-                        alt={activeUser.name}
-                        className="w-10 h-10 rounded-full object-cover"
-                        onError={(e) => {
-                          const img = e.currentTarget;
-                          img.onerror = null;
-                          img.src = "/default_avatar.png";
-                        }}
-                      />
+
+                              <img
+                                src={activeUser.avatar ? activeUser.avatar : "/default_avatar.png"}
+                                alt={activeUser.name}
+                                className="w-10 h-10 rounded-full object-cover"
+                                onError={(e) => {
+                                  const img = e.currentTarget;
+                                  img.onerror = null;
+                                  img.src = "/default_avatar.png";
+                                }}
+                              />
                     ) : (
                       <MessageCircle size={16} />
                     )}
@@ -750,15 +751,17 @@ const MessagingComponent = () => {
                           >
                             <div className="relative">
                               <div className="relative w-10 h-10">
-                                <img
-                                  src={u.avatar}
-                                  alt={u.name}
-                                  className="w-10 h-10 rounded-full object-cover"
-                                  onError={(e) => {
-                                    (e.currentTarget as HTMLImageElement).src = "/default_avatar.png";
-                                  }}
-                                />
-                              </div>
+                              <img
+                                src={u.avatar ? u.avatar : "/default_avatar.png"}
+                                alt={u.name}
+                                className="w-10 h-10 rounded-full object-cover"
+                                onError={(e) => {
+                                  const img = e.currentTarget;
+                                  img.onerror = null;
+                                  img.src = "/default_avatar.png";
+                                }}
+                              />
+                            </div>
                             </div>
                             <div className="ml-3 flex-1">
                               <div className="flex items-center justify-between">
