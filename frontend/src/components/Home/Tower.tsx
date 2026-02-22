@@ -94,7 +94,7 @@ const ReadingFace = () => (
 );
 
   return (
-    <div className="h-full w-full dark:bg-[#191919] overflow-hidden flex items-center justify-center perspective-1000">
+    <div className="h-full w-full dark:bg-[#191919] overflow-hidden flex perspective-1000">
       <div
         ref={cubeRef}
         className="relative w-full h-full flex justify-center preserve-3d transition-transform duration-700"
