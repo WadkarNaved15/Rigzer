@@ -236,8 +236,8 @@ function Home() {
       <Header />
       {/* <TickerBar /> */}
 
-      <main className="max-w-7xl mx-auto pl-2 sm:pl-4 lg:pl-6 pr-4 sm:pr-6 lg:pr-8 pt-4">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+     <main className="w-full min-h-screen px-4 sm:px-6 lg:px-10 xl:px-16 2xl:px-20 pt-4">
+       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left sidebar */}
           <div className="lg:col-span-2">
             {/* border-[3px] border-gray-400 dark:border-gray-700 shadow-lg */}
@@ -292,7 +292,7 @@ function Home() {
           {articleOpen && activeCanvasId && !isUploading && !profileOpen && (
             <>
               {/* CENTER: Article */}
-              <div className="lg:col-span-7 min-h-[80vh] w-full pt-3">
+             <div className="lg:col-span-6 flex flex-col items-stretch min-h-[80vh] w-full">
                 <Suspense fallback={null}>
                   <ArticleOverlay
                     canvasId={activeCanvasId}
@@ -305,7 +305,7 @@ function Home() {
               </div>
 
               {/* RIGHT: Recommendations */}
-              <div className="lg:col-span-3 hidden lg:block">
+             <div className="lg:col-span-4 hidden lg:block">
                 <div className="sticky top-20 space-y-6">
                   <Suspense fallback={null}>
                     <ArticleRecommendations
@@ -465,25 +465,24 @@ function Home() {
             )}
 
           {/* RIGHT SIDEBAR (hidden only for model post) */}
+         {/* RIGHT SIDEBAR */}
           {!isUploading &&
             !profileOpen &&
-            !(postDetailsOpen && selectedPost?.type === "model_post") && !articleOpen && (
-              <div className="lg:col-span-4 hidden lg:block h-full">
-                <div className="sticky top-20">
-                  <div className="h-[500px] overflow-hidden">
-                    <Suspense fallback={null}>
-                      <Billboard
-                        // activeFace={activeFace}
-                        onOpenArticle={(canvasId: string) => {
-                          setActiveCanvasId(canvasId);
-                          setArticleOpen(true);
-                        }}
-                      />
-                    </Suspense>
-                  </div>
+            !(postDetailsOpen && selectedPost?.type === "model_post") &&
+            !articleOpen && (
+              <div className="lg:col-span-4 hidden lg:block">
+                <div className="sticky top-20 h-[calc(100vh-5rem)]">
+                  <Suspense fallback={null}>
+                    <Billboard
+                      onOpenArticle={(canvasId: string) => {
+                        setActiveCanvasId(canvasId);
+                        setArticleOpen(true);
+                      }}
+                    />
+                  </Suspense>
                 </div>
               </div>
-            )}
+          )}
         </div>
       </main>
 

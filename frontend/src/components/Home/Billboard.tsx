@@ -45,7 +45,7 @@ const Billboard: React.FC<BillboardProps> = ({ onOpenArticle }) => {
         </div>
       </div>
 
-      <div className="h-[80%] border-t border-purple-600 pt-2 dark:border-gray-200 transition-opacity duration-300">
+      <div className="flex-1 border-t border-purple-600 pt-2 dark:border-gray-200 transition-opacity duration-300 overflow-hidden">
         <Suspense fallback={<div className="text-center text-gray-400">Loading...</div>}>
           <Tower activeFace={activeSection} onOpenArticle={onOpenArticle} />
         </Suspense>
