@@ -236,7 +236,7 @@ function Home() {
       <Header />
       {/* <TickerBar /> */}
 
-     <main className="w-full min-h-screen px-4 sm:px-6 lg:px-10 xl:px-16 2xl:px-20 pt-4">
+     <main className="w-full min-h-screen px-2 sm:px-4 lg:px-8 xl:px-12 2xl:px-16 pt-4">
        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left sidebar */}
           <div className="lg:col-span-2">
