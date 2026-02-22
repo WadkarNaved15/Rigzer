@@ -89,7 +89,7 @@ export default function SharedPostMessage({ postId, onOpenPost }: any) {
         {/* User Info */}
         <div className="flex items-center gap-2 mb-2">
           <img 
-            src={post.user?.profilePic || DEFAULT_AVATAR} 
+            src={post.user?.profilePic || "/default_avatar.png"} 
             className="w-5 h-5 rounded-full object-cover ring-1 ring-gray-200 dark:ring-gray-800" 
             alt="avatar" 
           />

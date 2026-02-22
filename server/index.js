@@ -12,6 +12,7 @@ import { Server } from "socket.io";
 
 // ROUTES
 import modelUploadRouter from "./routes/compression.js";
+import internalNotificationRoutes from "./routes/internalNotification.js";
 import chatMediaUpload from "./routes/chatMediaUpload.js";
 import deviceMiddleware from "./middlewares/deviceMiddleware.js";
 import ArticleRoutes from "./routes/articlesRoutes.js";
@@ -45,7 +46,7 @@ import sessionRoutes from "./routes/sessions.js";
 import internalRoutes from "./routes/internal.js";
 import { initializeInstancePool } from "./services/instanceAllocator.js";
 import { initializeSessionPubSub } from "./services/sessionPubSub.js";
-import  streamProxyRouter  from "./routes/streamProxy.js";
+import streamProxyRouter from "./routes/streamProxy.js";
 
 
 dotenv.config();
@@ -58,7 +59,7 @@ const corsWhitelist = [
   "http://localhost:5173",
   "https://localhost:5173",
   "https://xn--tlay-0ra.com",
-  "https://www.rigzer.com",  
+  "https://www.rigzer.com",
   "https://rigzer.com",
   process.env.FRONTEND_URL
 ];
@@ -144,23 +145,34 @@ const io = new Server(server, {
 });
 
 let onlineUsers = new Map(); // userId => Set(socketId)
-
+app.use("/api/internal-notify", internalNotificationRoutes(io, onlineUsers));
 io.on("connection", (socket) => {
   console.log("Socket connected:", socket.id);
 
   socket.on("join", (userId) => {
+    socket.userId = userId; // attach to socket for cleanup
     if (!onlineUsers.has(userId)) {
       onlineUsers.set(userId, new Set());
     }
 
     onlineUsers.get(userId).add(socket.id);
     console.log("User joined:", userId);
+    // 🔥 Emit to everyone that this user is online
+    io.emit("user-online", userId);
+
+    // 🔥 Send full list to newly connected socket
+    socket.emit("online-users", Array.from(onlineUsers.keys()));
   });
 
   // Join chat room
   socket.on("join_chat", (chatId) => {
     socket.join(chatId);
     console.log("Joined chat room:", chatId);
+  });
+  // Leave chat room
+  socket.on("leave_chat", (chatId) => {
+    socket.leave(chatId);
+    console.log("Left chat room:", chatId);
   });
 
   // Send Post
@@ -169,6 +181,7 @@ io.on("connection", (socket) => {
 
     const message = await Message.create({
       chatId,
+      receiverId,
       senderId,
       messageType: "post",
       sharedPostId: postId,
@@ -186,6 +199,20 @@ io.on("connection", (socket) => {
 
     // emit to chat room
     io.to(chatId).emit("receive-message", messageData);
+    // ✅ 2. Badge update only if receiver not inside room
+    const roomSockets = io.sockets.adapter.rooms.get(chatId);
+    const receiverSockets = onlineUsers.get(receiverId);
+
+    if (receiverSockets) {
+      receiverSockets.forEach((socketId) => {
+        if (!roomSockets || !roomSockets.has(socketId)) {
+          io.to(socketId).emit("new-unread-message", {
+            senderId,
+            chatId,
+          });
+        }
+      });
+    }
   });
 
   // normal message
@@ -195,6 +222,7 @@ io.on("connection", (socket) => {
     const message = await Message.create({
       chatId,
       senderId,
+      receiverId,
       text,
       mediaUrl,
       mediaType,
@@ -212,13 +240,47 @@ io.on("connection", (socket) => {
       messageType: mediaUrl ? "media" : "text",
       createdAt: message.createdAt,
     };
-
+    // ✅ 1. Send message to active room
     io.to(chatId).emit("receive-message", messageData);
+    // ✅ 2. Badge update only if receiver not inside room
+    const roomSockets = io.sockets.adapter.rooms.get(chatId);
+    const receiverSockets = onlineUsers.get(receiverId);
+    console.log("receiverSockets", receiverSockets);
+    if (receiverSockets) {
+      receiverSockets.forEach((socketId) => {
+        console.log("socketId of reveiverSockets", socketId);
+        if (!roomSockets || !roomSockets.has(socketId)) {
+          console.log("new-read message event fired for", socketId);
+          io.to(socketId).emit("new-unread-message", {
+            senderId,
+            chatId,
+          });
+        }
+      });
+    }
+
   });
 
   socket.on("disconnect", () => {
+    const userId = socket.userId;
+    if (!userId) return;
+
+    const sockets = onlineUsers.get(userId);
+
+    if (!sockets) return;
+
+    sockets.delete(socket.id);
+
+    if (sockets.size === 0) {
+      onlineUsers.delete(userId);
+
+      // 🔥 Emit offline only if ALL devices disconnected
+      io.emit("user-offline", userId);
+    }
+
     console.log("Socket disconnected:", socket.id);
   });
+
 });
 
 

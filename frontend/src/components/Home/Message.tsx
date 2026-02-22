@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { Header } from "../Header"; // 1. Add your import
 import SharedPostMessage from "./SharedPostMessage";
 import { useUser } from "../../context/user";
+import { useUI } from "../../context/UIContext";
 import { useUsers } from "../../context/UsersContext";
 import { toast } from "react-toastify";
 import {
@@ -25,7 +26,6 @@ interface ApiUser {
   username: string;
 }
 interface User {
-  _id: string,
   id: string;
   name: string;
   avatar: string;
@@ -47,15 +47,19 @@ const MessagingComponent = () => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [activeChat, setActiveChat] = useState<ChatId | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [currentChatId, setCurrentChatId] = useState(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { isAdPlaying } = useUI();
   const { user } = useUser();
   const { users, loading } = useUsers();
   const currentUser = user?._id;
   const navigate = useNavigate();
   const socket = useSocket();
+
   // CSS animation for shine
   useEffect(() => {
     const style = document.createElement("style");
@@ -138,8 +142,78 @@ const MessagingComponent = () => {
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   useEffect(() => scrollToBottom(), [conversations, activeChat]);
 
+  useEffect(() => {
+    if (!isOpen) return;
 
+    const fetchUnreadCounts = async () => {
+      try {
+        const res = await axios.get(
+          `${BACKEND_URL}/api/messages/unread-counts`,
+          { withCredentials: true }
+        );
 
+        const counts: Record<string, number> = {};
+
+        res.data.forEach((item: any) => {
+          counts[item._id] = item.count;
+        });
+
+        setUnreadCounts((prev) => ({
+          ...prev,
+          ...counts
+        }));
+
+      } catch (err) {
+        console.error("Failed to load unread counts", err);
+      }
+    };
+
+    fetchUnreadCounts();
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on("online-users", (users: string[]) => {
+      setOnlineUsers(users);
+    });
+
+    socket.on("user-online", (userId: string) => {
+      setOnlineUsers((prev) =>
+        prev.includes(userId) ? prev : [...prev, userId]
+      );
+    });
+
+    socket.on("user-offline", (userId: string) => {
+      setOnlineUsers((prev) =>
+        prev.filter((id) => id !== userId)
+      );
+    });
+
+    return () => {
+      socket.off("online-users");
+      socket.off("user-online");
+      socket.off("user-offline");
+    };
+  }, [socket]);
+
+  useEffect(() => {
+    if (!socket || !currentUser) return;
+    console.log("new read message socket got called");
+    const unreadHandler = ({ senderId }: any) => {
+      console.log("🔔 senderId received =", senderId);
+      setUnreadCounts((prev) => ({
+        ...prev,
+        [senderId]: (prev[senderId] || 0) + 1,
+      }));
+    };
+    console.log("new read message socket got called");
+    socket.on("new-unread-message", unreadHandler);
+
+    return () => {
+      socket.off("new-unread-message", unreadHandler);
+    };
+  }, [socket, currentUser]);
 
 
   useEffect(() => {
@@ -158,13 +232,16 @@ const MessagingComponent = () => {
       }));
     };
 
+
     socket.on("receive-message", handler);
 
     return () => {
       socket.off("receive-message", handler);
     };
-  }, [currentUser]);
-
+  }, [socket, currentUser, activeChat]);
+  if (isAdPlaying) {
+    return null;
+  }
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!socket || !currentUser) return;
     const file = e.target.files?.[0];
@@ -237,6 +314,11 @@ const MessagingComponent = () => {
 
   const handleUserClick = async (receiverId: string) => {
     try {
+      // ✅ Leave old room first
+      if (currentChatId && socket) {
+        socket.emit("leave_chat", currentChatId);
+        console.log("Left previous room:", currentChatId);
+      }
       setActiveChat(receiverId);
       // console.log("receiverId", receiverId);
       // Hit backend to create or get the chat
@@ -247,7 +329,10 @@ const MessagingComponent = () => {
       );
 
       setCurrentChatId(data._id);
-
+      if (socket) {
+        socket.emit("join_chat", data._id);
+        console.log("Joined chat room:", data._id);
+      }
       // Fetch previous messages for this chat
       const messagesResponse = await axios.get(`${BACKEND_URL}/api/messages/${data._id}`, {
         withCredentials: true,
@@ -257,6 +342,18 @@ const MessagingComponent = () => {
         ...prev,
         [receiverId]: messagesResponse.data,
       }));
+      // ✅ 4️⃣ Mark all received messages as SEEN
+      await axios.put(
+        `${BACKEND_URL}/api/messages/seen/${data._id}`,
+        {},
+        { withCredentials: true }
+      );
+      setUnreadCounts((prev) => ({
+        ...prev,
+        [receiverId]: 0,
+      }));
+      console.log("Messages marked as seen!");
+
     } catch (error) {
       console.error("Error starting chat:", error);
     }
@@ -287,18 +384,14 @@ const MessagingComponent = () => {
     setMessage("");
   };
 
-
-
   const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
   };
-
-
   const formatTime = (ts: Date) => ts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const getUnreadCount = () => users.reduce((t, u) => t + (u.unreadCount || 0), 0);
+  const getUnreadCount = () => Object.values(unreadCounts).reduce((a, b) => a + b, 0);
   const filteredUsers = users.filter((u) => u.name.toLowerCase().includes(searchTerm.toLowerCase()));
   const activeUser = users.find((u) => u.id === activeChat);
 
@@ -309,6 +402,10 @@ const MessagingComponent = () => {
   };
 
   const toggleClose = () => {
+    if (currentChatId && socket) {
+      socket.emit("leave_chat", currentChatId);
+    }
+
     setIsOpen(false);
     setIsMinimized(false);
     setIsMaximized(false);
@@ -393,7 +490,7 @@ const MessagingComponent = () => {
             : "relative bg-white dark:bg-black w-80 border border-gray-200 shadow-sm overflow-hidden transition-all duration-300 hover:shadow-md rounded-lg flex flex-col"
             } ${isMinimized ? "h-16" : isMaximized ? "h-full" : "h-96"}`}
         >
-        {/* {isMaximized && <Header />} */}
+          {/* {isMaximized && <Header />} */}
           {/* Header */}
           <div
             className={`flex-shrink-0 h-16 ${isMaximized
@@ -429,21 +526,45 @@ const MessagingComponent = () => {
                 </div>
               </>
             ) : (
-              // Full/Maximized Header
+              // Full/Maximized Header"
               <>
                 <div className="flex items-center space-x-3">
                   {activeChat && (
-                    <button onClick={() => setActiveChat(null)} className="hover:bg-white/20 p-1 rounded">
+
+                    <button
+                      className="hover:bg-white/20 p-1 rounded"
+                      onClick={() => {
+                        if (currentChatId && socket) {
+                          socket.emit("leave_chat", currentChatId);
+                        }
+                        setActiveChat(null);
+                      }}
+                    >
+
                       <ArrowLeft size={16} />
                     </button>
                   )}
                   <div
                     className={`${isMaximized
-                      ? "w-8 h-8 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white"
-                      : "w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300"
+                      ? "w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white"
+                      : "w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-300"
                       }`}
                   >
-                    {activeUser ? activeUser.avatar : <MessageCircle size={16} />}
+                    {activeUser ? (
+
+                              <img
+                                src={activeUser.avatar ? activeUser.avatar : "/default_avatar.png"}
+                                alt={activeUser.name}
+                                className="w-10 h-10 rounded-full object-cover"
+                                onError={(e) => {
+                                  const img = e.currentTarget;
+                                  img.onerror = null;
+                                  img.src = "/default_avatar.png";
+                                }}
+                              />
+                    ) : (
+                      <MessageCircle size={16} />
+                    )}
                   </div>
                   <div>
                     <h3
@@ -520,6 +641,9 @@ const MessagingComponent = () => {
 
                     {/* Users List */}
                     <div className="flex-1 overflow-y-auto">
+                      {/* The comma operator executes the log and returns null, satisfying TypeScript and React */}
+                      {(console.log("🔥 unreadCounts STATE =", unreadCounts), null)}
+
                       {filteredUsers.map((u) => (
                         <div
                           key={u.id}
@@ -530,32 +654,55 @@ const MessagingComponent = () => {
                             }`}
                         >
                           <div className="relative">
-                            <div
-                              className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm ${isMaximized
-                                ? "bg-gradient-to-r from-pink-400 to-purple-400 text-white"
-                                : "bg-gray-300 dark:bg-gray-600 text-gray-700 dark:text-gray-200"
-                                }`}
-                            >
-                              {u.avatar}
+                            <div className="relative w-10 h-10">
+                              <img
+                                src={u.avatar ? u.avatar : "/default_avatar.png"}
+                                alt={u.name}
+                                className="w-10 h-10 rounded-full object-cover"
+                                onError={(e) => {
+                                  const img = e.currentTarget;
+                                  img.onerror = null;
+                                  img.src = "/default_avatar.png";
+                                }}
+                              />
                             </div>
-                            <div
-                              className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 ${isMaximized ? "border-white" : "border-white dark:border-black"
-                                } ${u.status === "online" ? "bg-green-400" : "bg-gray-300 dark:bg-gray-600"}`}
-                            />
+                            {onlineUsers.includes(u.id) && (
+                              <div
+                                className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 ${isMaximized
+                                  ? "border-white"
+                                  : "border-white dark:border-black"
+                                  } bg-green-400`}
+                              />
+                            )}
                           </div>
+
                           <div className="ml-3 flex-1">
                             <div className="flex items-center justify-between">
-                              <h4 className={`${isMaximized ? "text-white" : "text-gray-900 dark:text-white"} font-semibold text-sm`}>{u.name}</h4>
-                              {u.unreadCount > 0 && (
+                              <h4
+                                className={`${isMaximized ? "text-white" : "text-gray-900 dark:text-white"
+                                  } font-semibold text-sm`}
+                              >
+                                {u.name}
+                              </h4>
+
+                              {/* Using optional chaining and nullish coalescing to ensure unreadCounts[u.id] is a number */}
+                              {(unreadCounts[u.id] ?? 0) > 0 && (
                                 <div
-                                  className={`text-xs rounded-full h-5 w-5 flex items-center justify-center ${isMaximized ? "bg-pink-500 text-white" : "bg-gray-600 dark:bg-gray-400 text-white dark:text-black"
+                                  className={`text-xs rounded-full h-5 w-5 flex items-center justify-center ${isMaximized
+                                    ? "bg-pink-500 text-white"
+                                    : "bg-gray-600 dark:bg-gray-400 text-white dark:text-black"
                                     }`}
                                 >
-                                  {u.unreadCount}
+                                  {unreadCounts[u.id]}
                                 </div>
                               )}
                             </div>
-                            <p className={`${isMaximized ? "text-white/70" : "text-gray-500 dark:text-gray-400"} text-xs mt-1`}>{u.lastSeen}</p>
+                            <p
+                              className={`${isMaximized ? "text-white/70" : "text-gray-500 dark:text-gray-400"
+                                } text-xs mt-1`}
+                            >
+                              {u.lastSeen}
+                            </p>
                           </div>
                         </div>
                       ))}
@@ -598,25 +745,30 @@ const MessagingComponent = () => {
                         {filteredUsers.map((u) => (
                           <div
                             key={u.id}
-                            onClick={() => setActiveChat(u.id)}
+                            onClick={() => handleUserClick(u.id)}
                             className={`flex items-center p-4 cursor-pointer transition-colors border-b border-white/10 ${activeChat === u.id ? "bg-white/20" : "hover:bg-white/10"
                               }`}
                           >
                             <div className="relative">
-                              <div className="w-10 h-10 bg-gradient-to-r from-pink-400 to-purple-400 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-                                {u.avatar}
-                              </div>
-                              <div
-                                className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${u.status === "online" ? "bg-green-400" : "bg-gray-300"
-                                  }`}
+                              <div className="relative w-10 h-10">
+                              <img
+                                src={u.avatar ? u.avatar : "/default_avatar.png"}
+                                alt={u.name}
+                                className="w-10 h-10 rounded-full object-cover"
+                                onError={(e) => {
+                                  const img = e.currentTarget;
+                                  img.onerror = null;
+                                  img.src = "/default_avatar.png";
+                                }}
                               />
+                            </div>
                             </div>
                             <div className="ml-3 flex-1">
                               <div className="flex items-center justify-between">
                                 <h4 className="font-semibold text-sm text-white">{u.name}</h4>
-                                {u.unreadCount > 0 && activeChat !== u.id && (
+                                {unreadCounts[u.id] > 0 && activeChat !== u.id && (
                                   <div className="bg-pink-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                                    {u.unreadCount}
+                                    {unreadCounts[u.id]}
                                   </div>
                                 )}
                               </div>

@@ -6,7 +6,7 @@ import { toast } from "react-toastify";
 import { useState } from "react";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-const DEFAULT_AVATAR = "https://images.unsplash.com/photo-1494790108377-be9c29b29330";
+const DEFAULT_AVATAR = "/default_avatar.png";
 
 interface SharePostModalProps {
   postId: string;

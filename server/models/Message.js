@@ -14,6 +14,12 @@ const messageSchema = new mongoose.Schema(
       required: true,
     },
 
+    receiverId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+
     // normal text
     text: { type: String, default: "" },
 
@@ -31,6 +37,14 @@ const messageSchema = new mongoose.Schema(
     sharedPostId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Post",
+      default: null
+    },
+    seen: {
+      type: Boolean,
+      default: false
+    },
+    seenAt: {
+      type: Date,
       default: null
     }
   },

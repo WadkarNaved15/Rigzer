@@ -82,7 +82,7 @@ const DevlogPost: React.FC<DevlogPostProps> = ({
       className="
         relative w-full 
         border border-gray-200 dark:border-gray-700
-        bg-white dark:bg-[#191919]
+        bg-[#F9FAFB] dark:bg-[#191919]
         hover:bg-[#F7F9F9] dark:hover:bg-[#16181C]
         transition-colors duration-200
         cursor-pointer
@@ -91,7 +91,7 @@ const DevlogPost: React.FC<DevlogPostProps> = ({
       <div className="flex gap-3 px-4 py-3">
         {/* AVATAR */}
         <img
-          src={avatarUrl}
+          src={user.avatar || "/default_avatar.png"}
           alt={user.username}
           className="h-10 w-10 rounded-full object-cover"
         />

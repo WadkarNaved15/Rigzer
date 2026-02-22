@@ -1,11 +1,11 @@
 import Notification from "../models/Notifications.js";
-
+import axios from "axios";
 export const handleNotificationEvent = async (event) => {
   const { type, actorId, recipientId, postId } = event;
 
   const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
 
-  await Notification.findOneAndUpdate(
+  const notification = await Notification.findOneAndUpdate(
     {
       recipientId,
       type,
@@ -39,4 +39,19 @@ export const handleNotificationEvent = async (event) => {
   );
 
   console.log("✅ Notification Stored / Aggregated");
+   // ✅ REALTIME SOCKET PUSH (Worker → Backend)
+   console.log("🚀 Pushing notification in real-time");
+  await axios.post(
+    `${process.env.BACKEND_URL}/api/internal-notify/notify-realtime`,
+    {
+      recipientId,
+      notificationId: notification._id,
+    },
+    {
+      headers: {
+        "x-internal-secret": process.env.INTERNAL_SECRET,
+      },
+    }
+  );
+  console.log("🚀 Notification pushed in real-time");
 };

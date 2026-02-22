@@ -145,7 +145,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({ setProfileOpen }) => {
                 <div className="relative px-8 -mt-14 md:-mt-20 flex flex-col items-center text-center md:flex-row md:items-end md:text-left gap-6 z-10">
                   <div className="relative group shrink-0">
                     <img
-                      src={user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=256&h=256&auto=format&fit=crop"}
+                      src={user?.avatar || "/default_avatar.png"}
                       className="relative w-28 h-28 md:w-40 md:h-40 rounded-full object-cover border-4 md:border-8 border-[#191919] shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer bg-[#191919]"
                       alt="Avatar"
                     />
