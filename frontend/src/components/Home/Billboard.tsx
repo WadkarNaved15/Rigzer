@@ -21,37 +21,39 @@ const Billboard: React.FC<BillboardProps> = ({ onOpenArticle }) => {
     return () => clearInterval(interval);
   }, [toggleSection]);
 
-  return (
-    <>
-      {/* Navigation Controls */}
-      <div className="flex items-center justify-between mb-4 px-2">
-        <h2 className="text-lg font-bold dark:text-white capitalize">
-          {activeSection}
-        </h2>
+return (
+  <div className="flex flex-col h-full w-full dark:bg-[#191919] rounded-xl overflow-hidden">
+    
+    {/* Header */}
+    <div className="flex items-center justify-between px-2 py-3">
+      <h2 className="text-lg font-bold dark:text-white capitalize">
+        {activeSection}
+      </h2>
 
-        <div className="flex gap-2">
-          <button
-            onClick={toggleSection}
-            className="p-2 rounded-full bg-gray-100 dark:bg-[#252525] dark:text-white hover:bg-purple-600 hover:text-white transition-colors"
-          >
-            <ArrowLeft size={20} />
-          </button>
-          <button
-            onClick={toggleSection}
-            className="p-2 rounded-full bg-gray-100 dark:bg-[#252525] dark:text-white hover:bg-purple-600 hover:text-white transition-colors"
-          >
-            <ArrowRight size={20} />
-          </button>
-        </div>
+      <div className="flex gap-2">
+        <button
+          onClick={toggleSection}
+          className="p-2 rounded-full bg-gray-100 dark:bg-[#252525] dark:text-white hover:bg-purple-600 hover:text-white transition-colors"
+        >
+          <ArrowLeft size={20} />
+        </button>
+        <button
+          onClick={toggleSection}
+          className="p-2 rounded-full bg-gray-100 dark:bg-[#252525] dark:text-white hover:bg-purple-600 hover:text-white transition-colors"
+        >
+          <ArrowRight size={20} />
+        </button>
       </div>
+    </div>
 
-      <div className="h-[80%] border-t border-purple-600 pt-2 dark:border-gray-200 transition-opacity duration-300">
-        <Suspense fallback={<div className="text-center text-gray-400">Loading...</div>}>
-          <Tower activeFace={activeSection} onOpenArticle={onOpenArticle} />
-        </Suspense>
-      </div>
-    </>
-  );
+    {/* Content */}
+    <div className="flex-1 overflow-hidden border-t border-purple-600 dark:border-gray-200">
+      <Suspense fallback={<div className="text-center text-gray-400">Loading...</div>}>
+        <Tower activeFace={activeSection} onOpenArticle={onOpenArticle} />
+      </Suspense>
+    </div>
+  </div>
+);
 };
 
 export default Billboard;
