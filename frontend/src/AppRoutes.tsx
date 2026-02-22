@@ -18,6 +18,7 @@ const DevlogViewer = lazy(() => import("./Pages/DevlogViewer"));
 const Puck = lazy(() => import("./Pages/Puck"));
 const StreamPage = lazy(() => import("./Pages/StreamPage"));
 import ForgotPassword from "./Pages/ForgotPassword";
+import VerifyEmail from "./Pages/VerifyEmail";
 import ResetPassword from "./Pages/ResetPassword";
 // Components
 import GameStatus from "./components/Home/PlayGame";
@@ -53,6 +54,7 @@ export default function AppRoutes() {
           <Route path="/devlogs" element={<DevLogs />} />
           <Route path="/devlogs/view/:id" element={<DevLogsView />} />
           <Route path="/devlogCanvas" element={<DevLogCanvas />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
           <Route path="/devlogviewer/:devlogId" element={<DevlogViewer />} />
           <Route path="/models" element={<ModelViewer />} />
           <Route path="/gameshow" element={<GameShowcase />} />

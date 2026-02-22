@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema(
       select: false, // Don’t return by default
     },
     isGoogleUser: { type: Boolean, default: false },
-    
+
     avatar: {
       type: String, // CDN / Cloudinary URL
       default: "",
@@ -45,8 +45,14 @@ const userSchema = new mongoose.Schema(
     resetPasswordExpires: {
       type: Date,
     },
+    isVerified: {
+      type: Boolean,
+      default: false
+    },
+    emailVerificationOTP: String,
+    emailVerificationExpires: Date
   },
-  
+
   { timestamps: true }
 );
 
