@@ -292,7 +292,7 @@ function Home() {
           {articleOpen && activeCanvasId && !isUploading && !profileOpen && (
             <>
               {/* CENTER: Article */}
-             <div className="lg:col-span-6 flex flex-col items-stretch min-h-[80vh] w-full">
+             <div className="lg:col-span-7 flex flex-col items-stretch min-h-[80vh] w-full">
                 <Suspense fallback={null}>
                   <ArticleOverlay
                     canvasId={activeCanvasId}
@@ -305,7 +305,7 @@ function Home() {
               </div>
 
               {/* RIGHT: Recommendations */}
-             <div className="lg:col-span-4 hidden lg:block">
+             <div className="lg:col-span-3 hidden lg:block">
                 <div className="sticky top-20 space-y-6">
                   <Suspense fallback={null}>
                     <ArticleRecommendations
