@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 import User from "../models/User.js"; // Correct import after fixing export
 import passport from "passport";
 import { sendResetEmail } from "../services/sendResetEmail.js";
+import { sendVerificationEmail } from "../services/sendVerificationEmail.js";
 import verifyToken from "../middlewares/authMiddleware.js";
 
 dotenv.config();
@@ -72,34 +73,102 @@ router.post("/register", async (req, res) => {
     // Hash the password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-
+    // 🔐 Generate 6 digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    // 🔐 Hash the OTP
+    const hashedOTP = crypto
+      .createHash("sha256")
+      .update(otp)
+      .digest("hex");
     // Create user
     const newUser = new User({
       username,
       email,
       password: hashedPassword,
+      isVerified: false,
+      emailVerificationOTP: hashedOTP,
+      emailVerificationExpires: Date.now() + 10 * 60 * 1000, // 10 mins
     });
 
     await newUser.save();
-    const token = jwt.sign({ id: newUser._id },process.env.JWT_SECRET, { expiresIn: "30d" });
-    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-
-    await Session.create({
-      userId: newUser._id,
-      deviceId: req.deviceId,
-      tokenHash,
-      userAgent: req.headers["user-agent"],
-      ip: req.ip
+    await sendVerificationEmail(email, otp);
+    res.status(200).json({
+      message: "OTP sent to email",
+      requiresVerification: true,
+      email
     });
-    res.cookie("token", token, cookieOptions);
-    res.status(201).json({ message: "User registered & authenticated successfully", user: newUser, token });
+    // const token = jwt.sign({ id: newUser._id },process.env.JWT_SECRET, { expiresIn: "30d" });
+    // const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+    // await Session.create({
+    //   userId: newUser._id,
+    //   deviceId: req.deviceId,
+    //   tokenHash,
+    //   userAgent: req.headers["user-agent"],
+    //   ip: req.ip
+    // });
+    // res.cookie("token", token, cookieOptions);
+    // res.status(201).json({ message: "User registered & authenticated successfully", user: newUser, token });
   } catch (error) {
     console.error("Error in registration:", error);
     // res.status(500).json({ error: "Registration failed" });
   }
 });
+// Verify email
+router.post("/verify-email", async (req, res) => {
+  try {
+    const { email, otp } = req.body;
 
+    const hashedOTP = crypto
+      .createHash("sha256")
+      .update(otp)
+      .digest("hex");
 
+    const user = await User.findOne({
+      email,
+      emailVerificationOTP: hashedOTP,
+      emailVerificationExpires: { $gt: Date.now() },
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: "Invalid or expired OTP" });
+    }
+
+    // ✅ Mark verified
+    user.isVerified = true;
+    user.emailVerificationOTP = undefined;
+    user.emailVerificationExpires = undefined;
+
+    await user.save();
+
+    // 🔥 Now create session (ONLY AFTER VERIFY)
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "30d" }
+    );
+
+    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+    await Session.create({
+      userId: user._id,
+      deviceId: req.deviceId,
+      tokenHash,
+      userAgent: req.headers["user-agent"],
+      ip: req.ip
+    });
+
+    res.cookie("token", token, cookieOptions);
+
+    res.json({
+      message: "Email verified successfully",
+      user
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: "Verification failed" });
+  }
+});
 
 // Login Route
 router.post("/login", async (req, res) => {
@@ -109,7 +178,12 @@ router.post("/login", async (req, res) => {
     const user = await User.findOne({
       $or: [{ email: emailOrUsername }, { username: emailOrUsername }],
     }).select("+password"); // ✅ include password field explicitly
-
+    if (!user.isVerified) {
+      return res.status(403).json({
+        error: "Please verify your email before logging in",
+        requiresVerification: true
+      });
+    }
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
@@ -117,7 +191,7 @@ router.post("/login", async (req, res) => {
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "30d" });
 
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-    
+
     await Session.create({
       userId: user._id,
       deviceId: req.deviceId,

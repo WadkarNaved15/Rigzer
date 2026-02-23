@@ -47,6 +47,7 @@ function Auth() {
       // Example: Check if passwords match during signup
       if (mode === 'signup' && formData.password !== formData.confirmPassword) {
         alert("Passwords do not match.");
+        setIsLoading(false);
         return; // Stop further processing
       }
       if (mode === 'login') {
@@ -83,30 +84,42 @@ function Auth() {
         },
           { withCredentials: true }
         );
-        if (response.status === 200) {
-          const user = response.data.user;
-
-          saveAccount({
-            userId: user._id,
-            username: user.username,
-            avatar: user.avatar
-          });
-
-          login(user);
-          navigate("/");
+        if (response.data.requiresVerification) {
+          navigate(`/verify-email?email=${formData.email}`);
+          return;
         }
+        // if (response.status === 200) {
+        //   const user = response.data.user;
+
+        //   saveAccount({
+        //     userId: user._id,
+        //     username: user.username,
+        //     avatar: user.avatar
+        //   });
+
+        //   login(user);
+        //   navigate("/");
+        // }
 
       }
-      // Here you would typically send the formData to your backend API
-      console.log("Form data submitted:", formData);
+      // // Here you would typically send the formData to your backend API
+      // console.log("Form data submitted:", formData);
 
-      // Reset form data or perform other actions after successful submission
-      setFormData({ username: '', email: '', password: '', confirmPassword: '' });
+      // // Reset form data or perform other actions after successful submission
+      // setFormData({ username: '', email: '', password: '', confirmPassword: '' });
 
 
-    } catch (error) {
-      console.error("Submission error:", error);
-      alert("An error occurred during submission.");
+    } catch (err: any) {
+      if (axios.isAxiosError(err)) {
+        if (err.response?.data?.requiresVerification) {
+          navigate(`/verify-email?email=${formData.email}`);
+          return;
+        }
+
+        alert(err.response?.data?.error || "Something went wrong.");
+      } else {
+        alert("Unexpected error occurred.");
+      }
     } finally {
       setIsLoading(false);
     }
