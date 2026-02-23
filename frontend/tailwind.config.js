@@ -7,6 +7,19 @@ export default {
       animation: {
         'spin-slow': 'spin 3s linear infinite',
       },
+      gridTemplateColumns: {
+        '13': 'repeat(13, minmax(0, 1fr))',
+        '14': 'repeat(14, minmax(0, 1fr))',
+        '15': 'repeat(15, minmax(0, 1fr))',
+        '16': 'repeat(16, minmax(0, 1fr))',
+      },
+      // Optional: Add spans if you need an item to span 14 or 15 cols
+      gridColumn: {
+        'span-13': 'span 13 / span 13',
+        'span-14': 'span 14 / span 14',
+        'span-15': 'span 15 / span 15',
+        'span-16': 'span 16 / span 16',
+      },
       colors: {
         purple: {
           50: '#f5f3ff',

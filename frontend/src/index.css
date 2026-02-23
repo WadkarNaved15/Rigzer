@@ -134,8 +134,7 @@
   }
 
   .face {
-    @apply absolute w-full h-full bg-slate-100 dark:bg-gray-700 mt-2 rounded-lg shadow-lg p-6 mb-4 backface-hidden;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    @apply absolute w-full h-full bg-[#F3F4F6] dark:bg-gray-700 mt-2 rounded-lg shadow-lg mb-4 backface-hidden;
   }
 
   

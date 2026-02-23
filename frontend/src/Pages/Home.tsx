@@ -236,10 +236,10 @@ function Home() {
       <Header />
       {/* <TickerBar /> */}
 
-     <main className="w-full min-h-screen px-2 sm:px-4 lg:px-8 xl:px-12 2xl:px-16 pt-4">
-       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+     <main className="w-full min-h-screen px-2 sm:px-4 lg:px-8 2xl:px-16 pt-4">
+       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 2xl:grid-cols-16 2xl:gap-x-12">
           {/* Left sidebar */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 2xl:col-span-3 hidden lg:block">
             {/* border-[3px] border-gray-400 dark:border-gray-700 shadow-lg */}
             <div className="
   sticky top-20 h-54 bg-white dark:bg-[#151515] rounded-t-xl">
@@ -255,7 +255,7 @@ function Home() {
 
           {/* Upload */}
           {isUploading && (
-            <div className="lg:col-span-10 flex justify-center min-h-[80vh] w-full">
+            <div className="lg:col-span-10 2xl:col-span-13 flex justify-center min-h-[80vh] w-full 2xl:pl-8">
               <Suspense fallback={null}>
                 <PostModal onCancel={() => setIsUploading(false)} />
               </Suspense>
@@ -264,7 +264,7 @@ function Home() {
 
           {/* Profile */}
           {profileOpen && !isUploading && (
-            <div className="lg:col-span-10 flex justify-center min-h-[80vh] w-full">
+            <div className="lg:col-span-10 2xl:col-span-13 flex justify-center min-h-[80vh] w-full 2xl:pl-8">
               <Suspense fallback={null}>
                 <Profile setProfileOpen={setProfileOpen} />
               </Suspense>
@@ -276,7 +276,7 @@ function Home() {
             selectedPost?.type === "model_post" &&
             !isUploading &&
             !profileOpen && (
-              <div className="lg:col-span-10 min-h-[80vh] w-full">
+              <div className="lg:col-span-10 2xl:col-span-13 min-h-[80vh] w-full 2xl:pl-8">
                 <Suspense fallback={null}>
                   <PostDetails
                     post={selectedPost as ExePostProps}
@@ -292,7 +292,7 @@ function Home() {
           {articleOpen && activeCanvasId && !isUploading && !profileOpen && (
             <>
               {/* CENTER: Article */}
-             <div className="lg:col-span-7 flex flex-col items-stretch min-h-[80vh] w-full">
+             <div className="lg:col-span-7 2xl:col-span-9 flex flex-col items-stretch min-h-[80vh] w-full py-4">
                 <Suspense fallback={null}>
                   <ArticleOverlay
                     canvasId={activeCanvasId}
@@ -305,7 +305,7 @@ function Home() {
               </div>
 
               {/* RIGHT: Recommendations */}
-             <div className="lg:col-span-3 hidden lg:block">
+             <div className="lg:col-span-3 2xl:col-span-4 hidden lg:block">
                 <div className="sticky top-20 space-y-6">
                   <Suspense fallback={null}>
                     <ArticleRecommendations
@@ -325,7 +325,7 @@ function Home() {
             !articleOpen &&
             !profileOpen &&
             !(postDetailsOpen && selectedPost?.type === "model_post") && (
-              <div className="lg:col-span-6 flex flex-col items-center justify-start min-h-[80vh] w-full">
+              <div className="lg:col-span-6 2xl:col-span-8 flex flex-col items-center justify-start min-h-[80vh] w-full">
                 {/* NORMAL POST → center only */}
                 {postDetailsOpen &&
                   selectedPost &&
@@ -470,7 +470,7 @@ function Home() {
             !profileOpen &&
             !(postDetailsOpen && selectedPost?.type === "model_post") &&
             !articleOpen && (
-              <div className="lg:col-span-4 hidden lg:block">
+              <div className="lg:col-span-4 2xl:col-span-5 hidden lg:block">
                 <div className="sticky top-20 h-[calc(100vh-5rem)]">
                   <Suspense fallback={null}>
                     <Billboard
