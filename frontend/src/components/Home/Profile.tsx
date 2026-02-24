@@ -49,7 +49,7 @@ export default function ProfileCover({
         "
       >
         {/* Cover Image */}
-        <div className="relative overflow-hidden rounded-t-[0.5rem]">
+        <div className="relative rounded-t-[0.5rem]">
           <div
             className="w-full h-20 bg-cover bg-center"
             style={{ backgroundImage: `url(${bannerUrl})` }}
