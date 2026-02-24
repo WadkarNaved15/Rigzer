@@ -11,6 +11,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 const ExePost: React.FC<ExePostProps> = ({
   user,
   description,
+  likesCount,
+  isLiked,
   // gameUrl,
   onOpenDetails,
   createdAt,
@@ -26,7 +28,7 @@ const ExePost: React.FC<ExePostProps> = ({
   const postRef = useRef(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-  const { likesCount, isLiked, handleLike } = useLikes(_id, BACKEND_URL);
+  const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL,likesCount ?? 0,isLiked ?? false);
   const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
   const navigate = useNavigate();
   const location = useLocation();
@@ -229,9 +231,9 @@ const ExePost: React.FC<ExePostProps> = ({
           {/* Post Interactions */}
           <PostInteractions
             postId={_id}
-            likes={likesCount}
+            likes={localLikesCount}
             comments={comments}
-            isLiked={isLiked}
+            isLiked={localIsLiked}
             onLike={handleLike}
             isWishlisted={isWishlisted}
             onWishlist={handleWishlist}

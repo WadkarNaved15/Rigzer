@@ -35,16 +35,13 @@ function VerifyEmail() {
       );
 
       const user = response.data.user;
-          saveAccount({
-            userId: user._id,
-            username: user.username,
-            avatar: user.avatar
-          });
+      saveAccount({
+        userId: user._id,
+        username: user.username,
+        avatar: user.avatar
+      });
 
-          login(user);
-          navigate("/");
-      login(user); // 🔥 store in context
-
+      login(user);
       navigate("/");
 
     } catch (err: any) {

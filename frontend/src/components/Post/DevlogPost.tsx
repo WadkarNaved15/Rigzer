@@ -14,6 +14,8 @@ const DevlogPost: React.FC<DevlogPostProps> = ({
   devlogMeta,
   description,
   createdAt,
+  likesCount,
+  isLiked,
   onOpenDetails,
   disableInteractions,
   comments = 0,
@@ -21,11 +23,9 @@ const DevlogPost: React.FC<DevlogPostProps> = ({
 }) => {
   const postRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
-  console.log("props received", devlogMeta);
-  console.log("props received for devlogRef", devlogRef);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
-  const { likesCount, isLiked, handleLike } = useLikes(_id, BACKEND_URL);
+    const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL,likesCount ?? 0,isLiked ?? false);
   const [isExpanded, setIsExpanded] = useState(false);
   const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
   const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || "http://localhost:5173";
@@ -175,9 +175,9 @@ const DevlogPost: React.FC<DevlogPostProps> = ({
             <div onClick={(e) => e.stopPropagation()}>
               <PostInteractions
                 postId={_id}
-                likes={likesCount}
+                likes={localLikesCount}
                 comments={comments}
-                isLiked={isLiked}
+                isLiked={localIsLiked}
                 isWishlisted={isWishlisted}
                 onLike={handleLike}
                 onWishlist={handleWishlist}

@@ -14,6 +14,8 @@ const NormalPost: React.FC<NormalPostProps> = ({
   _id,
   user,
   description,
+  likesCount,
+  isLiked,
   onOpenDetails,
   disableInteractions,
   normalPost,
@@ -29,9 +31,8 @@ const NormalPost: React.FC<NormalPostProps> = ({
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const [viewerIndex, setViewerIndex] = useState(0);
   const BACKEND_URL =
-    import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-
-  const { likesCount, isLiked, handleLike } = useLikes(_id, BACKEND_URL);
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+  const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL,likesCount ?? 0,isLiked ?? false);
   const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
 
   const assets = normalPost?.assets || [];
@@ -268,9 +269,9 @@ const NormalPost: React.FC<NormalPostProps> = ({
             <div onClick={(e) => e.stopPropagation()}>
               <PostInteractions
                 postId={_id}
-                likes={likesCount}
+                likes={localLikesCount}
                 comments={comments}
-                isLiked={isLiked}
+                isLiked={localIsLiked}
                 isWishlisted={isWishlisted}
                 onLike={handleLike}
                 onWishlist={handleWishlist}

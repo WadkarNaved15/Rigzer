@@ -223,7 +223,14 @@ const PostSchema = new mongoose.Schema(
       enum: ["normal_post", "model_post", "game_post", "canvas_article", "devlog_post"],
       required: true,
     },
-
+     // 🔥 ADD HERE
+    likesCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+      index: true
+    },
+    
     normalPost: {
       type: NormalPostSchema,
       default: null,

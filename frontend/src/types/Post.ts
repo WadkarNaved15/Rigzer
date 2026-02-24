@@ -89,6 +89,8 @@ interface CommonPostFields {
   updatedAt: string;
   disableInteractions?: boolean;
   likes?: number;
+  likesCount?: number;
+  isLiked?: boolean;
   detailed?: boolean;
   comments?: number;
 }

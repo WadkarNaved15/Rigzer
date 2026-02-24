@@ -124,6 +124,7 @@ function Home() {
       try {
         const res = await axios.get(`${BACKEND_URL}/api/posts/fetch_posts`, {
           params: { cursor: reset ? null : nextCursor, limit: 3 },
+          withCredentials: true,
         });
 
         const newPosts = res.data.posts;
