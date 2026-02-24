@@ -74,86 +74,71 @@ export function Header() {
     }
   };
 
-  return (
-   <header className={`sticky top-0 z-50 h-[50px] transition-all duration-300 border-b 
-  /* Permanent Border Colors */
-  border-gray-200 dark:border-white/10 
-  /* Conditional Styles */
-  ${isScrolled 
-    ? "bg-white/30 dark:bg-[#1e1e1e]/70 backdrop-blur-md shadow-sm" 
-    : "bg-white/15 dark:bg-[#1e1e1e]/40 backdrop-blur-sm"
-  }`}
->
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-[50px]">
-          {/* Left section */}
-          <div className="flex items-center w-[50%]">
-            <div
-              className="flex-shrink-0"
-              style={{
-                transform: `translateX(calc(50vw - 68%))`,
-                transition: "transform 0.3s ease-out",
-              }}
-            >
-              <Link
-                to="/"
-                className="text-3xl dark:text-[#3D7A6E] tracking-wide"
-                style={{
-                  fontFamily: "'Cormorant Garamond', serif",
-                  letterSpacing: "0.05em",
-                }}
-                onClick={() =>
-                  window.scrollTo({
-                    top: 0,
-                    behavior: "smooth",
-                  })
-                }
-              >
-                RIGZER
-              </Link>
-            </div>
-
+return (
+    <header className={`sticky top-0 z-50 h-[50px] transition-all duration-300 border-b 
+      border-gray-200 dark:border-white/10 
+      ${isScrolled 
+        ? "bg-white/30 dark:bg-[#1e1e1e]/70 backdrop-blur-md shadow-sm" 
+        : "bg-white/15 dark:bg-[#1e1e1e]/40 backdrop-blur-sm"
+      }`}
+    >
+      <div className=" mx-auto px-4 sm:px-6 lg:px-8 h-full">
+        {/* Changed flex to grid with 3 columns */}
+        <div className="grid grid-cols-3 items-center h-full">
+          
+          {/* 1. Left Section - Empty or placeholder to balance the grid */}
+          <div className="flex items-center">
+            {/* You can put a menu icon here later if needed */}
           </div>
 
-          {/* Right section */}
-          <div className="py-3 flex items-center space-x-4">
-                        {/* Search Bar */}
-            <form onSubmit={handleSearch} className="flex-1 max-w-2xl relative">
+          {/* 2. Center Section - Logo */}
+          <div className="flex justify-center items-center">
+            <Link
+              to="/"
+              className="text-3xl dark:text-[#3D7A6E] tracking-wide"
+              style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                letterSpacing: "0.05em",
+              }}
+              onClick={() =>
+                window.scrollTo({ top: 0, behavior: "smooth" })
+              }
+            >
+              RIGZER
+            </Link>
+          </div>
+
+          {/* 3. Right Section - Search & Theme */}
+          <div className="flex items-center justify-end space-x-4">
+            {/* Search Bar */}
+            <form onSubmit={handleSearch} className="relative hidden md:block w-full max-w-[250px]">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search"
-                  className="w-full pl-10 pr-4 py-2 rounded-full bg-gray-100 dark:bg-[#191716] dark:text-white border-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full pl-9 pr-4 py-1.5 text-sm rounded-full bg-gray-100 dark:bg-[#191716] dark:text-white border-none focus:ring-2 focus:ring-purple-500"
                 />
-
-                {/* Suggestions dropdown */}
+                
+                {/* Suggestions dropdown (restored logic) */}
                 {suggestions.length > 0 && (
-                  <ul className="absolute z-10 mt-2 w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl max-h-60 overflow-y-auto transform transition-all duration-300 ease-in-out">
+                  <ul className="absolute z-10 mt-2 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl max-h-60 overflow-y-auto">
                     {suggestions.map((user: User) => (
                       <li
                         key={user._id}
-                        className="group flex items-center px-4 py-3 cursor-pointer transition-colors duration-200 hover:bg-gray-200 dark:hover:bg-gray-800 focus:outline-none focus:bg-gray-200 dark:focus:bg-gray-800"
+                        className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-sm"
                         onClick={() => setSearchQuery(user.username)}
                       >
-                        <div className="flex-shrink-0 mr-3">
-                          <div className="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center text-gray-500 dark:text-gray-400">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
-                          </div>
-                        </div>
-                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200 group-hover:text-black dark:group-hover:text-white">
-                          {user.username}
-                        </span>
+                        {user.username}
                       </li>
                     ))}
                   </ul>
                 )}
               </div>
             </form>
+
             <button
               onClick={toggleTheme}
               className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
@@ -170,4 +155,5 @@ export function Header() {
       </div>
     </header>
   );
+
 }
