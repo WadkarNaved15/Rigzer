@@ -249,7 +249,7 @@ function Home() {
                 <ProfileCover onOpenWishlist={loadWishlist} setProfileOpen={setProfileOpen} />
               </Suspense>
             </div>
-            <div className="sticky top-80">
+            <div className="sticky top-[21rem]">
               <UploadBox onUploadClick={handleUploadClick} />
             </div>
           </div>
