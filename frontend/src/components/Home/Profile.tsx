@@ -51,7 +51,7 @@ export default function ProfileCover({
         {/* Cover Image */}
         <div className="relative rounded-t-[0.5rem]">
           <div
-            className="w-full h-20 bg-cover bg-center"
+            className="w-full h-20 bg-cover bg-center rounded-t-[0.5rem]"
             style={{ backgroundImage: `url(${bannerUrl})` }}
           />
           {/* Gradient Overlay - Adjusts based on mode */}
