@@ -13,7 +13,7 @@ async function testSMTP() {
       secure: true, // SSL for 465
       auth: {
         user: process.env.EMAIL_USER,
-        pass: "Custodian’sdomain",
+        pass: process.env.EMAIL_PASS,
       },
     });
 
@@ -24,7 +24,7 @@ async function testSMTP() {
     // Step 2: Send test email
     const info = await transporter.sendMail({
       from: `"Rigzer Test" <${process.env.EMAIL_USER}>`,
-      to: "yourpersonalemail@gmail.com", // <-- change this
+      to: "sayedusaid880@gmail.com", // <-- change this
       subject: "SMTP Test Email",
       text: "If you received this email, GoDaddy SMTP is working correctly.",
     });
