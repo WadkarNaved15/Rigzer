@@ -165,21 +165,21 @@ const GamePostSchema = new mongoose.Schema(
       ramGB: { type: Number, min: 1 },
       cpuCores: { type: Number, min: 1 },
       gpuRequired: { type: Boolean, default: false },
-      
+
     },
 
     /** Uploaded build info */
     file: {
-  name: { type: String, required: true },
-  url: { type: String, required: true }, // CloudFront
-  size: { type: Number, required: true }, // bytes
+      name: { type: String, required: true },
+      url: { type: String, required: true }, // CloudFront
+      size: { type: Number, required: true }, // bytes
 
-  format: {
-    type: String,
-    enum: ["7z", "zip", "exe"],
-    required: true,
-  },
-},
+      format: {
+        type: String,
+        enum: ["7z", "zip", "exe"],
+        required: true,
+      },
+    },
 
     verification: {
       status: {
@@ -223,14 +223,20 @@ const PostSchema = new mongoose.Schema(
       enum: ["normal_post", "model_post", "game_post", "canvas_article", "devlog_post"],
       required: true,
     },
-     // 🔥 ADD HERE
     likesCount: {
       type: Number,
       default: 0,
       min: 0,
       index: true
     },
-    
+
+    commentsCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+      index: true
+    },
+
     normalPost: {
       type: NormalPostSchema,
       default: null,

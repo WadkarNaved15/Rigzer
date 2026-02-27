@@ -1,6 +1,5 @@
 import React, { memo, useMemo, useEffect, useRef, useState } from 'react';
 import PostHeader from './PostHeader';
-import CommentSection from './CommentSection';
 import { useLikes } from '../../hooks/useLikes';
 import { useWishlist } from '../../hooks/useWishlist';
 import { Link } from 'react-router-dom';
@@ -14,20 +13,18 @@ const GamePost: React.FC<GamePostProps> = ({
   user,
   description,
   createdAt,
-  comments = 0,
+  commentsCount,
   likesCount,
   isLiked,
   onOpenDetails,
   disableInteractions,
   _id,
   gamePost,
-  avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
 }) => {
   const postRef = useRef(null);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-  const [showComments, setShowComments] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-    const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL,likesCount ?? 0,isLiked ?? false);
+  const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL,likesCount ?? 0,isLiked ?? false);
   const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
   let viewStartTime = useRef<number | null>(null);
   
@@ -281,7 +278,7 @@ const handleStartGame = async () => {
                 <PostInteractions
                   postId={_id}
                   likes={localLikesCount}
-                  comments={comments}
+                  comments={commentsCount ?? 0}
                   isLiked={localIsLiked}
                   isWishlisted={isWishlisted}
                   onLike={handleLike}
@@ -290,8 +287,6 @@ const handleStartGame = async () => {
                 />
               </div>
             )}
-
-            {showComments && <CommentSection postId={_id} BACKEND_URL={BACKEND_URL} />}
           </div>
         </div>
       </article>

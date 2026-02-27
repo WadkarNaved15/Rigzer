@@ -18,14 +18,13 @@ const DevlogPost: React.FC<DevlogPostProps> = ({
   isLiked,
   onOpenDetails,
   disableInteractions,
-  comments = 0,
+  commentsCount,
   avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330",
 }) => {
   const postRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-
-    const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL,likesCount ?? 0,isLiked ?? false);
+  const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL,likesCount ?? 0,isLiked ?? false);
   const [isExpanded, setIsExpanded] = useState(false);
   const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
   const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || "http://localhost:5173";
@@ -176,7 +175,7 @@ const DevlogPost: React.FC<DevlogPostProps> = ({
               <PostInteractions
                 postId={_id}
                 likes={localLikesCount}
-                comments={comments}
+                comments={commentsCount?? 0}
                 isLiked={localIsLiked}
                 isWishlisted={isWishlisted}
                 onLike={handleLike}

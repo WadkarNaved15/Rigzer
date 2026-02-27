@@ -1,7 +1,6 @@
 import React, { memo, useMemo, useEffect, useRef, useState } from "react";
 import PostHeader from "./PostHeader";
 import PostInteractions from "./PostInteractions";
-import CommentSection from "./CommentSection";
 import { useLikes } from "../../hooks/useLikes";
 import MediaViewer from "../Media/MediaViewer"
 import { useWishlist } from "../../hooks/useWishlist";
@@ -17,15 +16,13 @@ const NormalPost: React.FC<NormalPostProps> = ({
   likesCount,
   isLiked,
   onOpenDetails,
+  commentsCount,
   disableInteractions,
   normalPost,
   createdAt,
-  comments = 0,
-  avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
 }) => {
   const { activeVideo, setActiveVideo } = useContext(VideoPlaybackContext);
   const postRef = useRef<HTMLDivElement>(null);
-  const [showComments, setShowComments] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
@@ -270,7 +267,7 @@ const NormalPost: React.FC<NormalPostProps> = ({
               <PostInteractions
                 postId={_id}
                 likes={localLikesCount}
-                comments={comments}
+                comments={commentsCount ?? 0}
                 isLiked={localIsLiked}
                 isWishlisted={isWishlisted}
                 onLike={handleLike}
@@ -278,14 +275,6 @@ const NormalPost: React.FC<NormalPostProps> = ({
                 onCommentToggle={() => onOpenDetails?.()}
               />
             </div>
-          )}
-
-          {/* -------------------- COMMENTS -------------------- */}
-          {showComments && (
-            <CommentSection
-              postId={_id}
-              BACKEND_URL={BACKEND_URL}
-            />
           )}
           {viewerOpen && (
             <MediaViewer
