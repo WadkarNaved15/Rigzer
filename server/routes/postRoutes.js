@@ -5,8 +5,9 @@ import mongoose from "mongoose";
 import cloudinary from "../cloudinaryConfig.js";
 import { MeiliSearch } from "meilisearch";
 import Post from "../models/Allposts.js";
+import Like from "../models/Like.js";
 import User from "../models/User.js";  // adjust path
-import authMiddleware from "../middlewares/authMiddleware.js";
+import optionalAuthMiddleware from "../middlewares/optionalAuthMiddleware.js";
 
 dotenv.config();
 
@@ -73,26 +74,51 @@ const postsIndex = client.index("posts");
 //   }
 // });
 // GET /api/posts - Fetch all posts with user details
-router.get("/fetch_posts", async (req, res) => {
+router.get("/fetch_posts", optionalAuthMiddleware, async (req, res) => {
   try {
     const { cursor, limit = 10 } = req.query;
+    const userId = req.user?.id;
 
     const query = {
       ...(cursor && { _id: { $lt: cursor } }),
-      type: { $ne: "canvas_article" } 
+      type: { $ne: "canvas_article" },
     };
 
-
+    // 1️⃣ Fetch posts
     const posts = await Post.find(query)
-      .populate("user", "username avatar" )
+      .populate("user", "username avatar")
       .sort({ _id: -1 })
       .limit(Number(limit))
-      .lean(); // 🔥 IMPORTANT for performance
+      .lean();
 
+    if (posts.length === 0) {
+      return res.status(200).json({ posts: [], nextCursor: null });
+    }
+
+    const postIds = posts.map(p => p._id);
+    let likedPostIds = new Set();
+
+    if (userId) {
+      const userLikes = await Like.find({
+        user: userId,
+        post: { $in: postIds },
+      }).select("post");
+
+      likedPostIds = new Set(
+        userLikes.map(like => like.post.toString())
+      );
+    }
+    const enrichedPosts = posts.map(post => ({
+      ...post,
+      isLiked: userId
+        ? likedPostIds.has(post._id.toString())
+        : false,
+    }));
     const nextCursor =
       posts.length > 0 ? posts[posts.length - 1]._id : null;
 
-    res.status(200).json({ posts, nextCursor });
+    res.status(200).json({ posts: enrichedPosts, nextCursor });
+
   } catch (error) {
     console.error("Error fetching posts:", error);
     res.status(500).json({ error: "Failed to fetch posts" });

@@ -11,12 +11,14 @@ import { useNavigate, useLocation } from "react-router-dom";
 const ExePost: React.FC<ExePostProps> = ({
   user,
   description,
+  likesCount,
+  isLiked,
   // gameUrl,
   onOpenDetails,
   createdAt,
   modelPost,
   detailed = false,
-  comments = 0,
+  commentsCount,
   _id,
   avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
 }) => {
@@ -25,8 +27,9 @@ const ExePost: React.FC<ExePostProps> = ({
   const [showComments, setShowComments] = useState(false); // ✅ toggle comment section
   const postRef = useRef(null);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [localCommentsCount, setLocalCommentsCount] = useState<number>(commentsCount ?? 0);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-  const { likesCount, isLiked, handleLike } = useLikes(_id, BACKEND_URL);
+  const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL,likesCount ?? 0,isLiked ?? false);
   const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
   const navigate = useNavigate();
   const location = useLocation();
@@ -234,9 +237,9 @@ const modelUrl =
           {/* Post Interactions */}
           <PostInteractions
             postId={_id}
-            likes={likesCount}
-            comments={comments}
-            isLiked={isLiked}
+            likes={localLikesCount}
+            comments={commentsCount ?? 0}
+            isLiked={localIsLiked}
             onLike={handleLike}
             isWishlisted={isWishlisted}
             onWishlist={handleWishlist}

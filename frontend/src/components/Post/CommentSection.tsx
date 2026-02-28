@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, memo } from "react";
 import axios from "axios";
+import { useUser } from "../../context/user";
 import { Send, Link as LinkIcon, MessageSquare } from "lucide-react"; // Optional: npm install lucide-react
-
+import { useFeed } from "../../context/FeedContext";
 interface Comment {
   _id: string;
   postId: string;
@@ -19,6 +20,7 @@ interface LinkPreview {
 interface CommentSectionProps {
   postId: string;
   BACKEND_URL: string;
+  onCommentAdded?: () => void;
 }
 
 const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -27,43 +29,45 @@ const urlRegex = /(https?:\/\/[^\s]+)/g;
 const CommentCard = memo(({ comment, BACKEND_URL, linkPreviewCache }: any) => {
   const [linkPreview, setLinkPreview] = useState<LinkPreview | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
-  const urls = comment.text.match(urlRegex);
+  const urls = comment.text?.match(urlRegex);
+  const { user } = useUser();
   const url = urls?.[0];
   const fetchedRef = useRef(false);
 
-  useEffect(() => {
-    if (!url || fetchedRef.current) return;
+  // useEffect(() => {
+  //   if (!url || fetchedRef.current) return;
 
-    if (linkPreviewCache.current[url]) {
-      setLinkPreview(linkPreviewCache.current[url]);
-      fetchedRef.current = true;
-      return;
-    }
+  //   if (linkPreviewCache.current[url]) {
+  //     setLinkPreview(linkPreviewCache.current[url]);
+  //     fetchedRef.current = true;
+  //     return;
+  //   }
 
-    const fetchMetadata = async () => {
-      setLoadingPreview(true);
-      try {
-        const { data } = await axios.get(`${BACKEND_URL}/api/metadata`, { params: { url } });
-        const meta = { ...data, url };
-        linkPreviewCache.current[url] = meta;
-        setLinkPreview(meta);
-      } catch (error) {
-        console.error("Error fetching metadata:", error);
-      } finally {
-        setLoadingPreview(false);
-        fetchedRef.current = true;
-      }
-    };
-    fetchMetadata();
-  }, [url, BACKEND_URL, linkPreviewCache]);
+  //   const fetchMetadata = async () => {
+  //     setLoadingPreview(true);
+  //     try {
+  //       const { data } = await axios.get(`${BACKEND_URL}/api/metadata`, { params: { url } });
+  //       const meta = { ...data, url };
+  //       linkPreviewCache.current[url] = meta;
+  //       setLinkPreview(meta);
+  //     } catch (error) {
+  //       console.error("Error fetching metadata:", error);
+  //     } finally {
+  //       setLoadingPreview(false);
+  //       fetchedRef.current = true;
+  //     }
+  //   };
+  //   fetchMetadata();
+  // }, [url, BACKEND_URL, linkPreviewCache]);
 
   return (
     <div className="flex gap-3 py-4 group">
       {/* Avatar Placeholder */}
       <div className="flex-shrink-0">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-xs shadow-sm">
-          {comment.user?.username?.charAt(0).toUpperCase() || "U"}
-        </div>
+        <img
+          src={user?.avatar || "/default_avatar.png"}
+          className="h-10 w-10 rounded-full object-cover"
+        />
       </div>
 
       <div className="flex-grow">
@@ -76,7 +80,7 @@ const CommentCard = memo(({ comment, BACKEND_URL, linkPreviewCache }: any) => {
               {new Date(comment.createdAt).toLocaleDateString()}
             </span>
           </div>
-          
+
           <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
             {comment.text.split(urlRegex).map((part: string, i: number) =>
               urlRegex.test(part) ? (
@@ -90,11 +94,11 @@ const CommentCard = memo(({ comment, BACKEND_URL, linkPreviewCache }: any) => {
           </p>
         </div>
 
-        {/* Action Buttons */}
+        {/* Action Buttons
         <div className="flex items-center gap-4 mt-1.5 ml-2 text-xs font-semibold text-gray-500 dark:text-gray-400">
           <button className="hover:text-blue-600 transition-colors">Like</button>
           <button className="hover:text-blue-600 transition-colors">Reply</button>
-        </div>
+        </div> */}
 
         {/* Enhanced Link Preview */}
         {loadingPreview && (
@@ -126,35 +130,111 @@ const CommentCard = memo(({ comment, BACKEND_URL, linkPreviewCache }: any) => {
 });
 
 /* ✅ ENHANCED MAIN SECTION */
-const CommentSection: React.FC<CommentSectionProps> = ({ postId, BACKEND_URL }) => {
+const CommentSection: React.FC<CommentSectionProps> = ({ postId, BACKEND_URL, onCommentAdded }) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
-  const linkPreviewCache = useRef<Record<string, LinkPreview>>({});
+  const { updateCommentsCount } = useFeed();
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const { user } = useUser();
+  const observerRef = useRef<HTMLDivElement | null>(null);
+  // const linkPreviewCache = useRef<Record<string, LinkPreview>>({});
 
   useEffect(() => {
     const fetchComments = async () => {
       try {
-        const res = await axios.get(`${BACKEND_URL}/api/comments`, { params: { postId } });
-        setComments(res.data);
+        const res = await axios.get(`${BACKEND_URL}/api/comments`, {
+          params: { postId, limit: 20 }
+        });
+
+        setComments(res.data.comments);
+        setNextCursor(res.data.nextCursor);
       } catch (err) { console.error(err); }
     };
     fetchComments();
   }, [postId, BACKEND_URL]);
+  useEffect(() => {
+    setComments([]);
+    setNextCursor(null);
+  }, [postId]);
+  useEffect(() => {
+    if (!observerRef.current) return;
 
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMoreComments();
+        }
+      },
+      { threshold: 1 }
+    );
+
+    observer.observe(observerRef.current);
+
+    return () => observer.disconnect();
+  }, [observerRef.current, nextCursor, loadingMore]);
+  const loadMoreComments = async () => {
+    if (!nextCursor || loadingMore) return;
+
+    try {
+      setLoadingMore(true);
+
+      const res = await axios.get(`${BACKEND_URL}/api/comments`, {
+        params: { postId, limit: 20, cursor: nextCursor }
+      });
+
+      setComments(prev => [...prev, ...res.data.comments]);
+      setNextCursor(res.data.nextCursor);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
+
+    const tempComment: Comment = {
+      _id: `temp-${Date.now()}`,
+      postId,
+      text: newComment,
+      createdAt: new Date().toISOString(),
+      user: { username: user?.username || "You" }
+    };
+
+    setComments(prev => [tempComment, ...prev]);
+    setNewComment("");
+
     try {
-      const res = await axios.post(`${BACKEND_URL}/api/comments`, { postId, text: newComment }, { withCredentials: true });
-      setComments((prev) => [res.data, ...prev]);
-      setNewComment("");
-    } catch (err) { console.error(err); }
+      const res = await axios.post(
+        `${BACKEND_URL}/api/comments`,
+        { postId, text: newComment },
+        { withCredentials: true }
+      );
+
+      const { comment, commentsCount } = res.data;
+
+      setComments(prev =>
+        prev.map(c =>
+          c._id === tempComment._id ? comment : c
+        )
+      );
+
+      updateCommentsCount(postId, commentsCount);
+
+    } catch (err) {
+      setComments(prev =>
+        prev.filter(c => c._id !== tempComment._id)
+      );
+      console.error(err);
+    }
   };
 
   return (
     <div className="max-w-2xl mx-auto bg-white dark:bg-[#191919] rounded-xl overflow-hidden shadow-sm">
       <div className="p-4 border-b border-gray-100 dark:border-zinc-800 flex items-center gap-2">
         <MessageSquare size={18} className="text-blue-500" />
-        <h3 className="font-bold text-gray-900 dark:text-gray-100">Discussion ({comments.length})</h3>
+        <h3 className="font-bold text-gray-900 dark:text-gray-100">Comments</h3>
       </div>
 
       {/* Input Area */}
@@ -181,11 +261,25 @@ const CommentSection: React.FC<CommentSectionProps> = ({ postId, BACKEND_URL }) 
       <div className="px-4 max-h-[500px] overflow-y-auto divide-y divide-gray-50 dark:divide-zinc-900">
         {comments.length > 0 ? (
           comments.map((c) => (
-            <CommentCard key={c._id} comment={c} BACKEND_URL={BACKEND_URL} linkPreviewCache={linkPreviewCache} />
+            <CommentCard
+              key={c._id}
+              comment={c}
+              BACKEND_URL={BACKEND_URL}
+              // linkPreviewCache={linkPreviewCache}
+            />
           ))
         ) : (
           <div className="py-10 text-center text-gray-400 text-sm italic">
             Be the first to start the conversation!
+          </div>
+        )}
+
+        {/* 👇 Infinite Scroll Trigger */}
+        {nextCursor && (
+          <div ref={observerRef} className="h-10 flex items-center justify-center">
+            {loadingMore && (
+              <div className="text-xs text-gray-400">Loading more...</div>
+            )}
           </div>
         )}
       </div>

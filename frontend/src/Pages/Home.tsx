@@ -46,6 +46,7 @@ function Home() {
     import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   // Feed state
   const [loading, setLoading] = useState(false);
+  const scrollPositionRef = useRef<number>(0);
   const {
     posts: mainPosts,
     setPosts: setMainPosts,
@@ -124,6 +125,7 @@ function Home() {
       try {
         const res = await axios.get(`${BACKEND_URL}/api/posts/fetch_posts`, {
           params: { cursor: reset ? null : nextCursor, limit: 3 },
+          withCredentials: true,
         });
 
         const newPosts = res.data.posts;
@@ -236,8 +238,8 @@ function Home() {
       <Header />
       {/* <TickerBar /> */}
 
-     <main className="w-full min-h-screen px-2 sm:px-4 lg:px-8 2xl:px-16 pt-4">
-       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 2xl:grid-cols-16 2xl:gap-x-12">
+      <main className="w-full min-h-screen px-2 sm:px-4 lg:px-8 2xl:px-16 pt-4">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 2xl:grid-cols-16 2xl:gap-x-12">
           {/* Left sidebar */}
           <div className="lg:col-span-2 2xl:col-span-3 hidden lg:block">
             {/* border-[3px] border-gray-400 dark:border-gray-700 shadow-lg */}
@@ -248,7 +250,7 @@ function Home() {
                 <ProfileCover onOpenWishlist={loadWishlist} setProfileOpen={setProfileOpen} />
               </Suspense>
             </div>
-            <div className="sticky top-80">
+            <div className="sticky top-[21rem]">
               <UploadBox onUploadClick={handleUploadClick} />
             </div>
           </div>
@@ -283,6 +285,14 @@ function Home() {
                     onClose={() => {
                       setPostDetailsOpen(false);
                       setSelectedPost(null);
+                      // Restore scroll after next paint
+                      setTimeout(() => {
+                        window.scrollTo({
+                          top: scrollPositionRef.current,
+                          behavior: "instant",
+                        });
+                      }, 0);
+
                     }}
                   />
                 </Suspense>
@@ -292,20 +302,28 @@ function Home() {
           {articleOpen && activeCanvasId && !isUploading && !profileOpen && (
             <>
               {/* CENTER: Article */}
-             <div className="lg:col-span-7 2xl:col-span-9 flex flex-col items-stretch min-h-[80vh] w-full py-4">
+              <div className="lg:col-span-7 2xl:col-span-9 flex flex-col items-stretch min-h-[80vh] w-full py-4">
                 <Suspense fallback={null}>
                   <ArticleOverlay
                     canvasId={activeCanvasId}
                     onClose={() => {
                       setArticleOpen(false);
                       setActiveCanvasId(null);
+                      // Restore scroll after next paint
+                      setTimeout(() => {
+                        window.scrollTo({
+                          top: scrollPositionRef.current,
+                          behavior: "instant",
+                        });
+                      }, 0);
+
                     }}
                   />
                 </Suspense>
               </div>
 
               {/* RIGHT: Recommendations */}
-             <div className="lg:col-span-3 2xl:col-span-4 hidden lg:block">
+              <div className="lg:col-span-3 2xl:col-span-4 hidden lg:block">
                 <div className="sticky top-20 space-y-6">
                   <Suspense fallback={null}>
                     <ArticleRecommendations
@@ -339,6 +357,14 @@ function Home() {
                         onClose={() => {
                           setPostDetailsOpen(false);
                           setSelectedPost(null);
+                          // Restore scroll after next paint
+                          setTimeout(() => {
+                            window.scrollTo({
+                              top: scrollPositionRef.current,
+                              behavior: "instant",
+                            });
+                          }, 0);
+
                         }}
                       />
                     ) : (
@@ -348,6 +374,14 @@ function Home() {
                         onClose={() => {
                           setPostDetailsOpen(false);
                           setSelectedPost(null);
+                          // Restore scroll after next paint
+                          setTimeout(() => {
+                            window.scrollTo({
+                              top: scrollPositionRef.current,
+                              behavior: "instant",
+                            });
+                          }, 0);
+
                         }}
                       />
                     )}
@@ -379,6 +413,7 @@ function Home() {
                         key={post._id}
                         {...post}
                         onOpenDetails={() => {
+                          scrollPositionRef.current = window.scrollY; // save scroll
                           setSelectedPost(post);
                           setPostDetailsOpen(true);
                         }}
@@ -410,6 +445,7 @@ function Home() {
                         key={post._id}
                         {...post}
                         onOpenDetails={() => {
+                          scrollPositionRef.current = window.scrollY; // save scroll
                           setSelectedPost(post);
                           setPostDetailsOpen(true);
                         }}
@@ -424,6 +460,7 @@ function Home() {
                           <Post
                             {...highlightPost}
                             onOpenDetails={() => {
+                              scrollPositionRef.current = window.scrollY; // save scroll
                               setSelectedPost(highlightPost);
                               setPostDetailsOpen(true);
                             }}
@@ -437,6 +474,7 @@ function Home() {
                               key={post._id}
                               {...post}
                               onOpenDetails={() => {
+                                scrollPositionRef.current = window.scrollY; // save scroll
                                 setSelectedPost(post);
                                 setPostDetailsOpen(true);
                               }}
@@ -465,7 +503,7 @@ function Home() {
             )}
 
           {/* RIGHT SIDEBAR (hidden only for model post) */}
-         {/* RIGHT SIDEBAR */}
+          {/* RIGHT SIDEBAR */}
           {!isUploading &&
             !profileOpen &&
             !(postDetailsOpen && selectedPost?.type === "model_post") &&
@@ -482,7 +520,7 @@ function Home() {
                   </Suspense>
                 </div>
               </div>
-          )}
+            )}
         </div>
       </main>
 

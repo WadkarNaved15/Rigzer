@@ -1,22 +1,12 @@
-import nodemailer from "nodemailer";
+import transporter from "./emailService.js";
 
 export const sendVerificationEmail = async (email, otp) => {
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-
   await transporter.sendMail({
     from: `"Rigzer" <${process.env.EMAIL_USER}>`,
     to: email,
     subject: "Verify your email",
     html: `
-      <div style="font-family: sans-serif;">
+      <div style="font-family: sans-serif; padding: 20px;">
         <h2>Email Verification</h2>
         <p>Your verification code is:</p>
         <h1 style="letter-spacing: 4px;">${otp}</h1>

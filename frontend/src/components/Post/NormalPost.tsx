@@ -1,7 +1,6 @@
 import React, { memo, useMemo, useEffect, useRef, useState } from "react";
 import PostHeader from "./PostHeader";
 import PostInteractions from "./PostInteractions";
-import CommentSection from "./CommentSection";
 import { useLikes } from "../../hooks/useLikes";
 import MediaViewer from "../Media/MediaViewer"
 import { useWishlist } from "../../hooks/useWishlist";
@@ -14,24 +13,23 @@ const NormalPost: React.FC<NormalPostProps> = ({
   _id,
   user,
   description,
+  likesCount,
+  isLiked,
   onOpenDetails,
+  commentsCount,
   disableInteractions,
   normalPost,
   createdAt,
-  comments = 0,
-  avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
 }) => {
   const { activeVideo, setActiveVideo } = useContext(VideoPlaybackContext);
   const postRef = useRef<HTMLDivElement>(null);
-  const [showComments, setShowComments] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const [viewerIndex, setViewerIndex] = useState(0);
   const BACKEND_URL =
-    import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-
-  const { likesCount, isLiked, handleLike } = useLikes(_id, BACKEND_URL);
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+  const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL,likesCount ?? 0,isLiked ?? false);
   const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
 
   const assets = normalPost?.assets || [];
@@ -268,23 +266,15 @@ const NormalPost: React.FC<NormalPostProps> = ({
             <div onClick={(e) => e.stopPropagation()}>
               <PostInteractions
                 postId={_id}
-                likes={likesCount}
-                comments={comments}
-                isLiked={isLiked}
+                likes={localLikesCount}
+                comments={commentsCount ?? 0}
+                isLiked={localIsLiked}
                 isWishlisted={isWishlisted}
                 onLike={handleLike}
                 onWishlist={handleWishlist}
                 onCommentToggle={() => onOpenDetails?.()}
               />
             </div>
-          )}
-
-          {/* -------------------- COMMENTS -------------------- */}
-          {showComments && (
-            <CommentSection
-              postId={_id}
-              BACKEND_URL={BACKEND_URL}
-            />
           )}
           {viewerOpen && (
             <MediaViewer
