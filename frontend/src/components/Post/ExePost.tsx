@@ -31,7 +31,12 @@ const ExePost: React.FC<ExePostProps> = ({
   const navigate = useNavigate();
   const location = useLocation();
   let viewStartTime = useRef<number | null>(null);
-  const modelUrl = modelPost?.assets?.[0]?.url;
+  const asset = modelPost?.assets?.[0];
+
+const modelUrl =
+  asset?.optimization?.status === "completed"
+    ? asset.optimizedUrl
+    : asset?.originalUrl;
   const price = modelPost?.price;
   // const handleGameStream = async () => {
   //   setLoading(true);

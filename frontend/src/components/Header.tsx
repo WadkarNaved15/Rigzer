@@ -14,6 +14,7 @@ import {
 import { useTheme } from "../hooks/useTheme";
 import { useUser } from "../context/user.js";
 import { useSearch } from "../components/Home/SearchContext.js";
+import logo from "../assets/Rigzer.png";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
@@ -93,7 +94,7 @@ return (
 
           {/* 2. Center Section - Logo */}
           <div className="flex justify-center items-center">
-            <Link
+            {/* <Link
               to="/"
               className="text-3xl dark:text-[#3D7A6E] tracking-wide"
               style={{
@@ -105,6 +106,19 @@ return (
               }
             >
               RIGZER
+            </Link> */}
+            <Link
+              to="/"
+              className="flex items-center justify-center"
+              onClick={() =>
+                window.scrollTo({ top: 0, behavior: "smooth" })
+              }
+            >
+              <img
+                src={logo}
+                alt="Rigzer Logo"
+                className="h-12 w-auto object-contain"
+              />
             </Link>
           </div>
 

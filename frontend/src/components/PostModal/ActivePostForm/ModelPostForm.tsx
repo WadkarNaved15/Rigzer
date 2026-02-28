@@ -8,14 +8,16 @@ interface PostModalProps {
 
 interface Asset {
   id: string;
-  file: File;        // actual file
+  file: File;
   previewUrl: string;
-  uploadedUrl?: string; // CloudFront URL after upload
+
+  uploadedUrl?: string;   // CloudFront URL
+  originalKey?: string;   // S3 key (CRITICAL)
+
   name: string;
-  progress?: number;   // 0–100
+  progress?: number;
   status?: "pending" | "uploading" | "done" | "error";
 }
-
 
 const PostModal: React.FC<PostModalProps> = ({ onCancel }) => {
   const [title, setTitle] = useState('');
@@ -56,57 +58,52 @@ const PostModal: React.FC<PostModalProps> = ({ onCancel }) => {
     e.target.value = "";
   };
 
-  const uploadAssetToS3 = (
-    asset: Asset,
-    onProgress: (percent: number) => void
-  ): Promise<string> => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        // 1. Get presigned URL
-        const res = await fetch(`${BACKEND_URL}/api/upload/presigned-url`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileName: asset.file.name,
-            fileType: asset.file.type || "model/gltf-binary",
-          }),
-        });
+const uploadAssetToS3 = async (
+  asset: Asset,
+  onProgress: (percent: number) => void
+): Promise<{ fileUrl: string; key: string }> => {
+  // 1️⃣ Get presigned URL
+  const res = await fetch(`${BACKEND_URL}/api/upload/presigned-url`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      fileName: asset.file.name,
+      fileType: asset.file.type || "model/gltf-binary",
+      category: "original",
+    }),
+  });
 
-        if (!res.ok) throw new Error("Failed to get upload URL");
+  if (!res.ok) throw new Error("Failed to get upload URL");
 
-        const { uploadUrl, fileUrl } = await res.json();
+  const { uploadUrl, key } = await res.json();
 
-        // 2. Upload with progress (XHR)
-        const xhr = new XMLHttpRequest();
-        xhr.open("PUT", uploadUrl, true);
-        xhr.setRequestHeader(
-          "Content-Type",
-          asset.file.type || "model/gltf-binary"
-        );
+  const fileUrl = `${import.meta.env.VITE_GAMES_STORAGE_PRIVATE_CLOUDFRONT}/${key}`;
 
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            const percent = Math.round((event.loaded / event.total) * 100);
-            onProgress(percent);
-          }
-        };
+  // 2️⃣ Upload
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", uploadUrl);
+    xhr.setRequestHeader(
+      "Content-Type",
+      asset.file.type || "model/gltf-binary"
+    );
 
-        xhr.onload = () => {
-          if (xhr.status === 200) {
-            resolve(fileUrl);
-          } else {
-            reject(new Error("Upload failed"));
-          }
-        };
-
-        xhr.onerror = () => reject(new Error("Upload error"));
-
-        xhr.send(asset.file);
-      } catch (err) {
-        reject(err);
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
       }
-    });
-  };
+    };
+
+    xhr.onload = () =>
+      xhr.status === 200 ? resolve() : reject(new Error("Upload failed"));
+
+    xhr.onerror = () => reject(new Error("Upload error"));
+
+    xhr.send(asset.file);
+  });
+
+  return { fileUrl, key };
+};
 
   const handlePostSubmit = async () => {
     if (isSubmitting) return; // Guard clause
@@ -120,15 +117,17 @@ const PostModal: React.FC<PostModalProps> = ({ onCancel }) => {
           updatedAssets[index].progress = 0;
           setAssets([...updatedAssets]);
 
-          const uploadedUrl = await uploadAssetToS3(asset, (percent) => {
-            updatedAssets[index].progress = percent;
-            setAssets([...updatedAssets]);
-          });
+         const { fileUrl, key } = await uploadAssetToS3(asset, (percent) => {
+  updatedAssets[index].progress = percent;
+  setAssets([...updatedAssets]);
+});
 
-          updatedAssets[index].uploadedUrl = uploadedUrl;
-          updatedAssets[index].status = "done";
-          updatedAssets[index].progress = 100;
-          setAssets([...updatedAssets]);
+updatedAssets[index].uploadedUrl = fileUrl;
+updatedAssets[index].originalKey = key;
+updatedAssets[index].status = "done";
+updatedAssets[index].progress = 100;
+
+setAssets([...updatedAssets]);
         })
       );
       setIsSavingMetadata(true); // Trigger the "Fetching metadata" UI
@@ -144,14 +143,19 @@ const PostModal: React.FC<PostModalProps> = ({ onCancel }) => {
           price: Number(price),
           assets: updatedAssets.map(a => ({
             name: a.name,
-            url: a.uploadedUrl,
+            originalUrl: a.uploadedUrl,
+            originalKey: a.originalKey,
           })),
         }),
       });
       if (!response.ok) throw new Error("Database save failed");
+      setIsSavingMetadata(false);
+      setIsSubmitting(false);
       onCancel();
     } catch (err) {
       console.error("Post creation failed", err);
+      setIsSavingMetadata(false);
+      setIsSubmitting(false);
     }
   };
 
