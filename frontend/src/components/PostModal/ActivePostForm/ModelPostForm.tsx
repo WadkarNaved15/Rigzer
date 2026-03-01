@@ -104,71 +104,83 @@ const uploadAssetToS3 = async (
 
   return { fileUrl, key };
 };
+const handlePostSubmit = async () => {
+  if (isSubmitting) return;
 
-  const handlePostSubmit = async () => {
-    if (isSubmitting) return; // Guard clause
-    setIsSubmitting(true);
-    try {
-      const updatedAssets = [...assets];
+  setIsSubmitting(true);
 
-      await Promise.all(
-        updatedAssets.map(async (asset, index) => {
-          updatedAssets[index].status = "uploading";
-          updatedAssets[index].progress = 0;
+  // ✅ declare outside try so catch can access it
+  let updatedAssets: Asset[] = [];
+
+  try {
+    updatedAssets = [...assets];
+
+    await Promise.all(
+      updatedAssets.map(async (asset, index) => {
+        updatedAssets[index].status = "uploading";
+        updatedAssets[index].progress = 0;
+        setAssets([...updatedAssets]);
+
+        const { fileUrl, key } = await uploadAssetToS3(asset, (percent) => {
+          updatedAssets[index].progress = percent;
           setAssets([...updatedAssets]);
+        });
 
-         const { fileUrl, key } = await uploadAssetToS3(asset, (percent) => {
-  updatedAssets[index].progress = percent;
-  setAssets([...updatedAssets]);
-});
+        updatedAssets[index].uploadedUrl = fileUrl;
+        updatedAssets[index].originalKey = key;
+        updatedAssets[index].status = "done";
+        updatedAssets[index].progress = 100;
 
-updatedAssets[index].uploadedUrl = fileUrl;
-updatedAssets[index].originalKey = key;
-updatedAssets[index].status = "done";
-updatedAssets[index].progress = 100;
+        setAssets([...updatedAssets]);
+      })
+    );
 
-setAssets([...updatedAssets]);
-        })
-      );
-      setIsSavingMetadata(true); // Trigger the "Fetching metadata" UI
-      // Now create post in DB
-      const response=await fetch(`${BACKEND_URL}/api/allposts`, {
+    setIsSavingMetadata(true);
+
+    const response = await fetch(`${BACKEND_URL}/api/allposts`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "model_post",
+        title,
+        description,
+        price: Number(price),
+        assets: updatedAssets.map((a: Asset) => ({
+          name: a.name,
+          originalUrl: a.uploadedUrl,
+          originalKey: a.originalKey,
+        })),
+      }),
+    });
+
+    if (!response.ok) throw new Error("Database save failed");
+
+    setIsSavingMetadata(false);
+    setIsSubmitting(false);
+    onCancel();
+
+  } catch (err) {
+    console.error("Post creation failed", err);
+
+    // ✅ Only cleanup if uploads happened
+    const uploadedKeys = updatedAssets
+      .map((a: Asset) => a.originalKey)
+      .filter(Boolean);
+
+    if (uploadedKeys.length > 0) {
+      await fetch(`${BACKEND_URL}/api/upload/cleanup`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "model_post",
-          title,
-          description,
-          price: Number(price),
-          assets: updatedAssets.map(a => ({
-            name: a.name,
-            originalUrl: a.uploadedUrl,
-            originalKey: a.originalKey,
-          })),
-        }),
+        body: JSON.stringify({ keys: uploadedKeys }),
       });
-      if (!response.ok) throw new Error("Database save failed");
-      setIsSavingMetadata(false);
-      setIsSubmitting(false);
-      onCancel();
-    } catch (err) {
-  console.error("Post creation failed", err);
+    }
 
-  // 🔥 DELETE UPLOADED FILES
-  await fetch(`${BACKEND_URL}/api/upload/cleanup`, {
-    method: "POST",
-    credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      keys: updatedAssets.map(a => a.originalKey)
-    })
-  });
-
-  setIsSavingMetadata(false);
-  setIsSubmitting(false);
-}
-  };
+    setIsSavingMetadata(false);
+    setIsSubmitting(false);
+  }
+};
 
 
   const removeAsset = (index: number) => {
