@@ -15,7 +15,7 @@ const router = express.Router();
 router.post("/presigned-url", async (req, res) => {
   try {
     const { fileName, fileType, category } = req.body;
-
+    console.log("CF",process.env.GAMES_STORAGE_PRIVATE_CLOUDFRONT)
     if (!fileName || category !== "original") {
       return res.status(400).json({ message: "Original upload required" });
     }
