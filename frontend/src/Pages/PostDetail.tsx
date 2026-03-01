@@ -16,6 +16,10 @@ const PostDetail = ({ post, onClose }: { post: ExePostProps; onClose: () => void
   const [activeIndex, setActiveIndex] = useState(0);
   const activeAsset = assets[activeIndex];
   const meta = activeAsset?.metadata;
+  const modelUrl =
+    activeAsset?.optimization?.status === "completed"
+      ? activeAsset.optimizedUrl
+      : activeAsset?.originalUrl;
   const avatarUrl = "https://images.unsplash.com/photo-1494790108377-be9c29b29330?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"
   return (
     <>
@@ -135,7 +139,7 @@ const PostDetail = ({ post, onClose }: { post: ExePostProps; onClose: () => void
                         </div>
                         <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Size</p>
                       </div>
-                      <p className="text-sm font-bold">{meta.downloadSizeMB} MB</p>
+                      <p className="text-sm font-bold">{meta?.downloadSizeMB} MB</p>
                     </div>
 
                     {/* Format */}
@@ -182,7 +186,7 @@ const PostDetail = ({ post, onClose }: { post: ExePostProps; onClose: () => void
                   {/* Model Viewer Logic: Added environment-image and exposure for better rendering */}
                   {/* @ts-ignore */}
                   <model-viewer
-                    src={activeAsset.url}
+                    src={modelUrl}
                     alt="3D model"
                     auto-rotate
                     camera-controls
@@ -203,7 +207,7 @@ const PostDetail = ({ post, onClose }: { post: ExePostProps; onClose: () => void
                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-3 rounded-2xl bg-white/70 dark:bg-[#191919]/70 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-2xl flex gap-3 z-10">
                       {assets.map((asset, idx) => (
                         <button
-                          key={asset.url}
+                          key={modelUrl}
                           onClick={() => setActiveIndex(idx)}
                           className={`group relative flex flex-col items-center transition-all duration-300 ${idx === activeIndex ? "scale-110" : "opacity-60 hover:opacity-100"
                             }`}
@@ -256,15 +260,15 @@ const PostDetail = ({ post, onClose }: { post: ExePostProps; onClose: () => void
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
                           <p className="text-gray-500 dark:text-gray-400">Meshes</p>
-                          <p className="font-mono font-medium">{meta.geometry.meshes}</p>
+                          <p className="font-mono font-medium">{meta?.geometry.meshes}</p>
                         </div>
                         <div className="flex justify-between items-center">
                           <p className="text-gray-500 dark:text-gray-400">Vertices</p>
-                          <p className="font-mono font-medium">{meta.geometry.vertices.toLocaleString()}</p>
+                          <p className="font-mono font-medium">{meta?.geometry.vertices.toLocaleString()}</p>
                         </div>
                         <div className="flex justify-between items-center">
                           <p className="text-gray-500 dark:text-gray-400">Triangles</p>
-                          <p className="font-mono font-medium">{meta.geometry.triangles.toLocaleString()}</p>
+                          <p className="font-mono font-medium">{meta?.geometry.triangles.toLocaleString()}</p>
                         </div>
                       </div>
                     </div>
@@ -278,17 +282,17 @@ const PostDetail = ({ post, onClose }: { post: ExePostProps; onClose: () => void
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
                           <p className="text-gray-500 dark:text-gray-400">Materials</p>
-                          <p className="font-medium">{meta.materials}</p>
+                          <p className="font-medium">{meta?.materials}</p>
                         </div>
                         <div className="flex justify-between items-center">
                           <p className="text-gray-500 dark:text-gray-400">Textures</p>
-                          <p className={`font-medium ${meta.textures.present ? "text-green-500" : "text-gray-400"}`}>
-                            {meta.textures.present ? "Included" : "None"}
+                          <p className={`font-medium ${meta?.textures.present ? "text-green-500" : "text-gray-400"}`}>
+                            {meta?.textures.present ? "Included" : "None"}
                           </p>
                         </div>
                         <div className="flex justify-between items-center">
                           <p className="text-gray-500 dark:text-gray-400">UV Layers</p>
-                          <p className="font-medium">{meta.uvLayers}</p>
+                          <p className="font-medium">{meta?.uvLayers}</p>
                         </div>
                       </div>
                     </div>
@@ -302,12 +306,12 @@ const PostDetail = ({ post, onClose }: { post: ExePostProps; onClose: () => void
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
                           <p className="text-gray-500 dark:text-gray-400">Rigged</p>
-                          <p className="font-medium">{meta.rigged ? "✅ Ready" : "❌ No"}</p>
+                          <p className="font-medium">{meta?.rigged ? "✅ Ready" : "❌ No"}</p>
                         </div>
                         <div className="flex justify-between items-center">
                           <p className="text-gray-500 dark:text-gray-400">Animations</p>
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${meta.animations.present ? "bg-orange-500/10 text-orange-500" : "bg-gray-100 text-gray-400"}`}>
-                            {meta.animations.present ? `${meta.animations.count} Sequences` : "Static"}
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${meta?.animations.present ? "bg-orange-500/10 text-orange-500" : "bg-gray-100 text-gray-400"}`}>
+                            {meta?.animations.present ? `${meta.animations.count} Sequences` : "Static"}
                           </span>
                         </div>
                       </div>

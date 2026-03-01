@@ -3,7 +3,8 @@ import {
   PutObjectCommand,
   CreateMultipartUploadCommand, 
   UploadPartCommand, 
-  CompleteMultipartUploadCommand 
+  CompleteMultipartUploadCommand ,
+  DeleteObjectCommand
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import s3 from "../s3.js";
@@ -113,5 +114,35 @@ router.post("/game/complete-multipart", async (req, res) => {
   }
 });
 
+
+router.post("/cleanup", async (req, res) => {
+  try {
+    const { keys } = req.body;
+
+    for (const key of keys) {
+      // delete original
+      await s3.send(new DeleteObjectCommand({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: key,
+      }));
+
+      // delete optimized
+      const optimizedKey = key.replace(
+        "models/original/",
+        "models/optimized/"
+      );
+
+      await s3.send(new DeleteObjectCommand({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: optimizedKey,
+      }));
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Cleanup failed:", err);
+    res.status(500).json({ message: "Cleanup failed" });
+  }
+});
 
 export default router;

@@ -153,10 +153,21 @@ setAssets([...updatedAssets]);
       setIsSubmitting(false);
       onCancel();
     } catch (err) {
-      console.error("Post creation failed", err);
-      setIsSavingMetadata(false);
-      setIsSubmitting(false);
-    }
+  console.error("Post creation failed", err);
+
+  // 🔥 DELETE UPLOADED FILES
+  await fetch(`${BACKEND_URL}/api/upload/cleanup`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      keys: updatedAssets.map(a => a.originalKey)
+    })
+  });
+
+  setIsSavingMetadata(false);
+  setIsSubmitting(false);
+}
   };
 
 
