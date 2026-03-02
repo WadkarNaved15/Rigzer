@@ -1,18 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
 import {
   Moon,
   Search,
   Sun,
-  Home,
-  UserRound,
-  BriefcaseBusiness,
-  LogOut,
-  LogIn,
 } from "lucide-react";
 import { useTheme } from "../hooks/useTheme";
-import { useUser } from "../context/user.js";
 import { useSearch } from "../components/Home/SearchContext.js";
 import Logo from "../assets/Rigzer.svg?react";
 
@@ -30,10 +23,7 @@ export function Header() {
   const { searchQuery,setSearchQuery, setSubmittedQuery, setShowFilteredFeed } = useSearch();
   const [suggestions, setSuggestions] = useState<User[]>([]);
   const { isDark, toggleTheme } = useTheme();
-  const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
-  const { user, logout } = useUser();
-  const [scrollY, setScrollY] = useState(0); // This state isn't used, but it's not causing the error
   // const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch suggestions as user types
