@@ -14,7 +14,7 @@ import {
 import { useTheme } from "../hooks/useTheme";
 import { useUser } from "../context/user.js";
 import { useSearch } from "../components/Home/SearchContext.js";
-import logo from "../assets/Rigzer.png";
+import Logo from "../assets/Rigzer.svg?react";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
@@ -107,7 +107,7 @@ return (
             >
               RIGZER
             </Link> */}
-            <Link
+            {/* <Link
               to="/"
               className="flex items-center justify-center"
               onClick={() =>
@@ -119,7 +119,29 @@ return (
                 alt="Rigzer Logo"
                 className="h-12 w-auto object-contain"
               />
-            </Link>
+            </Link> */}
+  <Link
+    to="/"
+    onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+    className="group relative flex items-center justify-center"
+  >
+<Logo
+  className="
+    h-12 w-auto
+    transition-all duration-300
+    hover:-translate-y-[1px]
+
+  text-gray-800
+  dark:text-[#29665a]
+
+  drop-shadow-[0_4px_6px_rgba(31,41,55,0.45)]
+  hover:drop-shadow-[0_6px_10px_rgba(31,41,55,0.6)]
+
+  dark:drop-shadow-[0_4px_8px_rgba(41,102,90,0.7)]
+  dark:hover:drop-shadow-[0_6px_14px_rgba(41,102,90,0.95)]
+  "
+/>
+  </Link>
           </div>
 
           {/* 3. Right Section - Search & Theme */}
