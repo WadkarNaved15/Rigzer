@@ -1,19 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
 import {
   Moon,
   Search,
   Sun,
-  Home,
-  UserRound,
-  BriefcaseBusiness,
-  LogOut,
-  LogIn,
 } from "lucide-react";
 import { useTheme } from "../hooks/useTheme";
-import { useUser } from "../context/user.js";
 import { useSearch } from "../components/Home/SearchContext.js";
+import Logo from "../assets/Rigzer.svg?react";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
@@ -29,10 +23,7 @@ export function Header() {
   const { searchQuery,setSearchQuery, setSubmittedQuery, setShowFilteredFeed } = useSearch();
   const [suggestions, setSuggestions] = useState<User[]>([]);
   const { isDark, toggleTheme } = useTheme();
-  const navigate = useNavigate();
   const [isScrolled, setIsScrolled] = useState(false);
-  const { user, logout } = useUser();
-  const [scrollY, setScrollY] = useState(0); // This state isn't used, but it's not causing the error
   // const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch suggestions as user types
@@ -93,7 +84,7 @@ return (
 
           {/* 2. Center Section - Logo */}
           <div className="flex justify-center items-center">
-            <Link
+            {/* <Link
               to="/"
               className="text-3xl dark:text-[#3D7A6E] tracking-wide"
               style={{
@@ -105,7 +96,42 @@ return (
               }
             >
               RIGZER
-            </Link>
+            </Link> */}
+            {/* <Link
+              to="/"
+              className="flex items-center justify-center"
+              onClick={() =>
+                window.scrollTo({ top: 0, behavior: "smooth" })
+              }
+            >
+              <img
+                src={logo}
+                alt="Rigzer Logo"
+                className="h-12 w-auto object-contain"
+              />
+            </Link> */}
+  <Link
+    to="/"
+    onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+    className="group relative flex items-center justify-center"
+  >
+<Logo
+  className="
+    h-12 w-auto
+    transition-all duration-300
+    hover:-translate-y-[1px]
+
+  text-gray-800
+  dark:text-[#29665a]
+
+  drop-shadow-[0_4px_6px_rgba(31,41,55,0.45)]
+  hover:drop-shadow-[0_6px_10px_rgba(31,41,55,0.6)]
+
+  dark:drop-shadow-[0_4px_8px_rgba(41,102,90,0.7)]
+  dark:hover:drop-shadow-[0_6px_14px_rgba(41,102,90,0.95)]
+  "
+/>
+  </Link>
           </div>
 
           {/* 3. Right Section - Search & Theme */}

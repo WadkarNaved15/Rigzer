@@ -1,11 +1,29 @@
 import mongoose from "mongoose";
 const ModelAssetSchema = new mongoose.Schema(
   {
-    name: { type: String, required: true },
+       name: { type: String, required: true },
 
-    url: { type: String, required: true }, // CloudFront GLB
+    /** S3 Keys */
+    originalKey: { type: String, required: true },
+    optimizedKey: { type: String, default: null },
+
+    /** Public URLs */
+    originalUrl: { type: String, required: true },
+    optimizedUrl: { type: String, default: null },
 
     sizeMB: Number,
+
+    optimization: {
+      status: {
+        type: String,
+        enum: ["pending", "processing", "completed", "failed"],
+        default: "pending",
+      },
+      optimizedSizeMB: Number,
+      compressionRatio: Number,
+      error: String,
+      processedAt: Date,
+    },
 
     metadata: {
       fileName: String,

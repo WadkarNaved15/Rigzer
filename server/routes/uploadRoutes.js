@@ -3,7 +3,8 @@ import {
   PutObjectCommand,
   CreateMultipartUploadCommand, 
   UploadPartCommand, 
-  CompleteMultipartUploadCommand 
+  CompleteMultipartUploadCommand ,
+  DeleteObjectCommand
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import s3 from "../s3.js";
@@ -14,46 +15,36 @@ const router = express.Router();
 router.post("/presigned-url", async (req, res) => {
   try {
     const { fileName, fileType, category } = req.body;
-
-    if (!fileName) {
-      return res.status(400).json({ message: "File name required" });
+    console.log("CF",process.env.GAMES_STORAGE_PRIVATE_CLOUDFRONT)
+    if (!fileName || category !== "original") {
+      return res.status(400).json({ message: "Original upload required" });
     }
 
-    let baseDir = "misc";
-
-    if (category === "image") {
-      baseDir = "media/images";
-    } 
-    else if (category === "video") {
-      baseDir = "media/videos";
-    } 
-    else if (
-      fileType === "model/gltf-binary" ||
-      fileName.toLowerCase().endsWith(".glb")
-    ) {
-      baseDir = "models/raw";
-    }
-
-    const key = `${baseDir}/${uuidv4()}-${fileName}`;
+    const key = `models/original/${uuidv4()}-${fileName}`;
 
     const command = new PutObjectCommand({
       Bucket: process.env.AWS_BUCKET_NAME,
       Key: key,
-      ContentType: fileType || "application/octet-stream",
+      ContentType: fileType || "model/gltf-binary",
+      StorageClass: "INTELLIGENT_TIERING",
+      Metadata: {
+        original: "true",
+      },
     });
 
     const uploadUrl = await getSignedUrl(s3, command, {
-      expiresIn: 300, // 5 min
+      expiresIn: 300,
     });
 
     res.json({
       uploadUrl,
       key,
-      fileUrl: `${process.env.CLOUDFRONT_DOMAIN}/${key}`,
+      fileUrl: `${process.env.GAMES_STORAGE_PRIVATE_CLOUDFRONT}/${key}`,
     });
+
   } catch (err) {
-    console.error("Presigned URL error:", err);
-    res.status(500).json({ message: "Failed to generate upload URL" });
+    console.error(err);
+    res.status(500).json({ message: "Failed" });
   }
 });
 
@@ -123,5 +114,35 @@ router.post("/game/complete-multipart", async (req, res) => {
   }
 });
 
+
+router.post("/cleanup", async (req, res) => {
+  try {
+    const { keys } = req.body;
+
+    for (const key of keys) {
+      // delete original
+      await s3.send(new DeleteObjectCommand({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: key,
+      }));
+
+      // delete optimized
+      const optimizedKey = key.replace(
+        "models/original/",
+        "models/optimized/"
+      );
+
+      await s3.send(new DeleteObjectCommand({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: optimizedKey,
+      }));
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Cleanup failed:", err);
+    res.status(500).json({ message: "Cleanup failed" });
+  }
+});
 
 export default router;

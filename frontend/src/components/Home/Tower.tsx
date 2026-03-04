@@ -41,7 +41,7 @@ const Tower: React.FC<{
   }, [activeFace]);
 
   return (
-    <div className="h-full w-full bg-[#F3F4F6] dark:bg-[#191919] overflow-hidden flex perspective-2000 transition-colors duration-200">
+    <div className="h-full w-full bg-[#F3F4F6] dark:bg-[#191919] overflow-hidden flex perspective-2000">
       <div
         ref={cubeRef}
         className="relative w-full h-full preserve-3d transition-transform duration-700 ease-in-out"
@@ -63,7 +63,7 @@ const Tower: React.FC<{
                  onClick={() => navigate(`/articles/${canvas._id}`)}
                 className="cursor-pointer group flex flex-col"
               >
-                <div className="relative aspect-[3/4] bg-gray-200 dark:bg-[#111] rounded-xl overflow-hidden border border-[#E0E0E5] dark:border-white/5 shadow-lg transition-all duration-300 group-hover:border-purple-500/50 group-hover:shadow-purple-500/10">
+                <div className="relative aspect-[3/4] bg-gray-200 dark:bg-[#111] rounded-xl overflow-hidden border border-[#E0E0E5] dark:border-white/5 shadow-lg transition-transform duration-300 group-hover:border-purple-500/50 group-hover:shadow-purple-500/10">
                   {canvas.hero_image_url ? (
                     <img
                       src={canvas.hero_image_url}

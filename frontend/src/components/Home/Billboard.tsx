@@ -30,13 +30,13 @@ return (
       <div className="flex gap-2">
         <button
           onClick={toggleSection}
-          className="p-2 rounded-full bg-gray-100 dark:bg-[#252525] dark:text-white hover:bg-purple-600 hover:text-white transition-colors"
+          className="p-2 rounded-full bg-gray-100 dark:bg-[#252525] dark:text-white hover:bg-purple-600 hover:text-white "
         >
           <ArrowLeft size={20} />
         </button>
         <button
           onClick={toggleSection}
-          className="p-2 rounded-full bg-gray-100 dark:bg-[#252525] dark:text-white hover:bg-purple-600 hover:text-white transition-colors"
+          className="p-2 rounded-full bg-gray-100 dark:bg-[#252525] dark:text-white hover:bg-purple-600 hover:text-white"
         >
           <ArrowRight size={20} />
         </button>

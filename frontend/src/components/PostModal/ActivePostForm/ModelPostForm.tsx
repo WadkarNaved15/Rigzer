@@ -8,14 +8,16 @@ interface PostModalProps {
 
 interface Asset {
   id: string;
-  file: File;        // actual file
+  file: File;
   previewUrl: string;
-  uploadedUrl?: string; // CloudFront URL after upload
+
+  uploadedUrl?: string;   // CloudFront URL
+  originalKey?: string;   // S3 key (CRITICAL)
+
   name: string;
-  progress?: number;   // 0–100
+  progress?: number;
   status?: "pending" | "uploading" | "done" | "error";
 }
-
 
 const PostModal: React.FC<PostModalProps> = ({ onCancel }) => {
   const [title, setTitle] = useState('');
@@ -56,104 +58,129 @@ const PostModal: React.FC<PostModalProps> = ({ onCancel }) => {
     e.target.value = "";
   };
 
-  const uploadAssetToS3 = (
-    asset: Asset,
-    onProgress: (percent: number) => void
-  ): Promise<string> => {
-    return new Promise(async (resolve, reject) => {
-      try {
-        // 1. Get presigned URL
-        const res = await fetch(`${BACKEND_URL}/api/upload/presigned-url`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fileName: asset.file.name,
-            fileType: asset.file.type || "model/gltf-binary",
-          }),
+const uploadAssetToS3 = async (
+  asset: Asset,
+  onProgress: (percent: number) => void
+): Promise<{ fileUrl: string; key: string }> => {
+  // 1️⃣ Get presigned URL
+  const res = await fetch(`${BACKEND_URL}/api/upload/presigned-url`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      fileName: asset.file.name,
+      fileType: asset.file.type || "model/gltf-binary",
+      category: "original",
+    }),
+  });
+
+  if (!res.ok) throw new Error("Failed to get upload URL");
+
+  const { uploadUrl, key } = await res.json();
+
+  const fileUrl = `${import.meta.env.VITE_GAMES_STORAGE_PRIVATE_CLOUDFRONT}/${key}`;
+
+  // 2️⃣ Upload
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", uploadUrl);
+    xhr.setRequestHeader(
+      "Content-Type",
+      asset.file.type || "model/gltf-binary"
+    );
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    };
+
+    xhr.onload = () =>
+      xhr.status === 200 ? resolve() : reject(new Error("Upload failed"));
+
+    xhr.onerror = () => reject(new Error("Upload error"));
+
+    xhr.send(asset.file);
+  });
+
+  return { fileUrl, key };
+};
+const handlePostSubmit = async () => {
+  if (isSubmitting) return;
+
+  setIsSubmitting(true);
+
+  // ✅ declare outside try so catch can access it
+  let updatedAssets: Asset[] = [];
+
+  try {
+    updatedAssets = [...assets];
+
+    await Promise.all(
+      updatedAssets.map(async (asset, index) => {
+        updatedAssets[index].status = "uploading";
+        updatedAssets[index].progress = 0;
+        setAssets([...updatedAssets]);
+
+        const { fileUrl, key } = await uploadAssetToS3(asset, (percent) => {
+          updatedAssets[index].progress = percent;
+          setAssets([...updatedAssets]);
         });
 
-        if (!res.ok) throw new Error("Failed to get upload URL");
+        updatedAssets[index].uploadedUrl = fileUrl;
+        updatedAssets[index].originalKey = key;
+        updatedAssets[index].status = "done";
+        updatedAssets[index].progress = 100;
 
-        const { uploadUrl, fileUrl } = await res.json();
+        setAssets([...updatedAssets]);
+      })
+    );
 
-        // 2. Upload with progress (XHR)
-        const xhr = new XMLHttpRequest();
-        xhr.open("PUT", uploadUrl, true);
-        xhr.setRequestHeader(
-          "Content-Type",
-          asset.file.type || "model/gltf-binary"
-        );
+    setIsSavingMetadata(true);
 
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
-            const percent = Math.round((event.loaded / event.total) * 100);
-            onProgress(percent);
-          }
-        };
-
-        xhr.onload = () => {
-          if (xhr.status === 200) {
-            resolve(fileUrl);
-          } else {
-            reject(new Error("Upload failed"));
-          }
-        };
-
-        xhr.onerror = () => reject(new Error("Upload error"));
-
-        xhr.send(asset.file);
-      } catch (err) {
-        reject(err);
-      }
+    const response = await fetch(`${BACKEND_URL}/api/allposts`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "model_post",
+        title,
+        description,
+        price: Number(price),
+        assets: updatedAssets.map((a: Asset) => ({
+          name: a.name,
+          originalUrl: a.uploadedUrl,
+          originalKey: a.originalKey,
+        })),
+      }),
     });
-  };
 
-  const handlePostSubmit = async () => {
-    if (isSubmitting) return; // Guard clause
-    setIsSubmitting(true);
-    try {
-      const updatedAssets = [...assets];
+    if (!response.ok) throw new Error("Database save failed");
 
-      await Promise.all(
-        updatedAssets.map(async (asset, index) => {
-          updatedAssets[index].status = "uploading";
-          updatedAssets[index].progress = 0;
-          setAssets([...updatedAssets]);
+    setIsSavingMetadata(false);
+    setIsSubmitting(false);
+    onCancel();
 
-          const uploadedUrl = await uploadAssetToS3(asset, (percent) => {
-            updatedAssets[index].progress = percent;
-            setAssets([...updatedAssets]);
-          });
+  } catch (err) {
+    console.error("Post creation failed", err);
 
-          updatedAssets[index].uploadedUrl = uploadedUrl;
-          updatedAssets[index].status = "done";
-          updatedAssets[index].progress = 100;
-          setAssets([...updatedAssets]);
-        })
-      );
-      setIsSavingMetadata(true); // Trigger the "Fetching metadata" UI
-      // Now create post in DB
-      const response=await fetch(`${BACKEND_URL}/api/allposts`, {
+    // ✅ Only cleanup if uploads happened
+    const uploadedKeys = updatedAssets
+      .map((a: Asset) => a.originalKey)
+      .filter(Boolean);
+
+    if (uploadedKeys.length > 0) {
+      await fetch(`${BACKEND_URL}/api/upload/cleanup`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "model_post",
-          title,
-          description,
-          price: Number(price),
-          assets: updatedAssets.map(a => ({
-            name: a.name,
-            url: a.uploadedUrl,
-          })),
-        }),
+        body: JSON.stringify({ keys: uploadedKeys }),
       });
-      if (!response.ok) throw new Error("Database save failed");
-      onCancel();
-    } catch (err) {
-      console.error("Post creation failed", err);
     }
-  };
+
+    setIsSavingMetadata(false);
+    setIsSubmitting(false);
+  }
+};
 
 
   const removeAsset = (index: number) => {

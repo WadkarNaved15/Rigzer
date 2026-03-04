@@ -74,12 +74,24 @@ export const createPost = async (req, res) => {
       const processedAssets = [];
 
       for (const asset of assets) {
-        const metadata = await extractMetadataFromUrl(asset.url);
+        // 🔥 use originalUrl instead of url
+        const metadata = await extractMetadataFromUrl(asset.originalUrl);
 
         processedAssets.push({
           name: asset.name,
-          url: asset.url,
+
+          originalKey: asset.originalKey,
+          optimizedKey: null,
+
+          originalUrl: asset.originalUrl,
+          optimizedUrl: null,
+
           sizeMB: Number(metadata.fileSizeMB),
+
+          optimization: {
+            status: "pending",
+          },
+
           metadata: {
             fileName: metadata.fileName,
             downloadSizeMB: Number(metadata.fileSizeMB),

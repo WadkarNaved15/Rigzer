@@ -51,6 +51,7 @@
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "redis": "^5.8.3",
+    "sanitize-html": "^2.17.1",
     "simple-peer": "^9.11.1",
     "socket.io": "^4.8.1",
     "three": "^0.182.0",

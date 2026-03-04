@@ -63,11 +63,28 @@ export interface NormalPostAsset {
   type: "image" | "video";
 }
 
+export interface OptimizationInfo {
+  status: "pending" | "processing" | "completed" | "failed";
+  optimizedSizeMB?: number;
+  compressionRatio?: number;
+  error?: string;
+  processedAt?: string;
+}
+
 export interface ModelAsset {
   name: string;
-  url: string;
+
+  originalKey: string;
+  optimizedKey?: string | null;
+
+  originalUrl: string;
+  optimizedUrl?: string | null;
+
   sizeMB?: number;
-  metadata: ModelMetadata;
+
+  optimization?: OptimizationInfo;
+
+  metadata?: ModelMetadata;
 }
 
 export interface ModelPost {
