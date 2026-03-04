@@ -86,7 +86,7 @@ export default function AccountSwitcherOverlay({
         }}
       >
         <img
-          src={user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80"}
+          src={user?.avatar || "./default_avatar.png"}
           className="w-full h-full rounded-full border-4 border-[#191919] shadow-2xl object-cover cursor-pointer"
           onClick={onClose}
           alt="Active Profile"
@@ -113,7 +113,7 @@ export default function AccountSwitcherOverlay({
             className="group flex flex-col items-center gap-2 transition-transform active:scale-95"
           >
             <img
-              src={acc.avatar || "https://images.unsplash.com/photo-1494790108377-be9c29b29330"}
+              src={acc.avatar || "./default_avatar.png"}
               className="w-14 h-14 rounded-full object-cover border-2 border-white/20 group-hover:border-white/60 shadow-lg transition-all"
               alt={acc.username}
             />

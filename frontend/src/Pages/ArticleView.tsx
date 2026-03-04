@@ -4,6 +4,7 @@ import { ArrowLeft, User, Calendar } from "lucide-react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Image from "@tiptap/extension-image";
+import { useNavigate, useParams } from "react-router-dom";
 import Link from "@tiptap/extension-link";
 import HorizontalRule from "@tiptap/extension-horizontal-rule";
 
@@ -12,7 +13,9 @@ interface ArticleOverlayProps {
   onClose: () => void;
 }
 
-const ArticleOverlay: React.FC<ArticleOverlayProps> = ({ canvasId, onClose }) => {
+const ArticleOverlay: React.FC = () => {
+  const { canvasId } = useParams();
+  const navigate = useNavigate();
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [article, setArticle] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -89,10 +92,9 @@ editorProps: {
         />
       </div>
       
-      {/* Sticky Back Button */}
       <div className="fixed top-6 left-6 z-50">
         <button
-          onClick={onClose}
+          onClick={() => navigate(-1)}
           className="p-3 bg-white dark:bg-[#252525] border border-gray-200 dark:border-white/10 rounded-full text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-all shadow-xl"
         >
           <ArrowLeft size={20} />
@@ -102,7 +104,7 @@ editorProps: {
       <div className="min-h-screen bg-[#F3F4F6] dark:bg-[#191919] text-gray-900 dark:text-gray-100 font-sans pb-20 overflow-y-auto transition-colors duration-300">
   {/* ... Sticky Back Button ... */}
 
-  <div className="flex justify-center pt-10 px-4">
+  <div className="flex justify-center px-4">
     <div className="flex-1 max-w-3xl space-y-12">
       
       <header
