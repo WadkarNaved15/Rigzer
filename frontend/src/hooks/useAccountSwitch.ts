@@ -1,8 +1,10 @@
 import axios from "axios";
 import { useUser } from "../context/user";
+import { useFeed } from "../context/FeedContext";
 import { toast } from "react-toastify";
 export const useAccountSwitch = () => {
   const { refreshUser } = useUser();
+  const { resetFeed } = useFeed();  
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
   const switchAccount = async (userId: string) => {
@@ -11,7 +13,7 @@ export const useAccountSwitch = () => {
       { userId },
       { withCredentials: true }
     );
-
+    resetFeed(); 
     await refreshUser();// fetch new active user
     toast.success("Account switched successfully!", {
         position: "top-right",

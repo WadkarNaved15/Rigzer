@@ -60,7 +60,7 @@ export default function NotificationCard({ notification, onRead }: Props) {
         {/* ✅ Post Preview Only If Exists */}
         {notification.postId && postDescription && (
           <Link
-            to={`/?post=${notification.postId._id}`}
+            to={`/post/${notification.postId._id}`}
             className="block mt-1 text-gray-400 text-sm hover:text-white transition"
           >
             “{postText}”

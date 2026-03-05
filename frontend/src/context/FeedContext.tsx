@@ -11,6 +11,7 @@ type FeedContextType = {
   scrollY: number;
   setScrollY: React.Dispatch<React.SetStateAction<number>>;
   updateCommentsCount: (postId: string, count: number) => void;
+   resetFeed: () => void; 
 };
 
 const FeedContext = createContext<FeedContextType | null>(null);
@@ -20,7 +21,12 @@ export const FeedProvider = ({ children }: { children: React.ReactNode }) => {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [scrollY, setScrollY] = useState(0);
- 
+  const resetFeed = () => {
+  setPosts([]);
+  setNextCursor(null);
+  setHasMore(true);
+  setScrollY(0);
+};
   const updateCommentsCount = (postId: string, count: number) => {
   setPosts(prev =>
     prev.map(post =>
@@ -41,7 +47,8 @@ export const FeedProvider = ({ children }: { children: React.ReactNode }) => {
         setHasMore,
         scrollY,
         setScrollY,
-        updateCommentsCount
+        updateCommentsCount,
+        resetFeed
       }}
     >
       {children}
