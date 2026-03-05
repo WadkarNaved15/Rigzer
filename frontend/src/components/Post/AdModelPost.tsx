@@ -247,12 +247,6 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
               style={{ background: isImage ? 'linear-gradient(to top, rgba(0,0,0,0.3), transparent)' : `linear-gradient(to top, rgba(${accentRgb ?? '0,0,0'},0.15), transparent)` }} />
           </div>
 
-          {/* Description */}
-          {description && (
-            <div className="px-4 py-3">
-              <p className="text-white/80 text-sm leading-relaxed font-light tracking-wide">{description}</p>
-            </div>
-          )}
 
           {/* Bottom accent line */}
           <div className="h-0.5 w-full"
@@ -261,6 +255,12 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
               : { background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.25), rgba(255,255,255,0.12), transparent)' }
             } />
         </div>
+                  {/* Description */}
+          {description && (
+            <div className="px-4 py-3">
+              <p className="text-white/80 text-sm leading-relaxed font-light tracking-wide">{description}</p>
+            </div>
+          )}
       </div>
     </article>
   );

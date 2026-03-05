@@ -483,6 +483,11 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
                       : 'linear-gradient(90deg, transparent, rgba(255,255,255,0.25), rgba(255,255,255,0.12), transparent)'
                     }} />
                 </div>
+                                  {description && (
+                    <div className="px-4 py-3">
+                      <p className="text-white/75 text-sm leading-relaxed font-light">{description}</p>
+                    </div>
+                  )}
               </div>
             </div>
           )}
