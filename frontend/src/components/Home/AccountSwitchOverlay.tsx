@@ -3,7 +3,6 @@ import { Plus, LogOut, LogIn } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../../context/user";
 import { useAccountSwitch } from "../../hooks/useAccountSwitch";
-
 interface Account {
   userId: string;
   username: string;

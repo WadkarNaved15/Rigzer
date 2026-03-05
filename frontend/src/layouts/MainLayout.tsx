@@ -18,9 +18,9 @@ function MainLayout() {
   const isArticlePage = location.pathname.startsWith("/articles/");
   const isCreatePage = location.pathname === "/create";
   const isPostDetailsPage = location.pathname.startsWith("/post/");
-    const isModelPost =
-    isPostDetailsPage &&
-    location.state?.post?.type === "model_post";
+
+  const isModelPost =
+    isPostDetailsPage && location.state?.post?.type === "model_post";
 
   const handleUploadClick = () => {
     navigate("/create");
@@ -30,6 +30,9 @@ function MainLayout() {
     navigate("/wishlist");
   };
 
+  const hideBillboard =
+    isProfilePage || isModelPost || isCreatePage || isArticlePage;
+
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-[#191919]">
       <ScrollRestoration />
@@ -38,7 +41,10 @@ function MainLayout() {
       <main className="w-full min-h-screen px-2 sm:px-4 lg:px-8 2xl:px-16 pt-4">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 2xl:grid-cols-16 2xl:gap-x-12">
 
+          {/* ========================= */}
           {/* LEFT SIDEBAR */}
+          {/* ========================= */}
+
           <div className="lg:col-span-2 2xl:col-span-3 hidden lg:block">
             <div className="sticky top-20">
               <Suspense fallback={null}>
@@ -54,12 +60,15 @@ function MainLayout() {
           {/* ========================= */}
           {/* ARTICLE PAGE */}
           {/* ========================= */}
+
           {isArticlePage ? (
             <>
+              {/* ARTICLE CONTENT */}
               <div className="lg:col-span-7 2xl:col-span-9 flex flex-col items-stretch min-h-[80vh] w-full py-4">
                 <Outlet />
               </div>
 
+              {/* ARTICLE RECOMMENDATIONS */}
               <div className="lg:col-span-3 2xl:col-span-4 hidden lg:block">
                 <div className="sticky top-20 space-y-6">
                   {canvasId && (
@@ -71,32 +80,35 @@ function MainLayout() {
                 </div>
               </div>
             </>
-          ) : isCreatePage ? (
-            /* ========================= */
-            /* CREATE PAGE (Replace feed + tower) */
-            /* ========================= */
-            <div className="lg:col-span-10 2xl:col-span-13 flex justify-center min-h-[80vh] w-full 2xl:pl-8">
-              <Outlet />
-            </div>
-          ) : isProfilePage || isModelPost ? (
-            /* ========================= */
-            /* PROFILE PAGE */
-            /* ========================= */
-            <div className="lg:col-span-6 2xl:col-span-13 flex flex-col items-center justify-start min-h-[80vh] w-full">
-              <Outlet />
-            </div>
           ) : (
-            /* ========================= */
-            /* HOME + WISHLIST */
-            /* ========================= */
             <>
-              {/* CENTER FEED (Home OR Wishlist) */}
-              <div className="lg:col-span-6 2xl:col-span-8 flex flex-col items-center justify-start min-h-[80vh] w-full">
+              {/* ========================= */}
+              {/* CENTER CONTENT (FEED / PROFILE / POST / CREATE) */}
+              {/* ========================= */}
+
+              <div
+                className={`
+                  flex flex-col items-center justify-start min-h-[80vh] w-full
+                  ${
+                    hideBillboard
+                      ? "lg:col-span-10 2xl:col-span-13"
+                      : "lg:col-span-6 2xl:col-span-8"
+                  }
+                `}
+              >
                 <Outlet />
               </div>
 
-              {/* BILLBOARD (remains same) */}
-              <div className="lg:col-span-4 2xl:col-span-5 hidden lg:block">
+              {/* ========================= */}
+              {/* RIGHT BILLBOARD (ALWAYS MOUNTED) */}
+              {/* ========================= */}
+
+              <div
+                className={`
+                  lg:col-span-4 2xl:col-span-5 hidden lg:block
+                  ${hideBillboard ? "opacity-0 pointer-events-none" : ""}
+                `}
+              >
                 <div className="sticky top-20 h-[calc(100vh-5rem)]">
                   <Billboard />
                 </div>
@@ -106,6 +118,11 @@ function MainLayout() {
 
         </div>
       </main>
+
+      {/* ========================= */}
+      {/* MESSAGING */}
+      {/* ========================= */}
+
       <MessagingComponent />
     </div>
   );
