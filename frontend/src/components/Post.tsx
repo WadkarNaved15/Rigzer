@@ -2,10 +2,11 @@ import React, { Suspense, lazy } from "react";
 import type { PostProps } from "../types/Post";
 
 // Lazy load post components
-const NormalPost = lazy(() => import("./Post/NormalPost"));
-const GamePost = lazy(() => import("./Post/GamePost"));
-const ExePost = lazy(() => import("./Post/ExePost"));
-const DevlogPost = lazy(() => import("./Post/DevlogPost")); // 🔥 add
+const NormalPost  = lazy(() => import("./Post/NormalPost"));
+const GamePost    = lazy(() => import("./Post/GamePost"));
+const ExePost     = lazy(() => import("./Post/ExePost"));
+const DevlogPost  = lazy(() => import("./Post/DevlogPost"));
+const AdModelPost = lazy(() => import("./Post/AdModelPost")); // ⭐ NEW
 
 type PostWrapperProps = PostProps & {
   onOpenDetails?: () => void;
@@ -24,8 +25,10 @@ export const Post: React.FC<PostWrapperProps> = (props) => {
         return GamePost as React.ComponentType<PostWrapperProps>;
       case "model_post":
         return ExePost as React.ComponentType<PostWrapperProps>;
-      case "devlog_post": // 🔥 add
+      case "devlog_post":
         return DevlogPost as React.ComponentType<PostWrapperProps>;
+      case "ad_model_post":                                          // ⭐ NEW
+        return AdModelPost as React.ComponentType<PostWrapperProps>; // ⭐ NEW
       default:
         return NormalPost as React.ComponentType<PostWrapperProps>;
     }

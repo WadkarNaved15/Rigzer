@@ -1,6 +1,11 @@
 // types/post.ts
 
-export type PostType = 'normal_post' | 'game_post' | 'model_post' | 'devlog_post';
+export type PostType =
+  | 'normal_post'
+  | 'game_post'
+  | 'model_post'
+  | 'devlog_post'
+  | 'ad_model_post'; // ⭐ NEW
 
 export interface UserSummary {
   _id: string;
@@ -8,6 +13,7 @@ export interface UserSummary {
   email: string;
   avatar?: string;
 }
+
 export interface ModelMetadata {
   fileName: string;
   downloadSizeMB: number;
@@ -41,7 +47,7 @@ export interface ModelMetadata {
     position: [number, number, number];
     rotation: {
       values: [number, number, number];
-      order: "XYZ" | "XZY" | "YXZ" | "YZX" | "ZXY" | "ZYX";
+      order: 'XYZ' | 'XZY' | 'YXZ' | 'YZX' | 'ZXY' | 'ZYX';
     };
   };
 
@@ -57,14 +63,15 @@ export interface ModelMetadata {
     z: number;
   };
 }
+
 export interface NormalPostAsset {
   name: string;
   url: string;
-  type: "image" | "video";
+  type: 'image' | 'video';
 }
 
 export interface OptimizationInfo {
-  status: "pending" | "processing" | "completed" | "failed";
+  status: 'pending' | 'processing' | 'completed' | 'failed';
   optimizedSizeMB?: number;
   compressionRatio?: number;
   error?: string;
@@ -93,7 +100,50 @@ export interface ModelPost {
   title: string;
   assets: ModelAsset[];
 }
-// Base structure
+
+// ── Ad Model types ────────────────────────────────────────────────────────────
+
+/** The single model asset inside an ad post (mirrors ModelAsset) */
+export interface AdModelAsset {
+  name: string;
+  originalKey: string;
+  optimizedKey?: string | null;
+  originalUrl: string;
+  optimizedUrl?: string | null;
+  sizeMB?: number;
+  optimization?: OptimizationInfo;
+  metadata?: ModelMetadata;
+}
+
+/** Shape of the adModelPost sub-document returned from the API */
+export interface AdModelPost {
+  brandName?: string | null;
+  logoUrl?: string | null;
+  bgMode: 'color' | 'image';
+  bgColor?: string | null;
+  bgImageUrl?: string | null;
+  asset: AdModelAsset;
+}
+
+/** Props for the AdModelPostForm creation component */
+export interface AdModelPostFormProps {
+  onCancel: () => void;
+  onBack?: () => void;
+}
+
+/** Local asset state used during upload inside the form */
+export interface AdAsset {
+  id: string;
+  file: File;
+  previewUrl: string;
+  uploadedUrl?: string;
+  originalKey?: string;
+  name: string;
+  progress?: number;
+  status?: 'pending' | 'uploading' | 'done' | 'error';
+}
+
+// ── Common fields shared by all post variants ─────────────────────────────────
 interface CommonPostFields {
   _id: string;
   type: PostType;
@@ -112,7 +162,8 @@ interface CommonPostFields {
   detailed?: boolean;
 }
 
-// Specific post types
+// ── Discriminated union members ───────────────────────────────────────────────
+
 export interface NormalPostProps extends CommonPostFields {
   type: 'normal_post';
   normalPost: {
@@ -125,10 +176,12 @@ export interface GameSystemRequirements {
   cpuCores?: number | null;
   gpuRequired?: boolean;
 }
+
 export interface DevlogMeta {
   title?: string;
   thumbnail?: string;
 }
+
 export interface GameFile {
   name: string;
   url: string;
@@ -139,13 +192,12 @@ export interface GamePost {
   gameName: string;
   version: string;
   description: string;
-  platform: 'windows'; // locked for now
+  platform: 'windows';
   buildType: 'windows_exe' | 'windows_zip';
-  startPath: string; // ⭐ EXECUTION ENTRY
+  startPath: string;
   engine?: string;
   runMode: 'sandboxed';
   price: number;
-
   systemRequirements?: GameSystemRequirements;
   file: GameFile;
 }
@@ -157,13 +209,25 @@ export interface GamePostProps extends CommonPostFields {
 
 export interface ExePostProps extends CommonPostFields {
   type: 'model_post';
-  // gameUrl: string;
   modelPost?: ModelPost;
 }
+
 export interface DevlogPostProps extends CommonPostFields {
-  type: "devlog_post";
-  devlogRef: string;   // CanvasScene ID
+  type: 'devlog_post';
+  devlogRef: string;
   devlogMeta?: DevlogMeta;
 }
 
-export type PostProps = NormalPostProps | GamePostProps | ExePostProps | DevlogPostProps;
+/** ⭐ NEW — feed card props for ad model posts */
+export interface AdModelPostProps extends CommonPostFields {
+  type: 'ad_model_post';
+  adModelPost: AdModelPost; // required — no ad post without this
+}
+
+// ── Master union ──────────────────────────────────────────────────────────────
+export type PostProps =
+  | NormalPostProps
+  | GamePostProps
+  | ExePostProps
+  | DevlogPostProps
+  | AdModelPostProps; // ⭐ NEW

@@ -1,6 +1,7 @@
 import React, { useState, useRef, ChangeEvent } from 'react';
-import { X, Image as ImageIcon, DollarSign } from 'lucide-react';
+import { X, Image as ImageIcon, DollarSign ,Megaphone} from 'lucide-react';
 import '@google/model-viewer';
+import AdModelPostForm from "./AdModelPostForm";
 
 interface PostModalProps {
   onCancel: () => void;
@@ -20,6 +21,7 @@ interface Asset {
 }
 
 const PostModal: React.FC<PostModalProps> = ({ onCancel }) => {
+  const [showAdForm, setShowAdForm] = useState(false); // ⭐ Ad mode toggle
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
@@ -30,6 +32,13 @@ const PostModal: React.FC<PostModalProps> = ({ onCancel }) => {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000"; // Ensure this is set in your .env file
+
+   // ⭐ Swap to Ad form — keeps same onCancel, adds onBack to return
+  if (showAdForm) {
+    return <AdModelPostForm onCancel={onCancel} onBack={() => setShowAdForm(false)} />;
+  }
+
+
   const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -70,6 +79,7 @@ const uploadAssetToS3 = async (
       fileName: asset.file.name,
       fileType: asset.file.type || "model/gltf-binary",
       category: "original",
+       fileSize: asset.file.size,
     }),
   });
 
@@ -203,6 +213,14 @@ const handlePostSubmit = async () => {
           </button> */}
           <h2 className="text-xl font-bold text-black dark:text-white">Compose 3D Bundle</h2>
         </div>
+          {/* ⭐ AD BUTTON */}
+          <button
+            onClick={() => setShowAdForm(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-indigo-300 dark:border-indigo-700/60 text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 text-[11px] font-bold uppercase tracking-wider transition-all group"
+          >
+            <Megaphone size={12} className="group-hover:scale-110 transition-transform" />
+            Ad
+          </button>
         <button
           onClick={handlePostSubmit}
           disabled={!title || !description || assets.length === 0 || isSubmitting}

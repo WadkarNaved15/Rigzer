@@ -124,11 +124,6 @@ return (
   text-gray-800
   dark:text-[#29665a]
 
-  drop-shadow-[0_4px_6px_rgba(31,41,55,0.45)]
-  hover:drop-shadow-[0_6px_10px_rgba(31,41,55,0.6)]
-
-  dark:drop-shadow-[0_4px_8px_rgba(41,102,90,0.7)]
-  dark:hover:drop-shadow-[0_6px_14px_rgba(41,102,90,0.95)]
   "
 />
   </Link>

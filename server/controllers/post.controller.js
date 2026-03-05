@@ -6,7 +6,6 @@ function deriveBuildType(fileFormat) {
   return "archive";
 }
 
-
 export const createPost = async (req, res) => {
   console.log("Create post controller got hit");
 
@@ -42,7 +41,7 @@ export const createPost = async (req, res) => {
           assets: assets.map((asset) => ({
             name: asset.name,
             url: asset.url,
-            type: asset.type, // image | video
+            type: asset.type,
           })),
         },
       });
@@ -74,43 +73,30 @@ export const createPost = async (req, res) => {
       const processedAssets = [];
 
       for (const asset of assets) {
-        // 🔥 use originalUrl instead of url
         const metadata = await extractMetadataFromUrl(asset.originalUrl);
 
         processedAssets.push({
           name: asset.name,
-
           originalKey: asset.originalKey,
           optimizedKey: null,
-
           originalUrl: asset.originalUrl,
           optimizedUrl: null,
-
           sizeMB: Number(metadata.fileSizeMB),
-
-          optimization: {
-            status: "pending",
-          },
-
+          optimization: { status: "pending" },
           metadata: {
             fileName: metadata.fileName,
             downloadSizeMB: Number(metadata.fileSizeMB),
-
             geometry: metadata.geometry,
             materials: metadata.materials.count,
-
             textures: {
               present: metadata.textures.present,
               count: metadata.textures.count,
             },
-
             uvLayers: metadata.uvLayers,
             vertexColors: metadata.vertexColors,
-
             animations: metadata.animations,
             rigged: metadata.rigged,
             morphTargets: metadata.morphTargets,
-
             transforms: {
               scale: metadata.transforms.scale,
               position: metadata.transforms.position,
@@ -119,7 +105,6 @@ export const createPost = async (req, res) => {
                 order: "XYZ",
               },
             },
-
             boundingBox: metadata.boundingBox,
             center: metadata.center,
           },
@@ -144,11 +129,10 @@ export const createPost = async (req, res) => {
     }
 
     /* ======================================================
-       GAME POST  ⭐ NEW
+       GAME POST
     ====================================================== */
     if (type === "game_post") {
       const { description, game } = req.body;
-      console.log("Game post data:", req.body);
 
       if (!description || !game) {
         return res.status(400).json({
@@ -169,45 +153,30 @@ export const createPost = async (req, res) => {
       } = game;
 
       const allowedFormats = ["7z", "zip", "exe"];
-if (!file?.format || !allowedFormats.includes(file.format)) {
-  return res.status(400).json({
-    message: "Unsupported or missing game build format",
-  });
-}
+      if (!file?.format || !allowedFormats.includes(file.format)) {
+        return res.status(400).json({
+          message: "Unsupported or missing game build format",
+        });
+      }
 
-const buildType = deriveBuildType(file.format);
+      const buildType = deriveBuildType(file.format);
 
-      
-      /* ---------- REQUIRED VALIDATION ---------- */
-      if (
-  !gameName ||
-  !startPath ||
-  !file?.url ||
-  !file?.name ||
-  !file?.format
-) {
-  return res.status(400).json({
-    message: "Missing required game fields",
-  });
-}
+      if (!gameName || !startPath || !file?.url || !file?.name || !file?.format) {
+        return res.status(400).json({ message: "Missing required game fields" });
+      }
 
+      if (buildType === "executable" && !startPath.toLowerCase().endsWith(".exe")) {
+        return res.status(400).json({
+          message: "Executable builds must have a .exe startPath",
+        });
+      }
 
-if (buildType === "executable" && !startPath.toLowerCase().endsWith(".exe")) {
-  return res.status(400).json({
-    message: "Executable builds must have a .exe startPath",
-  });
-}
-
-
-
-      // Security: startPath must be relative
       if (startPath.startsWith("/") || startPath.includes("..")) {
         return res.status(400).json({
           message: "Invalid startPath (must be relative)",
         });
       }
 
-      // Lock platform for now
       if (platform !== "windows") {
         return res.status(400).json({
           message: "Only Windows platform is supported currently",
@@ -219,35 +188,31 @@ if (buildType === "executable" && !startPath.toLowerCase().endsWith(".exe")) {
         description,
         type: "game_post",
         gamePost: {
-  gameName,
-  version: version || "1.0.0",
-  platform: "windows",
-  buildType,
-  startPath,
-  engine,
-  runMode: runMode || "sandboxed",
-  price: Number(price) || 0,
-
-  systemRequirements: {
-    ramGB: systemRequirements?.ramGB ?? null,
-    cpuCores: systemRequirements?.cpuCores ?? null,
-    gpuRequired: systemRequirements?.gpuRequired ?? false,
-  },
-
-  file: {
-  name: file.name,
-  url: file.url,
-  size: file.size,
-  format: file.format, // ⭐ REQUIRED
-},
-
-  verification: {
-    status: "pending",
-    error: null,
-    verifiedAt: null,
-  },
-},
-
+          gameName,
+          version: version || "1.0.0",
+          platform: "windows",
+          buildType,
+          startPath,
+          engine,
+          runMode: runMode || "sandboxed",
+          price: Number(price) || 0,
+          systemRequirements: {
+            ramGB: systemRequirements?.ramGB ?? null,
+            cpuCores: systemRequirements?.cpuCores ?? null,
+            gpuRequired: systemRequirements?.gpuRequired ?? false,
+          },
+          file: {
+            name: file.name,
+            url: file.url,
+            size: file.size,
+            format: file.format,
+          },
+          verification: {
+            status: "pending",
+            error: null,
+            verifiedAt: null,
+          },
+        },
       });
 
       return res.status(201).json({
@@ -256,8 +221,109 @@ if (buildType === "executable" && !startPath.toLowerCase().endsWith(".exe")) {
       });
     }
 
+    /* ======================================================
+       AD MODEL POST  ⭐ NEW
+    ====================================================== */
+    if (type === "ad_model_post") {
+      const { description, adModelPost } = req.body;
+
+      if (!adModelPost) {
+        return res.status(400).json({ message: "adModelPost data is required" });
+      }
+
+      const { brandName, bgMode, bgColor, bgImageUrl, logoUrl, asset } = adModelPost;
+
+      // ── Validate asset ───────────────────────────────────
+      if (!asset || !asset.originalUrl || !asset.originalKey || !asset.name) {
+        return res.status(400).json({
+          message: "Ad model post requires exactly one valid model asset",
+        });
+      }
+
+      // ── Validate background config ───────────────────────
+      const resolvedBgMode = bgMode === "image" ? "image" : "color";
+
+      if (resolvedBgMode === "image" && !bgImageUrl) {
+        return res.status(400).json({
+          message: "bgImageUrl is required when bgMode is 'image'",
+        });
+      }
+
+      // ── Extract model metadata (same pipeline as model_post) ──
+      let processedAsset;
+      try {
+        const metadata = await extractMetadataFromUrl(asset.originalUrl);
+
+        processedAsset = {
+          name: asset.name,
+          originalKey: asset.originalKey,
+          optimizedKey: null,
+          originalUrl: asset.originalUrl,
+          optimizedUrl: null,
+          sizeMB: Number(metadata.fileSizeMB),
+          optimization: { status: "pending" },
+          metadata: {
+            fileName: metadata.fileName,
+            downloadSizeMB: Number(metadata.fileSizeMB),
+            geometry: metadata.geometry,
+            materials: metadata.materials.count,
+            textures: {
+              present: metadata.textures.present,
+              count: metadata.textures.count,
+            },
+            uvLayers: metadata.uvLayers,
+            vertexColors: metadata.vertexColors,
+            animations: metadata.animations,
+            rigged: metadata.rigged,
+            morphTargets: metadata.morphTargets,
+            transforms: {
+              scale: metadata.transforms.scale,
+              position: metadata.transforms.position,
+              rotation: {
+                values: metadata.transforms.rotation.slice(0, 3),
+                order: "XYZ",
+              },
+            },
+            boundingBox: metadata.boundingBox,
+            center: metadata.center,
+          },
+        };
+      } catch (metaErr) {
+        console.error("Metadata extraction failed for ad model post:", metaErr);
+        // Don't block creation if metadata fails — store minimal info
+        processedAsset = {
+          name: asset.name,
+          originalKey: asset.originalKey,
+          optimizedKey: null,
+          originalUrl: asset.originalUrl,
+          optimizedUrl: null,
+          optimization: { status: "pending" },
+        };
+      }
+
+      const post = await AllPost.create({
+        user: req.user.id,
+        description: description || "",
+        type: "ad_model_post",
+        adModelPost: {
+          brandName: brandName?.trim() || null,
+          logoUrl: logoUrl || null,
+          bgMode: resolvedBgMode,
+          bgColor: resolvedBgMode === "color" ? (bgColor || "#6366f1") : null,
+          bgImageUrl: resolvedBgMode === "image" ? bgImageUrl : null,
+          asset: processedAsset,
+        },
+      });
+
+      return res.status(201).json({
+        message: "Ad model post created successfully",
+        post,
+      });
+    }
+
     /* ====================================================== */
     return res.status(400).json({ message: "Invalid post type" });
+
   } catch (err) {
     console.error("Create post error:", err);
     return res.status(500).json({ message: "Failed to create post" });
