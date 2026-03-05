@@ -12,24 +12,44 @@ import { v4 as uuidv4 } from "uuid";
 
 const router = express.Router();
 
+const MAX_MODEL_SIZE_MB = 150;
+const MAX_MODEL_SIZE_BYTES = MAX_MODEL_SIZE_MB * 1024 * 1024;
+
 router.post("/presigned-url", async (req, res) => {
   try {
-    const { fileName, fileType, category } = req.body;
-    console.log("CF",process.env.GAMES_STORAGE_PRIVATE_CLOUDFRONT)
-    if (!fileName || category !== "original") {
-      return res.status(400).json({ message: "Original upload required" });
+    const { fileName, fileType, category, fileSize } = req.body;
+
+    if (!fileName || !category) {
+      return res.status(400).json({ message: "fileName and category required" });
     }
 
-    const key = `models/original/${uuidv4()}-${fileName}`;
+    if (fileSize > MAX_MODEL_SIZE_BYTES) {
+      return res.status(400).json({ message: "File size exceeds the limit" });
+    }
+
+    let key;
+
+    if (category === "original") {
+      key = `models/original/${uuidv4()}-${fileName}`;
+    }
+
+    else if (category === "media") {
+      key = `models/images/${uuidv4()}-${fileName}`;
+    }
+
+    else if (category === "background") {
+      key = `models/background/${uuidv4()}-${fileName}`;
+    }
+
+    else {
+      return res.status(400).json({ message: "Invalid upload category" });
+    }
 
     const command = new PutObjectCommand({
       Bucket: process.env.AWS_BUCKET_NAME,
       Key: key,
-      ContentType: fileType || "model/gltf-binary",
+      ContentType: fileType || "application/octet-stream",
       StorageClass: "INTELLIGENT_TIERING",
-      Metadata: {
-        original: "true",
-      },
     });
 
     const uploadUrl = await getSignedUrl(s3, command, {
