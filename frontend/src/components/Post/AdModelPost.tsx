@@ -113,29 +113,29 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
 
   // ── COLOR / IMAGE: glassmorphism ──────────────────────────────────────────
 
-  // Outer article: image bg at low opacity (blurred) OR color gradient
+  // Outer article: image mode = layers handle bg / color mode = solid dark base + tinted gradient
+  // The solid base (#0a0a0f) ensures the tinted gradient looks identical in light and dark themes.
+  // Without it the nearly-transparent gradient (0.12–0.22 opacity) picks up the page bg color.
+  // Outer: color mode = exact solid bgColor (no mixing, no gradient, same in all themes)
+  //         image mode = position:relative so absolute layers stack correctly
   const outerStyle: React.CSSProperties = isImage
     ? { position: 'relative' }
-    : { background: `linear-gradient(145deg, rgba(${accentRgb},0.12) 0%, rgba(${accentRgb},0.22) 100%)` };
+    : { background: bgColor! };
 
-  // Glass card: for image mode, the card itself also carries the bg image
-  // with a frosted-glass dark overlay on top via a pseudo-layer div
+  // Card: color mode = dark semi-transparent overlay so text stays readable on the solid color
+  //        image mode = sharp image, zero blur on the card itself
   const glassCardBase: React.CSSProperties = isImage
     ? {
         backgroundImage: `url(${bgImageUrl})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        backdropFilter: 'blur(0px)', // image is sharp inside the card
-        WebkitBackdropFilter: 'blur(0px)',
         border: '1px solid rgba(255,255,255,0.18)',
         boxShadow: '0 8px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12)',
       }
     : {
-        background: `linear-gradient(160deg, rgba(${accentRgb},0.18) 0%, rgba(${accentRgb},0.08) 100%)`,
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        border: `1px solid rgba(${accentRgb},0.25)`,
-        boxShadow: `0 8px 32px rgba(${accentRgb},0.15), inset 0 1px 0 rgba(255,255,255,0.08)`,
+        background: 'rgba(0,0,0,0.28)',
+        border: `1px solid rgba(${accentRgb},0.3)`,
+        boxShadow: `0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)`,
       };
 
   const headerPillStyle: React.CSSProperties = {
@@ -150,9 +150,8 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
     ? { background: `rgba(${accentRgb},0.25)`, border: `1px solid rgba(${accentRgb},0.4)`, color: bgColor! }
     : { background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: 'rgba(255,255,255,0.8)' };
 
-  const modelAreaStyle: React.CSSProperties = isImage
-    ? { background: 'rgba(0,0,0,0.15)' }
-    : { background: `radial-gradient(ellipse at center, rgba(${accentRgb},0.18) 0%, rgba(${accentRgb},0.06) 70%)` };
+  // Model area: transparent so the outer bgColor shows through cleanly
+  const modelAreaStyle: React.CSSProperties = { background: 'transparent' };
 
   return (
     <article
@@ -176,8 +175,8 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
             transform: 'scale(1.12)',
             opacity: 0.45,
           }} />
-          {/* Dark glass tint over blurred outer bg */}
-          <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(5,5,15,0.35)' }} />
+          {/* Subtle dark tint — keep low so the image's own colors stay visible */}
+          <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(0,0,0,0.15)' }} />
         </>
       )}
 
@@ -188,13 +187,9 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
       {/* ── Glass card — m-3 gap gives the "floating" appearance ── */}
       <div className="relative z-10 m-3 rounded-2xl overflow-hidden" style={glassCardBase}>
 
-        {/* For image mode: frosted glass overlay sits on top of the card's bg image */}
+        {/* Image mode: pure dark tint only — NO backdropFilter (would blur card's own backgroundImage) */}
         {isImage && (
-          <div className="absolute inset-0 pointer-events-none" style={{
-            background: 'rgba(8,8,20,0.42)',
-            backdropFilter: 'blur(2px)',
-            WebkitBackdropFilter: 'blur(2px)',
-          }} />
+          <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(0,0,0,0.38)' }} />
         )}
 
         {/* All content sits above the overlay */}
@@ -247,6 +242,7 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
               style={{ background: isImage ? 'linear-gradient(to top, rgba(0,0,0,0.3), transparent)' : `linear-gradient(to top, rgba(${accentRgb ?? '0,0,0'},0.15), transparent)` }} />
           </div>
 
+          
 
           {/* Bottom accent line */}
           <div className="h-0.5 w-full"
@@ -255,13 +251,13 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
               : { background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.25), rgba(255,255,255,0.12), transparent)' }
             } />
         </div>
-                  {/* Description */}
+      </div>
+      {/* Description */}
           {description && (
-            <div className="px-4 py-3">
+            <div className="px-4 pb-3">
               <p className="text-white/80 text-sm leading-relaxed font-light tracking-wide">{description}</p>
             </div>
           )}
-      </div>
     </article>
   );
 };
