@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import { PlusCircle } from "lucide-react";
 import FollowFace from "./FollowFace";
 import { useUser } from "../../context/user";
@@ -17,10 +18,10 @@ type Face = "follow" | "reading" ;
 
 const Tower: React.FC<{
   activeFace: Face;
-  onOpenArticle: (canvasId: string) => void;
-}> = ({ activeFace, onOpenArticle }) => {
+}> = ({ activeFace}) => {
   const { articles } = usePublishedArticles();
   const cubeRef = useRef<HTMLDivElement>(null);
+  const navigate=useNavigate();
   const [translateZ, setTranslateZ] = useState(150);
 
   useEffect(() => {
@@ -59,7 +60,7 @@ const Tower: React.FC<{
             {articles.map((canvas) => (
               <div
                 key={canvas._id}
-                onClick={() => onOpenArticle(canvas._id)}
+                 onClick={() => navigate(`/articles/${canvas._id}`)}
                 className="cursor-pointer group flex flex-col"
               >
                 <div className="relative aspect-[3/4] bg-gray-200 dark:bg-[#111] rounded-xl overflow-hidden border border-[#E0E0E5] dark:border-white/5 shadow-lg transition-transform duration-300 group-hover:border-purple-500/50 group-hover:shadow-purple-500/10">

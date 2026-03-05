@@ -3,10 +3,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 const Tower = React.lazy(() => import("./Tower"));
 
 type Face = "follow" | "reading";
-interface BillboardProps {
-  onOpenArticle: (canvasId: string) => void;
-}
-const Billboard: React.FC<BillboardProps> = ({ onOpenArticle }) => {
+const Billboard: React.FC = () => {
   const [activeSection, setActiveSection] = useState<Face>("follow");
 
   const toggleSection = useCallback(() => {
@@ -49,7 +46,7 @@ return (
     {/* Content */}
     <div className="flex-1 overflow-hidden border-t border-purple-600 dark:border-gray-200">
       <Suspense fallback={<div className="text-center text-gray-400">Loading...</div>}>
-        <Tower activeFace={activeSection} onOpenArticle={onOpenArticle} />
+        <Tower activeFace={activeSection}/>
       </Suspense>
     </div>
   </div>

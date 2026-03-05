@@ -827,7 +827,7 @@ const MessagingComponent = () => {
                               <SharedPostMessage
                                 postId={msg.sharedPostId}
                                 onOpenPost={(postId: string) => {
-                                  window.open(`/?post=${postId}`, '_blank', 'noopener,noreferrer');
+                                  window.open(`/post/${postId}`, '_blank', 'noopener,noreferrer');
                                 }}
                               />
                             )}

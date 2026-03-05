@@ -6,12 +6,10 @@ import { useUser } from "../../context/user";
 import { useNotification } from "../../context/Notifications";
 
 interface ProfileCoverProps {
-  setProfileOpen: (open: boolean) => void;
   onOpenWishlist: () => void;
 }
 
 export default function ProfileCover({
-  setProfileOpen,
   onOpenWishlist,
 }: ProfileCoverProps) {
   const [accountOverlayOpen, setAccountOverlayOpen] = useState(false);
@@ -30,7 +28,7 @@ export default function ProfileCover({
   };
 
   const navItems = [
-    { icon: CircleUser, label: "Profile", action: () => setProfileOpen(true) },
+    { icon: CircleUser, label: "Profile", action: () => navigate("/profile") },
     { icon: Bell, label: "Notifications", action: () => navigate("/notifications") },
     { icon: Bookmark, label: "Saved", action: onOpenWishlist },
     user

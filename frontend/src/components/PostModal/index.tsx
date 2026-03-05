@@ -3,10 +3,10 @@ import { useState } from "react";
 import PostTypeHeader from "./PostTypeHeader";
 import ActivePostForm from "./ActivePostForm";
 import { PostType } from "../../types/postTypes";
-
-const PostModalPage = ({ onCancel }: { onCancel: () => void }) => {
+import { useNavigate } from "react-router-dom";
+const PostModalPage = () => {
   const [postType, setPostType] = useState<PostType>("model");
-
+  const navigate= useNavigate();
   return (
     <div className="w-full min-h-screen bg-white dark:bg-[#191919] flex flex-row">
       
@@ -15,7 +15,7 @@ const PostModalPage = ({ onCancel }: { onCancel: () => void }) => {
         <PostTypeHeader 
           active={postType} 
           onChange={setPostType} 
-          onCancel={onCancel}
+          onCancel={() => navigate(-1)}
         />
       </aside>
 
@@ -24,7 +24,7 @@ const PostModalPage = ({ onCancel }: { onCancel: () => void }) => {
         <div className="max-w-2xl ml-0 mr-auto py-8 pl-4 pr-8">
           <ActivePostForm
             postType={postType}
-            onCancel={onCancel}
+            onCancel={() => navigate(-1)}
           />
         </div>
       </main>

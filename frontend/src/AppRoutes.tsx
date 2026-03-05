@@ -1,10 +1,11 @@
-import { Routes, Route, useLocation, data } from "react-router-dom";
+// src/AppRoutes.tsx
+import { Routes, Route, useLocation,ScrollRestoration} from "react-router-dom";
 import { Suspense, lazy } from "react";
 
 // Pages
 const Home = lazy(() => import("./Pages/Home"));
 const Auth = lazy(() => import("./Pages/Auth"));
-const ProfilePage = lazy(() => import("./Pages/ProfilePage"));
+const ProfilePage = lazy(() => import("./components/Profile/NewProfile"));
 const EditProfilePage = lazy(() => import("./Pages/EditProfile"));
 const CreatePostPage = lazy(() => import("./Pages/CreatePostPage"));
 const WishlistPage = lazy(() => import("./Pages/WishlistPage"));
@@ -25,31 +26,35 @@ import GameStatus from "./components/Home/PlayGame";
 import { Header } from "./components/Header";
 import Recommendations from "./components/Recommendations";
 import RecommendationPosts from "./components/Home/RecommendationPost";
-import PublisherForm from "./Pages/PublisherForm"
+import PublisherForm from "./Pages/PublisherForm";
 import ModelViewer from "./components/ModelViewer";
 import GamePost from "./components/Home/GamePost";
+import MainLayout from "./layouts/MainLayout";
 import NotificationsPage from "./Pages/NotificationsPage";
-
-
+import { useEffect } from "react";
+import PostDetailsPage from "./Pages/PostDetailsPage";
 
 export default function AppRoutes() {
-  const location = useLocation();
-  const state = location.state as { background?: Location };
+  // const location = useLocation();
+  // const state = location.state as { background?: Location };
   return (
     <>
-      {/* MAIN ROUTES */}
+      {/* <ScrollToTop /> */}
+      <ScrollRestoration />
       <Suspense fallback={<div className="text-center mt-10">Loading...</div>}>
-        <Routes location={state?.background || location}>
-          <Route path="/" element={<Home />} />
+        <Routes>
+          <Route element={<MainLayout />}>
+            <Route path="/" element={<Home />} />
+            <Route path="/post/:postId" element={<PostDetailsPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+          </Route>
           <Route path="/auth" element={<Auth />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/stream/:sessionId" element={<StreamPage />} />
-          <Route path="/wishlist" element={<WishlistPage />} /> 
-          <Route path="/notifications" element={<NotificationsPage />} />  
-          <Route path="/publisher" element={<PublisherForm />}/>
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/editprofile" element={<EditProfilePage />} />
+          <Route path="/wishlist" element={<WishlistPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/publisher" element={<PublisherForm />} />
           <Route path="/createpost" element={<CreatePostPage />} />
           <Route path="/devlogs" element={<DevLogs />} />
           <Route path="/devlogs/view/:id" element={<DevLogsView />} />
@@ -65,15 +70,6 @@ export default function AppRoutes() {
           <Route path="/recommendationsposts" element={<RecommendationPosts />} />
         </Routes>
       </Suspense>
-
-      {/* MODAL ROUTES (X-style) */}
-      {state?.background && (
-        <Suspense fallback={null}>
-          <Routes>
-            {/* <Route path="/post/:id" element={<PostDetail />} /> */}
-          </Routes>
-        </Suspense>
-      )}
     </>
   );
 }
