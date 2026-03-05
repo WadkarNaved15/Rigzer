@@ -23,7 +23,10 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
 
   if (!adModelPost) return null;
 
-  const { brandName, logoUrl, bgMode, bgColor, bgImageUrl, asset } = adModelPost;
+  const { brandName, logoUrl, bgMode, bgColor, bgImageUrl, bgImagePosition, asset } = adModelPost;
+
+  // Fallback to centre if no position stored (backwards compat with older posts)
+  const resolvedBgPos = bgImagePosition ?? '50% 50%';
 
   const modelUrl =
     asset?.optimization?.status === 'completed' && asset.optimizedUrl
@@ -112,23 +115,15 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
   }
 
   // ── COLOR / IMAGE: glassmorphism ──────────────────────────────────────────
-
-  // Outer article: image mode = layers handle bg / color mode = solid dark base + tinted gradient
-  // The solid base (#0a0a0f) ensures the tinted gradient looks identical in light and dark themes.
-  // Without it the nearly-transparent gradient (0.12–0.22 opacity) picks up the page bg color.
-  // Outer: color mode = exact solid bgColor (no mixing, no gradient, same in all themes)
-  //         image mode = position:relative so absolute layers stack correctly
   const outerStyle: React.CSSProperties = isImage
     ? { position: 'relative' }
     : { background: bgColor! };
 
-  // Card: color mode = dark semi-transparent overlay so text stays readable on the solid color
-  //        image mode = sharp image, zero blur on the card itself
   const glassCardBase: React.CSSProperties = isImage
     ? {
         backgroundImage: `url(${bgImageUrl})`,
         backgroundSize: 'cover',
-        backgroundPosition: 'center',
+        backgroundPosition: resolvedBgPos,   // ← use stored focal position
         border: '1px solid rgba(255,255,255,0.18)',
         boxShadow: '0 8px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12)',
       }
@@ -150,7 +145,6 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
     ? { background: `rgba(${accentRgb},0.25)`, border: `1px solid rgba(${accentRgb},0.4)`, color: bgColor! }
     : { background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: 'rgba(255,255,255,0.8)' };
 
-  // Model area: transparent so the outer bgColor shows through cleanly
   const modelAreaStyle: React.CSSProperties = { background: 'transparent' };
 
   return (
@@ -163,19 +157,17 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
       className="relative w-full cursor-pointer overflow-hidden"
       style={outerStyle}
     >
-      {/* ── Outer bg for image mode: blurred, low-opacity ── */}
+      {/* ── Outer bg for image mode: blurred outer halo ── */}
       {isImage && (
         <>
-          {/* The actual blurred background image */}
           <div className="absolute inset-0 pointer-events-none" style={{
             backgroundImage: `url(${bgImageUrl})`,
             backgroundSize: 'cover',
-            backgroundPosition: 'center',
+            backgroundPosition: resolvedBgPos,   // ← same focal on blurred outer
             filter: 'blur(28px)',
             transform: 'scale(1.12)',
             opacity: 0.45,
           }} />
-          {/* Subtle dark tint — keep low so the image's own colors stay visible */}
           <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(0,0,0,0.15)' }} />
         </>
       )}
@@ -184,17 +176,13 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
       <div className="absolute inset-0 pointer-events-none opacity-[0.025]"
         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`, backgroundRepeat: 'repeat' }} />
 
-      {/* ── Glass card — m-3 gap gives the "floating" appearance ── */}
+      {/* ── Glass card ── */}
       <div className="relative z-10 m-3 rounded-2xl overflow-hidden" style={glassCardBase}>
-
-        {/* Image mode: pure dark tint only — NO backdropFilter (would blur card's own backgroundImage) */}
         {isImage && (
           <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(0,0,0,0.38)' }} />
         )}
 
-        {/* All content sits above the overlay */}
         <div className="relative z-10">
-
           {/* ── Floating brand pill ── */}
           <div className="flex items-center justify-between px-4 pt-4 pb-1">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full" style={headerPillStyle}>
@@ -242,8 +230,6 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
               style={{ background: isImage ? 'linear-gradient(to top, rgba(0,0,0,0.3), transparent)' : `linear-gradient(to top, rgba(${accentRgb ?? '0,0,0'},0.15), transparent)` }} />
           </div>
 
-          
-
           {/* Bottom accent line */}
           <div className="h-0.5 w-full"
             style={accentRgb
@@ -252,12 +238,13 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
             } />
         </div>
       </div>
+
       {/* Description */}
-          {description && (
-            <div className="px-4 pb-3">
-              <p className="text-white/80 text-sm leading-relaxed font-light tracking-wide">{description}</p>
-            </div>
-          )}
+      {description && (
+        <div className="px-4 pb-3">
+          <p className="text-white/80 text-sm leading-relaxed font-light tracking-wide">{description}</p>
+        </div>
+      )}
     </article>
   );
 };
