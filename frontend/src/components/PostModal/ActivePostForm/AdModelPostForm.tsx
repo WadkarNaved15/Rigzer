@@ -2,7 +2,7 @@ import React, { useState, useRef, ChangeEvent } from 'react';
 import { X, Image as ImageIcon, Upload, Palette, ArrowLeft } from 'lucide-react';
 import '@google/model-viewer';
 import type { AdModelPostFormProps, AdAsset } from "../../../types/Post";
-import ImageRegionSelector, { CropRegion } from './ImageRegionSelector';
+import ImageRegionSelector, { CropRegion } from './Imageregionselector';
 
 const PRESET_COLORS = [
   '#6366f1', '#8b5cf6', '#ec4899', '#f59e0b',
