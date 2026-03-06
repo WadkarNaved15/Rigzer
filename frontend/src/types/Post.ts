@@ -122,6 +122,8 @@ export interface AdModelPost {
   bgMode: 'color' | 'image';
   bgColor?: string | null;
   bgImageUrl?: string | null;
+  bgImagePosition?: string | null; // e.g. "40% 60%"
+  bgImageSize?: string | null; // e.g. "cover", "contain", "100px 200px"
   asset: AdModelAsset;
 }
 

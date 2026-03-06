@@ -259,9 +259,19 @@ const AdModelAssetSchema = new mongoose.Schema(
   { _id: false }
 );
 
+// ── Diff: add bgImagePosition to AdModelPostSchema in Allposts.js ──────────
+//
+// In AdModelPostSchema, after bgImageUrl, add:
+//
+//   bgImagePosition: {
+//     type: String,
+//     default: '50% 50%',   // CSS backgroundPosition value, e.g. "40% 60%"
+//   },
+//
+// Full updated AdModelPostSchema:
+
 const AdModelPostSchema = new mongoose.Schema(
   {
-    /** Brand / creator identity */
     brandName: {
       type: String,
       trim: true,
@@ -272,24 +282,29 @@ const AdModelPostSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
-
-    /** Background configuration */
     bgMode: {
       type: String,
-      enum: ["color", "image"],
+      enum: ['color', 'image'],
       required: true,
-      default: "color",
+      default: 'color',
     },
     bgColor: {
       type: String,
-      default: "#6366f1", // indigo fallback
+      default: '#6366f1',
     },
     bgImageUrl: {
       type: String,
       default: null,
     },
-
-    /** Single model asset — enforced at 1 item max */
+    /** CSS backgroundPosition string, e.g. "40% 60%". Only meaningful when bgMode === 'image'. */
+    bgImagePosition: {
+      type: String,
+      default: '50% 50%',
+    },
+    bgImageSize: {
+      type: String,
+      default: 'cover', // e.g. "cover", "contain", "100px 200px"
+    },
     asset: {
       type: AdModelAssetSchema,
       required: true,

@@ -2,6 +2,7 @@ import React, { useState, useRef, ChangeEvent } from 'react';
 import { X, Image as ImageIcon, Upload, Palette, ArrowLeft } from 'lucide-react';
 import '@google/model-viewer';
 import type { AdModelPostFormProps, AdAsset } from "../../../types/Post";
+import ImageRegionSelector, { CropRegion } from './Imageregionselector';
 
 const PRESET_COLORS = [
   '#6366f1', '#8b5cf6', '#ec4899', '#f59e0b',
@@ -20,6 +21,12 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
   const [bgColor, setBgColor] = useState('transparent');
   const [bgImage, setBgImage] = useState<string | null>(null);
   const [bgImageFile, setBgImageFile] = useState<File | null>(null);
+  // ── NEW: focal / position / zoom state ───────────────────────────────────
+  const [bgImagePosition, setBgImagePosition] = useState<string>('50% 50%');
+  const [bgImageSize, setBgImageSize] = useState<string>('cover');
+  const [bgFocal, setBgFocal] = useState<{ x: number; y: number }>({ x: 0.5, y: 0.5 });
+  const [bgZoom, setBgZoom] = useState<number>(1);
+  // ─────────────────────────────────────────────────────────────────────────
   const [logoImage, setLogoImage] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [bgMode, setBgMode] = useState<'color' | 'image'>('color');
@@ -51,6 +58,11 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
     setBgImageFile(file);
     setBgImage(URL.createObjectURL(file));
     setBgMode('image');
+    // reset focal to centre on new image
+    setBgFocal({ x: 0.5, y: 0.5 });
+    setBgImagePosition('50% 50%');
+    setBgImageSize('cover');
+    setBgZoom(1);
     e.target.value = '';
   };
 
@@ -62,13 +74,29 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
     e.target.value = '';
   };
 
+  const handleRegionChange = (region: CropRegion) => {
+    setBgImagePosition(region.backgroundPosition);
+    setBgImageSize(region.backgroundSize);
+    setBgFocal({ x: region.focalX, y: region.focalY });
+    setBgZoom(region.zoom);
+  };
+
   // ── S3 upload ─────────────────────────────────────────────────────────────
   const uploadToS3 = async (file: File, category: string, onProgress?: (p: number) => void): Promise<{ fileUrl: string; key: string }> => {
     const res = await fetch(`${BACKEND_URL}/api/upload/presigned-url`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fileName: file.name, fileType: file.type || 'model/gltf-binary', category , fileSize: file.size }),
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName: file.name,
+        fileType: file.type || 'model/gltf-binary',
+        category,
+        fileSize: file.size,
+      }),
     });
-    if (!res.ok) throw new Error('Failed to get upload URL');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Failed to get upload URL');
+    }
     const { uploadUrl, key } = await res.json();
     const fileUrl = `${import.meta.env.VITE_GAMES_STORAGE_PRIVATE_CLOUDFRONT}/${key}`;
     await new Promise<void>((resolve, reject) => {
@@ -118,6 +146,9 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
             brandName, bgMode,
             bgColor: bgMode === 'color' ? bgColor : undefined,
             bgImageUrl: bgMode === 'image' ? bgImageUrl : undefined,
+            // ── NEW: persist the chosen focal position + zoom ──
+            bgImagePosition: bgMode === 'image' ? bgImagePosition : undefined,
+            bgImageSize: bgMode === 'image' ? bgImageSize : undefined,
             logoUrl,
             asset: { name: asset.name, originalUrl: modelUrl, originalKey: mKey },
           },
@@ -142,27 +173,24 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
   };
 
   // ── Preview styles ────────────────────────────────────────────────────────
-
-  // Outer wrapper: image mode = position:relative (layers handle bg), color = gradient
   const glassOuterStyle: React.CSSProperties = isImage
     ? { position: 'relative' }
-    : { background: `linear-gradient(145deg, rgba(${accentRgb},0.12) 0%, rgba(${accentRgb},0.22) 100%)` };
+    : { background: bgColor };
 
-  // Inner glass card: image mode = the card itself has the bg image + frosted overlay
+  // Use bgImagePosition in the card so the live preview reflects the chosen region
   const glassCardStyle: React.CSSProperties = isImage
     ? {
         backgroundImage: `url(${bgImage})`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
+        backgroundSize: bgImageSize,
+        backgroundPosition: bgImagePosition,
+        backgroundRepeat: 'no-repeat',
         border: '1px solid rgba(255,255,255,0.18)',
         boxShadow: '0 8px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12)',
       }
     : {
-        background: `linear-gradient(160deg, rgba(${accentRgb},0.18) 0%, rgba(${accentRgb},0.08) 100%)`,
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        border: `1px solid rgba(${accentRgb},0.25)`,
-        boxShadow: `0 8px 32px rgba(${accentRgb ?? '0,0,0'},0.15), inset 0 1px 0 rgba(255,255,255,0.08)`,
+        background: 'rgba(0,0,0,0.28)',
+        border: `1px solid rgba(${accentRgb},0.3)`,
+        boxShadow: `0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)`,
       };
 
   const glassPillStyle: React.CSSProperties = {
@@ -177,13 +205,8 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
     ? { background: `rgba(${accentRgb},0.25)`, border: `1px solid rgba(${accentRgb},0.4)`, color: bgColor }
     : { background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: 'rgba(255,255,255,0.7)' };
 
-  const glassModelAreaStyle: React.CSSProperties = {
-    background: isImage
-      ? 'rgba(0,0,0,0.15)'
-      : `radial-gradient(ellipse at center, rgba(${accentRgb},0.18) 0%, rgba(${accentRgb},0.06) 70%)`,
-  };
+  const glassModelAreaStyle: React.CSSProperties = { background: 'transparent' };
 
-  // Transparent pill style (for ExePost-style preview)
   const transparentPillStyle: React.CSSProperties = {
     background: 'rgba(0,0,0,0.06)',
     backdropFilter: 'blur(10px)',
@@ -320,9 +343,10 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
                 <div className="h-14 rounded-xl border border-gray-200 dark:border-zinc-700 overflow-hidden flex items-center justify-center"
                   style={isTransparent
                     ? { background: 'repeating-conic-gradient(#e5e7eb 0% 25%, white 0% 50%) 0 0 / 14px 14px' }
-                    : { background: `linear-gradient(135deg, ${bgColor}40, ${bgColor}90)` }
+                    : { background: bgColor }
                   }>
-                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-black/10 backdrop-blur-sm text-gray-700">
+                  <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full text-white"
+                    style={{ background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}>
                     {isTransparent ? 'Transparent — matches normal post style' : bgColor}
                   </span>
                 </div>
@@ -333,12 +357,25 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
               <div className="flex flex-col gap-3">
                 <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Background Image</label>
                 {bgImage ? (
-                  <div className="relative rounded-xl overflow-hidden border border-gray-200 dark:border-zinc-700 aspect-video">
-                    <img src={bgImage} alt="Background" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center opacity-0 hover:opacity-100 transition">
-                      <button onClick={() => { setBgImage(null); setBgImageFile(null); setBgMode('color'); }}
-                        className="px-3 py-1.5 bg-white/90 text-red-500 text-xs font-bold rounded-full">Remove</button>
+                  <div className="flex flex-col gap-3">
+                    {/* Remove button */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-gray-400 truncate max-w-[180px]">{bgImageFile?.name}</span>
+                      <button
+                        onClick={() => { setBgImage(null); setBgImageFile(null); setBgMode('color'); setBgImagePosition('50% 50%'); setBgImageSize('cover'); setBgFocal({ x: 0.5, y: 0.5 }); setBgZoom(1); }}
+                        className="text-xs text-red-400 hover:text-red-500 font-semibold"
+                      >
+                        Remove
+                      </button>
                     </div>
+
+                    {/* ── Region selector ── */}
+                    <ImageRegionSelector
+                      imageSrc={bgImage}
+                      onChange={handleRegionChange}
+                      initialFocal={bgFocal}
+                      initialZoom={bgZoom}
+                    />
                   </div>
                 ) : (
                   <div onClick={() => bgImageInputRef.current?.click()}
@@ -352,14 +389,11 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
           </div>
         )}
 
-        {/* ══════════════════════════════════════════════════════════════════
-            LIVE PREVIEW
-        ══════════════════════════════════════════════════════════════════ */}
+        {/* ── LIVE PREVIEW ── */}
         <div className="px-4 pb-4">
           <p className="text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-widest mb-2">Live Preview</p>
 
           {isTransparent ? (
-            /* ── TRANSPARENT: ExePost-style ── */
             <div className="relative w-full border border-gray-200 dark:border-gray-700 bg-[#F9FAFB] dark:bg-[#191919] rounded-xl overflow-hidden">
               <div className="p-4">
                 <div className="flex items-center justify-between mb-3">
@@ -393,64 +427,41 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
                 </div>
               </div>
             </div>
-
           ) : (
-            /* ── COLOR / IMAGE: glassmorphism ── */
             <div className="relative w-full overflow-hidden" style={glassOuterStyle}>
-
-              {/* Outer blurred image — low opacity, glass feel */}
               {isImage && (
                 <>
                   <div className="absolute inset-0 pointer-events-none" style={{
                     backgroundImage: `url(${bgImage})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
+                    backgroundSize: bgImageSize,
+                    backgroundPosition: bgImagePosition,
+                    backgroundRepeat: 'no-repeat',
                     filter: 'blur(28px)',
                     transform: 'scale(1.12)',
                     opacity: 0.45,
                   }} />
-                  {/* Dark tint over outer blurred bg */}
-                  <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(5,5,15,0.35)' }} />
+                  <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(0,0,0,0.15)' }} />
                 </>
               )}
-
-              {/* Glass card — m-3 gives the floating gap from article edges */}
               <div className="relative z-10 m-3 rounded-2xl overflow-hidden" style={glassCardStyle}>
-
-                {/* Frosted glass overlay on top of the card's bg image */}
                 {isImage && (
-                  <div className="absolute inset-0 pointer-events-none" style={{
-                    background: 'rgba(8,8,20,0.42)',
-                    backdropFilter: 'blur(2px)',
-                    WebkitBackdropFilter: 'blur(2px)',
-                  }} />
+                  <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(0,0,0,0.38)' }} />
                 )}
-
                 <div className="relative z-10">
-                  {/* Floating pill */}
                   <div className="flex items-center justify-between px-4 pt-4 pb-1">
                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-full" style={glassPillStyle}>
                       {logoImage ? (
                         <img src={logoImage} alt="Logo" className="w-6 h-6 rounded-full object-cover" />
                       ) : (
                         <div className="w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-black"
-                          style={accentRgb
-                            ? { background: `rgba(${accentRgb},0.35)`, color: bgColor }
-                            : { background: 'rgba(255,255,255,0.2)', color: 'white' }
-                          }>
+                          style={accentRgb ? { background: `rgba(${accentRgb},0.35)`, color: bgColor } : { background: 'rgba(255,255,255,0.2)', color: 'white' }}>
                           {(brandName || 'B').charAt(0).toUpperCase()}
                         </div>
                       )}
-                      <span className="text-white text-xs font-bold tracking-wide drop-shadow-sm">
-                        {brandName || 'Brand Name'}
-                      </span>
+                      <span className="text-white text-xs font-bold tracking-wide drop-shadow-sm">{brandName || 'Brand Name'}</span>
                     </div>
-                    <div className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest" style={glassAdBadgeStyle}>
-                      Ad
-                    </div>
+                    <div className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-widest" style={glassAdBadgeStyle}>Ad</div>
                   </div>
-
-                  {/* Model area */}
                   <div className="relative w-full overflow-hidden" style={{ ...glassModelAreaStyle, height: '340px' }}>
                     {accentRgb && (
                       <div className="absolute inset-0 pointer-events-none"
@@ -458,8 +469,7 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
                     )}
                     {asset ? (
                       // @ts-ignore
-                      <model-viewer src={asset.previewUrl} camera-controls auto-rotate
-                        exposure="1.15" environment-image="neutral" shadow-intensity="0.8"
+                      <model-viewer src={asset.previewUrl} camera-controls auto-rotate exposure="1.15" environment-image="neutral" shadow-intensity="0.8"
                         style={{ width: '100%', height: '340px', backgroundColor: 'transparent' }} />
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center gap-2 opacity-25">
@@ -470,30 +480,22 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
                     <div className="absolute bottom-0 left-0 right-0 h-12 pointer-events-none"
                       style={{ background: isImage ? 'linear-gradient(to top, rgba(0,0,0,0.3), transparent)' : `linear-gradient(to top, rgba(${accentRgb ?? '0,0,0'},0.12), transparent)` }} />
                   </div>
-
-                  {description && (
-                    <div className="px-4 py-3">
-                      <p className="text-white/75 text-sm leading-relaxed font-light">{description}</p>
-                    </div>
-                  )}
-
                   <div className="h-0.5 w-full"
                     style={{ background: accentRgb
                       ? `linear-gradient(90deg, transparent, rgba(${accentRgb},0.5), rgba(${accentRgb},0.25), transparent)`
                       : 'linear-gradient(90deg, transparent, rgba(255,255,255,0.25), rgba(255,255,255,0.12), transparent)'
                     }} />
                 </div>
-                                  {description && (
-                    <div className="px-4 py-3">
-                      <p className="text-white/75 text-sm leading-relaxed font-light">{description}</p>
-                    </div>
-                  )}
               </div>
+              {description && (
+                <div className="px-4 py-3">
+                  <p className="text-white/75 text-sm leading-relaxed font-light">{description}</p>
+                </div>
+              )}
             </div>
           )}
         </div>
 
-        {/* Upload progress */}
         {asset?.status === 'uploading' && (
           <div className="mx-4 mb-4 p-3 rounded-xl border border-indigo-100 dark:border-indigo-900/30 bg-indigo-50/50 dark:bg-indigo-900/10">
             <div className="flex justify-between items-center mb-2">
@@ -514,7 +516,6 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
         )}
       </div>
 
-      {/* Hidden inputs */}
       <input ref={modelInputRef} type="file" accept=".glb" className="hidden" onChange={handleModelFile} />
       <input ref={bgImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleBgImage} />
       <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogo} />
