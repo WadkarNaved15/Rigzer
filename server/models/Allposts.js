@@ -301,6 +301,10 @@ const AdModelPostSchema = new mongoose.Schema(
       type: String,
       default: '50% 50%',
     },
+    bgImageSize: {
+      type: String,
+      default: 'cover', // e.g. "cover", "contain", "100px 200px"
+    },
     asset: {
       type: AdModelAssetSchema,
       required: true,

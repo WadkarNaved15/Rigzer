@@ -2,7 +2,7 @@ import React, { useState, useRef, ChangeEvent } from 'react';
 import { X, Image as ImageIcon, Upload, Palette, ArrowLeft } from 'lucide-react';
 import '@google/model-viewer';
 import type { AdModelPostFormProps, AdAsset } from "../../../types/Post";
-import ImageRegionSelector, { CropRegion } from './Imageregionselector';
+import ImageRegionSelector, { CropRegion } from './ImageRegionSelector';
 
 const PRESET_COLORS = [
   '#6366f1', '#8b5cf6', '#ec4899', '#f59e0b',
@@ -21,9 +21,11 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
   const [bgColor, setBgColor] = useState('transparent');
   const [bgImage, setBgImage] = useState<string | null>(null);
   const [bgImageFile, setBgImageFile] = useState<File | null>(null);
-  // ── NEW: focal / position state ───────────────────────────────────────────
+  // ── NEW: focal / position / zoom state ───────────────────────────────────
   const [bgImagePosition, setBgImagePosition] = useState<string>('50% 50%');
+  const [bgImageSize, setBgImageSize] = useState<string>('cover');
   const [bgFocal, setBgFocal] = useState<{ x: number; y: number }>({ x: 0.5, y: 0.5 });
+  const [bgZoom, setBgZoom] = useState<number>(1);
   // ─────────────────────────────────────────────────────────────────────────
   const [logoImage, setLogoImage] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
@@ -59,6 +61,8 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
     // reset focal to centre on new image
     setBgFocal({ x: 0.5, y: 0.5 });
     setBgImagePosition('50% 50%');
+    setBgImageSize('cover');
+    setBgZoom(1);
     e.target.value = '';
   };
 
@@ -72,7 +76,9 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
 
   const handleRegionChange = (region: CropRegion) => {
     setBgImagePosition(region.backgroundPosition);
+    setBgImageSize(region.backgroundSize);
     setBgFocal({ x: region.focalX, y: region.focalY });
+    setBgZoom(region.zoom);
   };
 
   // ── S3 upload ─────────────────────────────────────────────────────────────
@@ -140,8 +146,9 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
             brandName, bgMode,
             bgColor: bgMode === 'color' ? bgColor : undefined,
             bgImageUrl: bgMode === 'image' ? bgImageUrl : undefined,
-            // ── NEW: persist the chosen focal position ──
+            // ── NEW: persist the chosen focal position + zoom ──
             bgImagePosition: bgMode === 'image' ? bgImagePosition : undefined,
+            bgImageSize: bgMode === 'image' ? bgImageSize : undefined,
             logoUrl,
             asset: { name: asset.name, originalUrl: modelUrl, originalKey: mKey },
           },
@@ -174,8 +181,9 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
   const glassCardStyle: React.CSSProperties = isImage
     ? {
         backgroundImage: `url(${bgImage})`,
-        backgroundSize: 'cover',
-        backgroundPosition: bgImagePosition,   // ← use focal position
+        backgroundSize: bgImageSize,
+        backgroundPosition: bgImagePosition,
+        backgroundRepeat: 'no-repeat',
         border: '1px solid rgba(255,255,255,0.18)',
         boxShadow: '0 8px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12)',
       }
@@ -354,7 +362,7 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] text-gray-400 truncate max-w-[180px]">{bgImageFile?.name}</span>
                       <button
-                        onClick={() => { setBgImage(null); setBgImageFile(null); setBgMode('color'); setBgImagePosition('50% 50%'); setBgFocal({ x: 0.5, y: 0.5 }); }}
+                        onClick={() => { setBgImage(null); setBgImageFile(null); setBgMode('color'); setBgImagePosition('50% 50%'); setBgImageSize('cover'); setBgFocal({ x: 0.5, y: 0.5 }); setBgZoom(1); }}
                         className="text-xs text-red-400 hover:text-red-500 font-semibold"
                       >
                         Remove
@@ -366,6 +374,7 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
                       imageSrc={bgImage}
                       onChange={handleRegionChange}
                       initialFocal={bgFocal}
+                      initialZoom={bgZoom}
                     />
                   </div>
                 ) : (
@@ -424,8 +433,9 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
                 <>
                   <div className="absolute inset-0 pointer-events-none" style={{
                     backgroundImage: `url(${bgImage})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: bgImagePosition,   // ← focal position on blurred outer bg too
+                    backgroundSize: bgImageSize,
+                    backgroundPosition: bgImagePosition,
+                    backgroundRepeat: 'no-repeat',
                     filter: 'blur(28px)',
                     transform: 'scale(1.12)',
                     opacity: 0.45,

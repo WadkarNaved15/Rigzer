@@ -23,10 +23,10 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
 
   if (!adModelPost) return null;
 
-  const { brandName, logoUrl, bgMode, bgColor, bgImageUrl, bgImagePosition, asset } = adModelPost;
+  const { brandName, logoUrl, bgMode, bgColor, bgImageUrl, bgImagePosition, bgImageSize, asset } = adModelPost;
 
-  // Fallback to centre if no position stored (backwards compat with older posts)
   const resolvedBgPos = bgImagePosition ?? '50% 50%';
+  const resolvedBgSize = bgImageSize ?? 'cover';
 
   const modelUrl =
     asset?.optimization?.status === 'completed' && asset.optimizedUrl
@@ -122,8 +122,9 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
   const glassCardBase: React.CSSProperties = isImage
     ? {
         backgroundImage: `url(${bgImageUrl})`,
-        backgroundSize: 'cover',
-        backgroundPosition: resolvedBgPos,   // ← use stored focal position
+        backgroundSize: resolvedBgSize,
+        backgroundPosition: resolvedBgPos,
+        backgroundRepeat: 'no-repeat',
         border: '1px solid rgba(255,255,255,0.18)',
         boxShadow: '0 8px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12)',
       }
@@ -162,8 +163,9 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
         <>
           <div className="absolute inset-0 pointer-events-none" style={{
             backgroundImage: `url(${bgImageUrl})`,
-            backgroundSize: 'cover',
-            backgroundPosition: resolvedBgPos,   // ← same focal on blurred outer
+            backgroundSize: resolvedBgSize,
+            backgroundPosition: resolvedBgPos,
+            backgroundRepeat: 'no-repeat',
             filter: 'blur(28px)',
             transform: 'scale(1.12)',
             opacity: 0.45,
