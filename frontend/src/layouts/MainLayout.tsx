@@ -14,7 +14,7 @@ function MainLayout() {
   const location = useLocation();
   const { canvasId } = useParams();
 
-  const isProfilePage = location.pathname === "/profile";
+  const isProfilePage = location.pathname.startsWith("/profile");
   const isArticlePage = location.pathname.startsWith("/articles/");
   const isCreatePage = location.pathname === "/create";
   const isPostDetailsPage = location.pathname.startsWith("/post/");
