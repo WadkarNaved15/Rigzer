@@ -124,6 +124,7 @@ export interface AdModelPost {
   bgImageUrl?: string | null;
   bgImagePosition?: string | null; // e.g. "40% 60%"
   bgImageSize?: string | null; // e.g. "cover", "contain", "100px 200px"
+  overlayOpacity: number; // 0-80
   asset: AdModelAsset;
 }
 

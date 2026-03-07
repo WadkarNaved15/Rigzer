@@ -2,7 +2,7 @@ import React, { useState, useRef, ChangeEvent } from 'react';
 import { X, Image as ImageIcon, Upload, Palette, ArrowLeft } from 'lucide-react';
 import '@google/model-viewer';
 import type { AdModelPostFormProps, AdAsset } from "../../../types/Post";
-import ImageRegionSelector, { CropRegion } from './Imageregionselector';
+import ImageRegionSelector, { CropRegion } from './ImageRegionSelector';
 
 const PRESET_COLORS = [
   '#6366f1', '#8b5cf6', '#ec4899', '#f59e0b',
@@ -21,15 +21,14 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
   const [bgColor, setBgColor] = useState('transparent');
   const [bgImage, setBgImage] = useState<string | null>(null);
   const [bgImageFile, setBgImageFile] = useState<File | null>(null);
-  // ── NEW: focal / position / zoom state ───────────────────────────────────
+  const [logoImage, setLogoImage] = useState<string | null>(null);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [bgImagePosition, setBgImagePosition] = useState<string>('50% 50%');
   const [bgImageSize, setBgImageSize] = useState<string>('cover');
   const [bgFocal, setBgFocal] = useState<{ x: number; y: number }>({ x: 0.5, y: 0.5 });
   const [bgZoom, setBgZoom] = useState<number>(1);
-  // ─────────────────────────────────────────────────────────────────────────
-  const [logoImage, setLogoImage] = useState<string | null>(null);
-  const [logoFile, setLogoFile] = useState<File | null>(null);
   const [bgMode, setBgMode] = useState<'color' | 'image'>('color');
+  const [overlayOpacity, setOverlayOpacity] = useState(30);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingMetadata, setIsSavingMetadata] = useState(false);
   const [activeTab, setActiveTab] = useState<'model' | 'brand' | 'background'>('model');
@@ -58,7 +57,6 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
     setBgImageFile(file);
     setBgImage(URL.createObjectURL(file));
     setBgMode('image');
-    // reset focal to centre on new image
     setBgFocal({ x: 0.5, y: 0.5 });
     setBgImagePosition('50% 50%');
     setBgImageSize('cover');
@@ -143,10 +141,9 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
         body: JSON.stringify({
           type: 'ad_model_post', description,
           adModelPost: {
-            brandName, bgMode,
+            brandName, bgMode, overlayOpacity,
             bgColor: bgMode === 'color' ? bgColor : undefined,
             bgImageUrl: bgMode === 'image' ? bgImageUrl : undefined,
-            // ── NEW: persist the chosen focal position + zoom ──
             bgImagePosition: bgMode === 'image' ? bgImagePosition : undefined,
             bgImageSize: bgMode === 'image' ? bgImageSize : undefined,
             logoUrl,
@@ -177,7 +174,6 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
     ? { position: 'relative' }
     : { background: bgColor };
 
-  // Use bgImagePosition in the card so the live preview reflects the chosen region
   const glassCardStyle: React.CSSProperties = isImage
     ? {
         backgroundImage: `url(${bgImage})`,
@@ -188,7 +184,7 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
         boxShadow: '0 8px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12)',
       }
     : {
-        background: 'rgba(0,0,0,0.28)',
+        background: `rgba(0,0,0,${overlayOpacity / 100})`,
         border: `1px solid rgba(${accentRgb},0.3)`,
         boxShadow: `0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)`,
       };
@@ -214,6 +210,16 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
     border: '1px solid rgba(0,0,0,0.08)',
     boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
   };
+
+const getContrastText = (hex: string) => {
+  const r = parseInt(hex.substring(1, 3), 16);
+  const g = parseInt(hex.substring(3, 5), 16);
+  const b = parseInt(hex.substring(5, 7), 16);
+
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
+
+  return luminance > 186 ? "#000000" : "#ffffff";
+};
 
   return (
     <div className="w-full max-w-2xl mx-auto flex flex-col rounded-2xl overflow-hidden border border-gray-200 dark:border-zinc-800 shadow-lg bg-white dark:bg-[#191919]">
@@ -273,7 +279,7 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
                   <Upload size={28} />
                 </div>
                 <p className="text-gray-500 dark:text-gray-400 font-medium text-sm">Upload one .glb model</p>
-                <p className="text-gray-400 dark:text-gray-600 text-xs">Single model only • GLB format</p>
+                <p className="text-gray-400 dark:text-gray-600 text-xs">Single model only · GLB format</p>
               </div>
             )}
             <textarea
@@ -350,6 +356,37 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
                     {isTransparent ? 'Transparent — matches normal post style' : bgColor}
                   </span>
                 </div>
+                {/* ── Dark overlay slider ── */}
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dark Overlay</label>
+                    <span className="text-xs font-bold text-indigo-500 tabular-nums">{overlayOpacity}%</span>
+                  </div>
+                  <div className="relative h-5 flex items-center">
+                    {/* Styled track */}
+                    <div className="absolute inset-y-0 flex items-center w-full pointer-events-none">
+                      <div className="w-full h-1.5 rounded-full bg-gray-200 dark:bg-zinc-700 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-indigo-500 transition-all"
+                          style={{ width: `${(overlayOpacity / 80) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                    {/* Invisible native input on top for interaction */}
+                    <input
+                      type="range" min={0} max={80} step={1}
+                      value={overlayOpacity}
+                      onChange={(e) => setOverlayOpacity(Number(e.target.value))}
+                      className="relative w-full opacity-0 cursor-pointer h-5 z-10"
+                    />
+                    {/* Custom thumb */}
+                    <div
+                      className="absolute w-4 h-4 rounded-full bg-indigo-500 shadow-md border-2 border-white pointer-events-none z-20 transition-all"
+                      style={{ left: `calc(${(overlayOpacity / 80) * 100}% - ${(overlayOpacity / 80) * 16}px)` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-gray-400">0% = exact original colour · 80% = darkest</p>
+                </div>
               </div>
             )}
 
@@ -358,7 +395,6 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
                 <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Background Image</label>
                 {bgImage ? (
                   <div className="flex flex-col gap-3">
-                    {/* Remove button */}
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] text-gray-400 truncate max-w-[180px]">{bgImageFile?.name}</span>
                       <button
@@ -368,8 +404,6 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
                         Remove
                       </button>
                     </div>
-
-                    {/* ── Region selector ── */}
                     <ImageRegionSelector
                       imageSrc={bgImage}
                       onChange={handleRegionChange}
@@ -384,6 +418,38 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
                     <p className="text-xs text-gray-400 font-medium">Upload background image</p>
                   </div>
                 )}
+
+                {/* ── Dark overlay slider ── */}
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Dark Overlay</label>
+                    <span className="text-xs font-bold text-indigo-500 tabular-nums">{overlayOpacity}%</span>
+                  </div>
+                  <div className="relative h-5 flex items-center">
+                    {/* Styled track */}
+                    <div className="absolute inset-y-0 flex items-center w-full pointer-events-none">
+                      <div className="w-full h-1.5 rounded-full bg-gray-200 dark:bg-zinc-700 overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-indigo-500 transition-all"
+                          style={{ width: `${(overlayOpacity / 80) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                    {/* Invisible native input on top for interaction */}
+                    <input
+                      type="range" min={0} max={80} step={1}
+                      value={overlayOpacity}
+                      onChange={(e) => setOverlayOpacity(Number(e.target.value))}
+                      className="relative w-full opacity-0 cursor-pointer h-5 z-10"
+                    />
+                    {/* Custom thumb */}
+                    <div
+                      className="absolute w-4 h-4 rounded-full bg-indigo-500 shadow-md border-2 border-white pointer-events-none z-20 transition-all"
+                      style={{ left: `calc(${(overlayOpacity / 80) * 100}% - ${(overlayOpacity / 80) * 16}px)` }}
+                    />
+                  </div>
+                  <p className="text-[10px] text-gray-400">0% = exact original colour · 80% = darkest</p>
+                </div>
               </div>
             )}
           </div>
@@ -440,12 +506,14 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
                     transform: 'scale(1.12)',
                     opacity: 0.45,
                   }} />
-                  <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(0,0,0,0.15)' }} />
+                  <div className="absolute inset-0 pointer-events-none" style={{ background: `rgba(0,0,0,${overlayOpacity / 100 * 0.4})` }} />
                 </>
               )}
               <div className="relative z-10 m-3 rounded-2xl overflow-hidden" style={glassCardStyle}>
                 {isImage && (
-                  <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(0,0,0,0.38)' }} />
+                  <div className="absolute inset-0 pointer-events-none" style={{
+                    background: `rgba(0,0,0,${overlayOpacity / 100})`,
+                  }} />
                 )}
                 <div className="relative z-10">
                   <div className="flex items-center justify-between px-4 pt-4 pb-1">
@@ -482,16 +550,35 @@ const AdModelPostForm: React.FC<AdModelPostFormProps> = ({ onCancel, onBack }) =
                   </div>
                   <div className="h-0.5 w-full"
                     style={{ background: accentRgb
-                      ? `linear-gradient(90deg, transparent, rgba(${accentRgb},0.5), rgba(${accentRgb},0.25), transparent)`
+                      ? `linear-gradient(90deg, transparent, rgba(${accentRgb},0.6), rgba(${accentRgb},0.3), transparent)`
                       : 'linear-gradient(90deg, transparent, rgba(255,255,255,0.25), rgba(255,255,255,0.12), transparent)'
                     }} />
                 </div>
               </div>
-              {description && (
-                <div className="px-4 py-3">
-                  <p className="text-white/75 text-sm leading-relaxed font-light">{description}</p>
-                </div>
-              )}
+              {/* Description sits outside the overflow-hidden card — matches AdModelPost */}
+{description && (
+  <div className="px-4 pb-3">
+    <p
+      className={`text-sm leading-relaxed font-light tracking-wide ${
+        isTransparent || bgMode === "image"
+          ? "text-black dark:text-white"
+          : ""
+      }`}
+      style={{
+        color:
+          bgMode === "color" && bgColor !== "transparent"
+            ? getContrastText(bgColor)
+            : undefined,
+        textShadow:
+          bgMode === "image"
+            ? "0 1px 2px rgba(0,0,0,0.6)"
+            : "none",
+      }}
+    >
+      {description}
+    </p>
+  </div>
+)}
             </div>
           )}
         </div>

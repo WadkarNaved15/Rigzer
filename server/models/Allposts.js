@@ -305,6 +305,12 @@ const AdModelPostSchema = new mongoose.Schema(
       type: String,
       default: 'cover', // e.g. "cover", "contain", "100px 200px"
     },
+    overlayOpacity: {
+      type: Number,
+      default: 30,
+      min: 0,
+      max: 80,
+    },
     asset: {
       type: AdModelAssetSchema,
       required: true,

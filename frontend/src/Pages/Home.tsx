@@ -143,7 +143,7 @@ function Home() {
 
       {/* SEARCH FEED */}
       {showFilteredFeed ? (
-        <div className="w-full mt-4 flex flex-col">
+       <div className="w-full mt-4 flex flex-col md:px-0 px-0">
           <button
             onClick={() => {
               setShowFilteredFeed(false);
