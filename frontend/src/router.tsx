@@ -37,7 +37,7 @@ export const router = createBrowserRouter([
     children: [
       { path: "/", element: <Home /> },
       { path: "/post/:postId", element: <PostDetailsPage /> },
-      { path: "/profile", element: <ProfilePage /> },
+      { path: "/profile/:username", element: <ProfilePage /> },
       { path: "/articles/:canvasId", element: <ArticleOverlay /> },
       { path: "/create", element: <PostModal/> },
       { path: "/wishlist", element: <WishlistPage /> },

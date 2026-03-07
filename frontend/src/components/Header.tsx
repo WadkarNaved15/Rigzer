@@ -15,12 +15,13 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 interface User {
   _id: string;
   username: string;
+  avatar: string;
   // You can add more properties here as needed
 }
 
 export function Header() {
   // Correctly type the state with the new User interface
-  const { searchQuery,setSearchQuery, setSubmittedQuery, setShowFilteredFeed } = useSearch();
+  const { searchQuery, setSearchQuery, setSubmittedQuery, setShowFilteredFeed } = useSearch();
   const [suggestions, setSuggestions] = useState<User[]>([]);
   const { isDark, toggleTheme } = useTheme();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -29,7 +30,7 @@ export function Header() {
   // Fetch suggestions as user types
   useEffect(() => {
     const fetchSuggestions = async () => {
-      if (searchQuery.trim() === "") {
+      if (searchQuery.trim() === "" && searchQuery.trim().length < 2) {
         setSuggestions([]);
         return;
       }
@@ -45,13 +46,13 @@ export function Header() {
     const debounceTimer = setTimeout(fetchSuggestions, 300);
     return () => clearTimeout(debounceTimer);
   }, [searchQuery]);
- useEffect(() => {
-  const handleScroll = () => setIsScrolled(window.scrollY > 10);
-  window.addEventListener("scroll", handleScroll);
-  return () => window.removeEventListener("scroll", handleScroll);
-}, []);
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 10);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
- // const handleSearch = (e: React.FormEvent) => {
+  // const handleSearch = (e: React.FormEvent) => {
   //   e.preventDefault();
   //   if (searchQuery.trim() === "") return;
   //   console.log("Searching for:", searchQuery);
@@ -65,18 +66,18 @@ export function Header() {
     }
   };
 
-return (
+  return (
     <header className={`sticky top-0 z-50 h-[50px] transition-all duration-300 border-b 
       border-gray-200 dark:border-white/10 
-      ${isScrolled 
-        ? "bg-white/30 dark:bg-[#1e1e1e]/70 backdrop-blur-md shadow-sm" 
+      ${isScrolled
+        ? "bg-white/30 dark:bg-[#1e1e1e]/70 backdrop-blur-md shadow-sm"
         : "bg-white/15 dark:bg-[#1e1e1e]/40 backdrop-blur-sm"
       }`}
     >
       <div className=" mx-auto px-4 sm:px-6 lg:px-8 h-full">
         {/* Changed flex to grid with 3 columns */}
         <div className="grid grid-cols-3 items-center h-full">
-          
+
           {/* 1. Left Section - Empty or placeholder to balance the grid */}
           <div className="flex items-center">
             {/* You can put a menu icon here later if needed */}
@@ -110,13 +111,13 @@ return (
                 className="h-12 w-auto object-contain"
               />
             </Link> */}
-  <Link
-    to="/"
-    onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-    className="group relative flex items-center justify-center"
-  >
-<Logo
-  className="
+            <Link
+              to="/"
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+              className="group relative flex items-center justify-center"
+            >
+              <Logo
+                className="
     h-12 w-auto
     transition-all duration-300
     hover:-translate-y-[1px]
@@ -125,8 +126,8 @@ return (
   dark:text-[#29665a]
 
   "
-/>
-  </Link>
+              />
+            </Link>
           </div>
 
           {/* 3. Right Section - Search & Theme */}
@@ -142,18 +143,28 @@ return (
                   placeholder="Search"
                   className="w-full pl-9 pr-4 py-1.5 text-sm rounded-full bg-gray-100 dark:bg-[#191716] dark:text-white border-none focus:ring-2 focus:ring-purple-500"
                 />
-                
+
                 {/* Suggestions dropdown (restored logic) */}
                 {suggestions.length > 0 && (
                   <ul className="absolute z-10 mt-2 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl max-h-60 overflow-y-auto">
                     {suggestions.map((user: User) => (
-                      <li
+                      <Link
                         key={user._id}
-                        className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 cursor-pointer text-sm"
-                        onClick={() => setSearchQuery(user.username)}
+                        to={`/profile/${user.username}`}
+                        onClick={() => setSuggestions([])}
+                        className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800"
                       >
-                        {user.username}
-                      </li>
+                        <img
+                          src={user.avatar || "/default_avatar.png"}
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+
+                        <div className="flex flex-col text-sm">
+                          <span className="font-medium flex items-center gap-1">
+                            {user.username}
+                          </span>
+                        </div>
+                      </Link>
                     ))}
                   </ul>
                 )}

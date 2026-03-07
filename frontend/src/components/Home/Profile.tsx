@@ -28,7 +28,7 @@ export default function ProfileCover({
   };
 
   const navItems = [
-    { icon: CircleUser, label: "Profile", action: () => navigate("/profile") },
+    { icon: CircleUser, label: "Profile", action: () => navigate(`/profile/${user?.username}`) },
     { icon: Bell, label: "Notifications", action: () => navigate("/notifications") },
     { icon: Bookmark, label: "Saved", action: onOpenWishlist },
     user

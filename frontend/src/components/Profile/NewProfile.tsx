@@ -1,5 +1,5 @@
 import React from "react";
-import { Star, Heart, Plus, Play, Image, Video, X, Settings, Youtube, Instagram } from "lucide-react";
+import { X, Youtube, Instagram } from "lucide-react";
 import FollowButton from "../FollowButton";
 import type { ArticleProps } from "../../types/Article";
 import FollowersList from "../FollowersList";
@@ -11,76 +11,70 @@ import type { ExePostProps, NormalPostProps } from "../../types/Post";
 import EditProfileModal from "./EditProfileModal";
 const NormalPostDetails = lazy(() => import("../../Pages/NormalPostDetails"));
 const PostDetails = lazy(() => import("../../Pages/PostDetail"));
+import { useParams } from "react-router-dom";
 import type { PostProps } from "../../types/Post";
 import { useUser } from "../../context/user";
 import axios from "axios";
 
-
+interface ProfileUser {
+  _id: string;
+  username: string;
+  avatar?: string;
+  banner?: string;
+  bio?: string;
+  socials?: {
+    twitter?: string;
+    youtube?: string;
+    instagram?: string;
+    steam?: string;
+    discord?: string;
+  };
+}
 const ProfilePage: React.FC = () => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [userPosts, setUserPosts] = useState<PostProps[]>([]);
-  const leftRef = useRef<HTMLDivElement>(null);
+  const { username } = useParams();
+  const [profileUser, setProfileUser] = useState<ProfileUser | null>(null);
   const [userArticles, setUserArticles] = useState<ArticleProps[]>([]);
-  const [loadingArticles, setLoadingArticles] = useState(false);
   const navigate = useNavigate();
   const [postDetailsOpen, setPostDetailsOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<PostProps | null>(null);
-  const rightRef = useRef<HTMLDivElement>(null);
   const isModelPostOpen = postDetailsOpen && selectedPost?.type === "model_post";
-  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const { user } = useUser();
-
   useEffect(() => {
-    if (!user?._id) return;
+  const fetchProfile = async () => {
+    if(!username) return;
+    try {
+      const res = await axios.get(
+        `${BACKEND_URL}/api/users/profile/${username}`
+      );
+      console.log("Profile data:", res.data);
+      setProfileUser(res.data.user);
+      setUserPosts(res.data.posts);
+      setUserArticles(res.data.articles);
 
-    const fetchUserPosts = async () => {
-      setLoadingPosts(true);
-      try {
-        const res = await axios.get(
-          `${BACKEND_URL}/api/posts/user_posts/${user._id}`
-        );
-        setUserPosts(res.data.posts);
-        console.log("User posts in ProfilePage:", res.data.posts);
-      } catch (err) {
-        console.error("Failed to load user posts", err);
-      } finally {
-        setLoadingPosts(false);
-      }
-    };
+    } catch (err) {
+      console.error("Failed to load profile", err);
+    }finally {
+      setLoading(false);
+    }
+  };
 
-    fetchUserPosts();
-  }, [user?._id, BACKEND_URL]);
+  fetchProfile();
+}, [username]);
   useLayoutEffect(() => {
-    window.scrollTo({ top: 0, behavior: "instant" });
-  }, []);
-  useEffect(() => {
-    if (!user?._id) return;
-
-    const fetchUserArticles = async () => {
-      setLoadingArticles(true);
-
-      try {
-        const res = await axios.get(
-          `${BACKEND_URL}/api/articles/published/user/${user._id}`
-        );
-
-        setUserArticles(res.data);
-        console.log("User articles:", res.data);
-      } catch (err) {
-        console.error("Failed to load user articles", err);
-      } finally {
-        setLoadingArticles(false);
-      }
-    };
-
-    fetchUserArticles();
-  }, [user?._id, BACKEND_URL]);
-
-  console.log("User in ProfilePage:", user);
+    window.scrollTo({ top: 0, behavior: "auto" });
+  }, [username]);
+  console.log("User in ProfilePage:", profileUser);
   console.log("User posts in ProfilePage:", userPosts);
-
+  console.log("User articles in ProfilePage:", userArticles);
+  if (!profileUser) {
+    return <div className="p-10 text-gray-400">Loading profile...</div>;
+  }
   return (
+
     <div className="relative pt-2 min-h-screen bg-gray-100 dark:bg-[#191919] text-gray-900 dark:text-white transition-colors duration-300">
       {/* Close Button */}
       <button
@@ -103,19 +97,22 @@ const ProfilePage: React.FC = () => {
             <div className="flex flex-col gap-1">
               <div className="flex items-center gap-5 flex-wrap">
                 <h1 className="text-4xl font-black tracking-tight text-gray-900 dark:text-white italic uppercase">
-                  {user?.username || "John Developer"}
+                  {profileUser?.username || "John Developer"}
                 </h1>
 
-                <button
-                  onClick={() => setEditOpen(true)}
-                  className="bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-[#191919] px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all hover:shadow-[0_0_15px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] active:scale-95">
-                  Edit Profile
-                </button>
+                {user?._id === profileUser?._id && (
+                  <button
+                    onClick={() => setEditOpen(true)}
+                    className="bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-[#191919] px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all hover:shadow-[0_0_15px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] active:scale-95"
+                  >
+                    Edit Profile
+                  </button>
+                )}
                 {editOpen && <EditProfileModal onClose={() => setEditOpen(false)} />}
               </div>
             </div>
             <div className="md:mr-20 lg:mr-8">
-              <FollowersList userId={user?._id} />
+              <FollowersList userId={profileUser?._id} />
             </div>
           </div>
         </div>
@@ -131,7 +128,7 @@ const ProfilePage: React.FC = () => {
                 {/* 1. Banner Section */}
                 <div className="relative h-32 md:h-48 shrink-0 overflow-hidden">
                   <img
-                    src={user?.banner || "https://fastly.picsum.photos/id/299/800/200.jpg?hmac=xMdRbjiNM_IogJDEgKIJ0GeCxZ8nwOGd5_Wf_ODZ94s"}
+                    src={profileUser?.banner || "https://fastly.picsum.photos/id/299/800/200.jpg?hmac=xMdRbjiNM_IogJDEgKIJ0GeCxZ8nwOGd5_Wf_ODZ94s"}
                     className="w-full h-full object-cover"
                     alt="Cover"
                   />
@@ -145,7 +142,7 @@ const ProfilePage: React.FC = () => {
                 <div className="relative px-8 -mt-14 md:-mt-20 flex flex-col items-center text-center md:flex-row md:items-end md:text-left gap-6 z-10">
                   <div className="relative group shrink-0">
                     <img
-                      src={user?.avatar || "/default_avatar.png"}
+                      src={profileUser?.avatar || "/default_avatar.png"}
                       className="relative w-28 h-28 md:w-40 md:h-40 rounded-full object-cover border-4 md:border-8 border-white dark:border-[#191919] shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer bg-white dark:bg-[#191919]"
                       alt="Avatar"
                     />
@@ -162,7 +159,7 @@ const ProfilePage: React.FC = () => {
                 {/* Content Body */}
                 <div className="p-8 flex-grow">
                   <div className="text-gray-500 dark:text-gray-500 text-sm">
-                    {user?.bio || "Additional profile content or bio details can go here."}
+                    {profileUser?.bio || "Additional profile content or bio details can go here."}
                   </div>
                 </div>
               </div>
@@ -175,7 +172,7 @@ const ProfilePage: React.FC = () => {
 
                 <div className="flex flex-col gap-4 w-full">
                   {/* X (Twitter) */}
-                  <a href="#" className="group relative flex items-center justify-center w-full h-12 
+                  <a href={profileUser?.socials?.twitter} className="group relative flex items-center justify-center w-full h-12 
         /* Light Mode: Solid Grayish -> Darker Gray */
         bg-gray-100 hover:bg-gray-200 border-gray-200 
         /* Dark Mode: Translucent -> Light Gray */
@@ -190,7 +187,7 @@ const ProfilePage: React.FC = () => {
                   </a>
 
                   {/* YouTube */}
-                  <a href="#" className="group relative flex items-center justify-center w-full h-12 
+                  <a href={profileUser?.socials?.youtube} className="group relative flex items-center justify-center w-full h-12 
         /* Light Mode: Red Tint -> Darker Red Tint */
         bg-red-50 hover:bg-red-100 border-red-100 
         /* Dark Mode: Translucent -> Darker */
@@ -203,7 +200,7 @@ const ProfilePage: React.FC = () => {
                   </a>
 
                   {/* Instagram */}
-                  <a href="#" className="group relative flex items-center justify-center w-full h-12 
+                  <a href={profileUser?.socials?.instagram} className="group relative flex items-center justify-center w-full h-12 
         /* Light Mode: Pink Tint -> Darker Pink Tint */
         bg-pink-50 hover:bg-pink-100 border-pink-100 
         /* Dark Mode */
@@ -216,7 +213,7 @@ const ProfilePage: React.FC = () => {
                   </a>
 
                   {/* Steam */}
-                  <a href="#" className="group relative flex items-center justify-center w-full h-12 
+                  <a href={profileUser?.socials?.steam} className="group relative flex items-center justify-center w-full h-12 
         /* Light Mode: Blue Tint -> Darker Blue Tint */
         bg-blue-50 hover:bg-blue-100 border-blue-100 
         /* Dark Mode */
@@ -231,7 +228,7 @@ const ProfilePage: React.FC = () => {
                   </a>
 
                   {/* Discord */}
-                  <a href="#" className="group relative flex items-center justify-center w-full h-12 
+                  <a href={profileUser?.socials?.discord} className="group relative flex items-center justify-center w-full h-12 
         /* Light Mode: Discord Blue Tint -> Darker Tint */
         bg-[#5865F2]/10 hover:bg-[#5865F2]/20 border-[#5865F2]/20 
         /* Dark Mode */
@@ -273,9 +270,9 @@ const ProfilePage: React.FC = () => {
             <>
               {/* LEFT COLUMN */}
               <div className="lg:col-span-7 flex flex-col w-full">
-                {loadingPosts && <div className="text-gray-400">Loading your posts...</div>}
+                {loading && <div className="text-gray-400">Loading your posts...</div>}
 
-                {!loadingPosts && userPosts.length === 0 && (
+                {!loading && userPosts.length === 0 && (
                   <div className="text-gray-400">You haven’t uploaded any posts yet.</div>
                 )}
 
@@ -315,20 +312,20 @@ const ProfilePage: React.FC = () => {
                     {/* USER ARTICLES SECTION */}
                     <div className="mb-10">
                       <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 mb-4">
-                        Articles by {user?.username || "User"}
+                        Articles by {profileUser?.username || "User"}
                       </h2>
 
-                      {loadingArticles && (
+                      {loading && (
                         <p className="text-gray-400 text-xs">Loading articles...</p>
                       )}
 
-                      {!loadingArticles && userArticles.length === 0 && (
+                      {!loading && userArticles.length === 0 && (
                         <p className="text-gray-500 text-xs">
                           No articles published yet.
                         </p>
                       )}
 
-                      {!loadingArticles && userArticles.length > 0 && (
+                      {!loading && userArticles.length > 0 && (
                         <div
                           className="flex gap-4 overflow-x-auto pb-3
                           [&::-webkit-scrollbar]:h-1
@@ -367,7 +364,7 @@ const ProfilePage: React.FC = () => {
                     </div>
 
                     <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 mb-8 text-center lg:text-left">
-                      Support {user?.username || "Author"}'s Causes
+                      Support {profileUser?.username || "Author"}'s Causes
                     </h2>
 
                     <div className="overflow-y-auto pr-2 space-y-8 flex-grow

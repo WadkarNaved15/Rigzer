@@ -1,24 +1,28 @@
-// routes/userRoutes.js
+// routes/searchRoutes.js
+
 import express from "express";
 import User from "../models/User.js";
 
 const router = express.Router();
 
-// Search users by username
 router.get("/", async (req, res) => {
   try {
     const { q } = req.query;
+
     if (!q || q.trim() === "") {
-      return res.json([]); // return empty if query is empty
+      return res.json([]);
     }
 
-    // Case-insensitive search with regex
     const users = await User.find({
-      username: { $regex: q, $options: "i" },
-    }).limit(5); // limit suggestions
+      username: { $regex: `^${q}`, $options: "i" },
+    })
+      .select("username avatar")
+      .limit(8)
+      .lean();
 
     res.json(users);
   } catch (err) {
+    console.error("Search error:", err);
     res.status(500).json({ error: "Server error" });
   }
 });
