@@ -231,7 +231,7 @@ export const createPost = async (req, res) => {
         return res.status(400).json({ message: "adModelPost data is required" });
       }
 
-      const { brandName, bgMode, bgColor, bgImageUrl, bgImagePosition, bgImageSize, logoUrl, asset } = adModelPost;
+      const { brandName, bgMode, bgColor, bgImageUrl, bgImagePosition, bgImageSize, overlayOpacity, logoUrl, asset } = adModelPost;
 
       // ── Validate asset ───────────────────────────────────
       if (!asset || !asset.originalUrl || !asset.originalKey || !asset.name) {
@@ -313,6 +313,7 @@ export const createPost = async (req, res) => {
           bgImageUrl: resolvedBgMode === "image" ? bgImageUrl : null,
           bgImagePosition: resolvedBgMode === 'image' ? (bgImagePosition || '50% 50%') : '50% 50%',
           bgImageSize: resolvedBgMode === 'image' ? (bgImageSize || 'cover') : 'cover',
+          overlayOpacity: overlayOpacity !== undefined ? Math.max(0, Math.min(80, overlayOpacity)) : 30,
           asset: processedAsset,
         },
       });

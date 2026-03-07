@@ -74,8 +74,9 @@ const ProfilePage: React.FC = () => {
   setUserPosts([]);
   setCursor(null);
   setHasMorePosts(true);
+  setLoadingPosts(true);
 
-  fetchPosts();
+  fetchPosts(null);
 
 }, [profileUser?._id]);
 
@@ -102,7 +103,7 @@ const ProfilePage: React.FC = () => {
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [username]);
-  const fetchPosts = async () => {
+ const fetchPosts = async (cursorParam: string | null = null) => {
   if (!profileUser?._id || !hasMorePosts) return;
 
   try {
@@ -110,7 +111,7 @@ const ProfilePage: React.FC = () => {
       `${BACKEND_URL}/api/posts/user_posts/${profileUser._id}`,
       {
         params: {
-          cursor: cursor,
+          cursor: cursorParam,
           limit: 10,
         },
       }

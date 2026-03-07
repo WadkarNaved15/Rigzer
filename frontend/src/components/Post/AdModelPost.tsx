@@ -23,7 +23,7 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
 
   if (!adModelPost) return null;
 
-  const { brandName, logoUrl, bgMode, bgColor, bgImageUrl, bgImagePosition, bgImageSize, asset } = adModelPost;
+  const { brandName, logoUrl, bgMode, bgColor, bgImageUrl, bgImagePosition, bgImageSize, overlayOpacity = 30, asset } = adModelPost;
 
   const resolvedBgPos = bgImagePosition ?? '50% 50%';
   const resolvedBgSize = bgImageSize ?? 'cover';
@@ -36,6 +36,16 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
   const isTransparent = bgMode === 'color' && (!bgColor || bgColor === 'transparent');
   const isImage = bgMode === 'image' && !!bgImageUrl;
   const accentRgb = !isTransparent && bgMode === 'color' && bgColor ? hexToRgb(bgColor) : null;
+
+  const getContrastText = (hex: string) => {
+  const r = parseInt(hex.substring(1, 3), 16);
+  const g = parseInt(hex.substring(3, 5), 16);
+  const b = parseInt(hex.substring(5, 7), 16);
+
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
+
+  return luminance > 186 ? "#000000" : "#ffffff";
+};
 
   // ── Observers ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -115,21 +125,28 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
   }
 
   // ── COLOR / IMAGE: glassmorphism ──────────────────────────────────────────
+
+  // Outer article: image mode = layers handle bg / color mode = solid dark base + tinted gradient
+  // The solid base (#0a0a0f) ensures the tinted gradient looks identical in light and dark themes.
+  // Without it the nearly-transparent gradient (0.12–0.22 opacity) picks up the page bg color.
+  // Outer: color mode = exact solid bgColor (no mixing, no gradient, same in all themes)
+  //         image mode = position:relative so absolute layers stack correctly
   const outerStyle: React.CSSProperties = isImage
     ? { position: 'relative' }
     : { background: bgColor! };
 
+  // Card: color mode = dark semi-transparent overlay so text stays readable on the solid color
+  //        image mode = sharp image, zero blur on the card itself
   const glassCardBase: React.CSSProperties = isImage
     ? {
         backgroundImage: `url(${bgImageUrl})`,
         backgroundSize: resolvedBgSize,
         backgroundPosition: resolvedBgPos,
-        backgroundRepeat: 'no-repeat',
         border: '1px solid rgba(255,255,255,0.18)',
         boxShadow: '0 8px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12)',
       }
     : {
-        background: 'rgba(0,0,0,0.28)',
+        background: `rgba(0,0,0,${overlayOpacity / 100})`,
         border: `1px solid rgba(${accentRgb},0.3)`,
         boxShadow: `0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)`,
       };
@@ -146,6 +163,7 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
     ? { background: `rgba(${accentRgb},0.25)`, border: `1px solid rgba(${accentRgb},0.4)`, color: bgColor! }
     : { background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.25)', color: 'rgba(255,255,255,0.8)' };
 
+  // Model area: transparent so the outer bgColor shows through cleanly
   const modelAreaStyle: React.CSSProperties = { background: 'transparent' };
 
   return (
@@ -158,19 +176,20 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
       className="relative w-full cursor-pointer overflow-hidden"
       style={outerStyle}
     >
-      {/* ── Outer bg for image mode: blurred outer halo ── */}
+      {/* ── Outer bg for image mode: blurred, low-opacity ── */}
       {isImage && (
         <>
+          {/* The actual blurred background image */}
           <div className="absolute inset-0 pointer-events-none" style={{
             backgroundImage: `url(${bgImageUrl})`,
-            backgroundSize: resolvedBgSize,
-            backgroundPosition: resolvedBgPos,
-            backgroundRepeat: 'no-repeat',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
             filter: 'blur(28px)',
             transform: 'scale(1.12)',
             opacity: 0.45,
           }} />
-          <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(0,0,0,0.15)' }} />
+          {/* Subtle dark tint — keep low so the image's own colors stay visible */}
+          <div className="absolute inset-0 pointer-events-none" style={{ background: `rgba(0,0,0,${overlayOpacity / 100 * 0.4})` }} />
         </>
       )}
 
@@ -178,13 +197,17 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
       <div className="absolute inset-0 pointer-events-none opacity-[0.025]"
         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`, backgroundRepeat: 'repeat' }} />
 
-      {/* ── Glass card ── */}
+      {/* ── Glass card — m-3 gap gives the "floating" appearance ── */}
       <div className="relative z-10 m-3 rounded-2xl overflow-hidden" style={glassCardBase}>
+
+        {/* Image mode: pure dark tint only — NO backdropFilter (would blur card's own backgroundImage) */}
         {isImage && (
-          <div className="absolute inset-0 pointer-events-none" style={{ background: 'rgba(0,0,0,0.38)' }} />
+          <div className="absolute inset-0 pointer-events-none" style={{ background: `rgba(0,0,0,${overlayOpacity / 100})` }} />
         )}
 
+        {/* All content sits above the overlay */}
         <div className="relative z-10">
+
           {/* ── Floating brand pill ── */}
           <div className="flex items-center justify-between px-4 pt-4 pb-1">
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full" style={headerPillStyle}>
@@ -240,13 +263,30 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
             } />
         </div>
       </div>
-
-      {/* Description */}
-      {description && (
-        <div className="px-4 pb-3">
-          <p className="text-white/80 text-sm leading-relaxed font-light tracking-wide">{description}</p>
-        </div>
-      )}
+       {/* Description */}
+          {description && (
+  <div className="px-4 pb-3">
+    <p
+      className={`text-sm leading-relaxed font-light tracking-wide ${
+        isTransparent || bgMode === "image"
+          ? "text-black dark:text-white"
+          : ""
+      }`}
+    style={{
+  color:
+    bgMode === "color" && bgColor && bgColor !== "transparent"
+      ? getContrastText(bgColor)
+      : undefined,
+  textShadow:
+    bgMode === "image"
+      ? "0 1px 2px rgba(0,0,0,0.6)"
+      : "none",
+}}
+    >
+      {description}
+    </p>
+  </div>
+)}
     </article>
   );
 };
