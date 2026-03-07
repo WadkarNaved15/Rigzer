@@ -38,7 +38,7 @@ function MainLayout() {
       <ScrollRestoration />
       <Header />
 
-      <main className="w-full px-2 sm:px-4 lg:px-8 2xl:px-16 pt-4">
+      <main className="w-full px-0 sm:px-4 lg:px-8 2xl:px-16 pt-4">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 2xl:grid-cols-16 2xl:gap-x-12">
 
           {/* ========================= */}
