@@ -149,18 +149,29 @@ router.get("/filter_posts", async (req, res) => {
 router.get("/user_posts/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
+    const { cursor, limit = 10 } = req.query;
 
-    const posts = await Post.find({
+    const query = {
       user: userId,
-
-      // ✅ Exclude canvas articles
       type: { $ne: "canvas_article" },
-    })
+    };
+
+    // if cursor exists → fetch older posts
+    if (cursor) {
+      query._id = { $lt: cursor };
+    }
+
+    const posts = await Post.find(query)
       .populate("user", "username")
       .sort({ _id: -1 })
+      .limit(Number(limit))
       .lean();
 
-    res.status(200).json({ posts });
+    res.status(200).json({
+      posts,
+      nextCursor: posts.length ? posts[posts.length - 1]._id : null,
+    });
+
   } catch (err) {
     console.error("Error fetching user posts:", err);
     res.status(500).json({ error: "Failed to fetch user posts" });

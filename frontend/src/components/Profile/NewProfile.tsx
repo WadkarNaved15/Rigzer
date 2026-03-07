@@ -33,6 +33,8 @@ interface ProfileUser {
 const ProfilePage: React.FC = () => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [userPosts, setUserPosts] = useState<PostProps[]>([]);
+  const [cursor, setCursor] = useState(null);
+  const [hasMorePosts, setHasMorePosts] = useState(true);
   const { username } = useParams();
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(null);
   const [userArticles, setUserArticles] = useState<ArticleProps[]>([]);
@@ -40,37 +42,94 @@ const ProfilePage: React.FC = () => {
   const [postDetailsOpen, setPostDetailsOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<PostProps | null>(null);
   const isModelPostOpen = postDetailsOpen && selectedPost?.type === "model_post";
-  const [loading, setLoading] = useState(true);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+  const [loadingArticles, setLoadingArticles] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const { user } = useUser();
+  //Fetch profile user
   useEffect(() => {
   const fetchProfile = async () => {
-    if(!username) return;
+    if (!username) return;
+
     try {
       const res = await axios.get(
-        `${BACKEND_URL}/api/users/profile/${username}`
+        `${BACKEND_URL}/api/users/username/${username}`
       );
-      console.log("Profile data:", res.data);
-      setProfileUser(res.data.user);
-      setUserPosts(res.data.posts);
-      setUserArticles(res.data.articles);
 
+      setProfileUser(res.data);
     } catch (err) {
       console.error("Failed to load profile", err);
-    }finally {
-      setLoading(false);
+    } finally {
+      setLoadingProfile(false);
     }
   };
 
   fetchProfile();
-}, [username]);
+}, [username, BACKEND_URL]);
+  //fetch User posts
+  useEffect(() => {
+  if (!profileUser?._id) return;
+
+  setUserPosts([]);
+  setCursor(null);
+  setHasMorePosts(true);
+
+  fetchPosts();
+
+}, [profileUser?._id]);
+
+  // fetch users articles
+  useEffect(() => {
+  const fetchArticles = async () => {
+    if (!profileUser?._id) return;
+
+    try {
+      const res = await axios.get(
+        `${BACKEND_URL}/api/articles/published/user/${profileUser._id}`
+      );
+
+      setUserArticles(res.data);
+    } catch (err) {
+      console.error("Failed to load articles", err);
+    } finally {
+      setLoadingArticles(false);
+    }
+  };
+
+  fetchArticles();
+}, [profileUser?._id, BACKEND_URL]);
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [username]);
-  console.log("User in ProfilePage:", profileUser);
-  console.log("User posts in ProfilePage:", userPosts);
-  console.log("User articles in ProfilePage:", userArticles);
-  if (!profileUser) {
+  const fetchPosts = async () => {
+  if (!profileUser?._id || !hasMorePosts) return;
+
+  try {
+    const res = await axios.get(
+      `${BACKEND_URL}/api/posts/user_posts/${profileUser._id}`,
+      {
+        params: {
+          cursor: cursor,
+          limit: 10,
+        },
+      }
+    );
+
+    setUserPosts((prev) => [...prev, ...res.data.posts]);
+    setCursor(res.data.nextCursor);
+
+    if (!res.data.nextCursor) {
+      setHasMorePosts(false);
+    }
+
+  } catch (err) {
+    console.error("Failed to load posts", err);
+  } finally {
+    setLoadingPosts(false);
+  }
+};
+  if (loadingProfile) {
     return <div className="p-10 text-gray-400">Loading profile...</div>;
   }
   return (
@@ -250,7 +309,7 @@ const ProfilePage: React.FC = () => {
       </div>
 
       {/* Two Component Cards Section */}
-      <div className="max-w-6xl mx-auto px-6 mt-12 pb-20">
+      <div className="max-w-6xl mx-auto px-6 mt-12 pb-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative">
 
           {/* MODEL POST → replace LEFT + RIGHT */}
@@ -270,9 +329,9 @@ const ProfilePage: React.FC = () => {
             <>
               {/* LEFT COLUMN */}
               <div className="lg:col-span-7 flex flex-col w-full">
-                {loading && <div className="text-gray-400">Loading your posts...</div>}
+                {loadingPosts && <div className="text-gray-400">Loading your posts...</div>}
 
-                {!loading && userPosts.length === 0 && (
+                {!loadingPosts && userPosts.length === 0 && (
                   <div className="text-gray-400">You haven’t uploaded any posts yet.</div>
                 )}
 
@@ -315,17 +374,17 @@ const ProfilePage: React.FC = () => {
                         Articles by {profileUser?.username || "User"}
                       </h2>
 
-                      {loading && (
+                      {loadingArticles && (
                         <p className="text-gray-400 text-xs">Loading articles...</p>
                       )}
 
-                      {!loading && userArticles.length === 0 && (
+                      {!loadingArticles && userArticles.length === 0 && (
                         <p className="text-gray-500 text-xs">
                           No articles published yet.
                         </p>
                       )}
 
-                      {!loading && userArticles.length > 0 && (
+                      {!loadingArticles && userArticles.length > 0 && (
                         <div
                           className="flex gap-4 overflow-x-auto pb-3
                           [&::-webkit-scrollbar]:h-1

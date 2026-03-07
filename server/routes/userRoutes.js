@@ -1,6 +1,6 @@
 import express from "express";
 import User from "../models/User.js";  // adjust path if needed
-import {getProfile} from "../controllers/user.controller.js";
+import {getProfileByUsername} from "../controllers/user.controller.js";
 
 const router = express.Router();
 
@@ -15,6 +15,6 @@ router.get("/", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-router.get("/profile/:username", getProfile);
+router.get("/username/:username", getProfileByUsername);
 
 export default router;

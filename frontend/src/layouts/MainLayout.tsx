@@ -38,7 +38,7 @@ function MainLayout() {
       <ScrollRestoration />
       <Header />
 
-      <main className="w-full min-h-screen px-2 sm:px-4 lg:px-8 2xl:px-16 pt-4">
+      <main className="w-full px-2 sm:px-4 lg:px-8 2xl:px-16 pt-4">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 2xl:grid-cols-16 2xl:gap-x-12">
 
           {/* ========================= */}
@@ -88,11 +88,10 @@ function MainLayout() {
 
               <div
                 className={`
-                  flex flex-col items-center justify-start min-h-[80vh] w-full
-                  ${
-                    hideBillboard
-                      ? "lg:col-span-10 2xl:col-span-13"
-                      : "lg:col-span-6 2xl:col-span-8"
+                  flex flex-col items-center justify-start w-full
+                  ${hideBillboard
+                    ? "lg:col-span-10 2xl:col-span-13"
+                    : "lg:col-span-6 2xl:col-span-8"
                   }
                 `}
               >
@@ -105,11 +104,18 @@ function MainLayout() {
 
               <div
                 className={`
-                  lg:col-span-4 2xl:col-span-5 hidden lg:block
-                  ${hideBillboard ? "opacity-0 pointer-events-none" : ""}
-                `}
-              >
-                <div className="sticky top-20 h-[calc(100vh-5rem)]">
+                  hidden lg:block
+                  ${hideBillboard
+                    ? "lg:col-span-0 w-0 overflow-hidden pointer-events-none"
+                    : "lg:col-span-4 2xl:col-span-5"}
+                    `}
+                >
+                <div
+                  className={`
+                  sticky top-20
+                  ${hideBillboard ? "h-0 overflow-hidden" : "h-[calc(100vh-5rem)]"}
+                  `}
+                >
                   <Billboard />
                 </div>
               </div>
