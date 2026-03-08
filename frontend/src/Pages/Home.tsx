@@ -12,7 +12,7 @@ import type { PostProps } from "../types/Post";
 import CircleLoader from "../components/Loader/CircleLoader";
 import { useSearch } from "../components/Home/SearchContext";
 import { ArrowLeft } from "lucide-react";
-import { useNavigate} from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 function Home() {
   const navigate = useNavigate();
@@ -30,7 +30,6 @@ function Home() {
 
   const [loading, setLoading] = useState(false);
   const loaderRef = useRef<HTMLDivElement | null>(null);
-
   // Search
   const {
     submittedQuery,
@@ -80,7 +79,11 @@ function Home() {
     },
     [nextCursor, loading, hasMore, BACKEND_URL]
   );
+  const fetchRef = useRef(fetchMainPosts);
 
+  useEffect(() => {
+    fetchRef.current = fetchMainPosts;
+  }, [fetchMainPosts]);
   // ── Fetch Filtered Posts ─────────────────────────────────────────────────
   const fetchFilteredPosts = useCallback(
     async (query: string) => {
@@ -117,25 +120,23 @@ function Home() {
 
   // ── Infinite Scroll ──────────────────────────────────────────────────────
   useEffect(() => {
-    if (!hasMore || loading || showFilteredFeed) return;
+    if (!hasMore || showFilteredFeed) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting) {
-          fetchMainPosts();
+          fetchRef.current();
         }
       },
-      { threshold: 1.0 }
+      { rootMargin: "200px" }
     );
 
     const loader = loaderRef.current;
+
     if (loader) observer.observe(loader);
 
-    return () => {
-      if (loader) observer.unobserve(loader);
-      observer.disconnect();
-    };
-  }, [fetchMainPosts, hasMore, loading, showFilteredFeed]);
+    return () => observer.disconnect();
+  }, [hasMore, showFilteredFeed]);
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
@@ -143,7 +144,7 @@ function Home() {
 
       {/* SEARCH FEED */}
       {showFilteredFeed ? (
-       <div className="w-full mt-4 flex flex-col md:px-0 px-0">
+        <div className="w-full mt-4 flex flex-col md:px-0 px-0">
           <button
             onClick={() => {
               setShowFilteredFeed(false);
