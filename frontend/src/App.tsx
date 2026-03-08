@@ -5,6 +5,7 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { UsersProvider } from "./context/UsersContext";
 import { FeedProvider } from "./context/FeedContext";
+import { ChatProvider } from "./context/ChatContext";
 import FeedbackProvider from "./context/FeedbackProvider";
 import { NotificationProvider } from "./context/Notifications";
 import { SocketProvider } from "./context/SocketContext";
@@ -20,6 +21,7 @@ function App() {
   return (
     <UIProvider>
       <SocketProvider userId={user?._id}>
+        <ChatProvider>
         <UsersProvider>
           <NotificationProvider>
             <SearchProvider>
@@ -38,6 +40,7 @@ function App() {
             </SearchProvider>
           </NotificationProvider>
         </UsersProvider>
+        </ChatProvider>
       </SocketProvider>
     </UIProvider>
   );

@@ -7,6 +7,7 @@ import { useEffect, useState, useRef, useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Post from "../Post";
 import { Suspense, lazy } from "react";
+import { useChat } from "../../context/ChatContext";
 import type { ExePostProps, NormalPostProps } from "../../types/Post";
 import EditProfileModal from "./EditProfileModal";
 const NormalPostDetails = lazy(() => import("../../Pages/NormalPostDetails"));
@@ -49,6 +50,7 @@ const ProfilePage: React.FC = () => {
   const { user } = useUser();
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const fetchingRef = useRef(false);
+  const { openChatWith } = useChat();
   const isOwnProfile = user?._id === profileUser?._id;
   const navigate = useNavigate();
   //Fecth Posts
@@ -220,7 +222,7 @@ const ProfilePage: React.FC = () => {
                     <FollowButton userId={user?._id ?? ''} targetId={profileUser?._id ?? ''} />
 
                     <button
-                      onClick={() => navigate(`/chat/${profileUser?._id}`)}
+                      onClick={() => openChatWith(profileUser!._id)}
                       className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all active:scale-95"
                     >
                       <MessageSquare size={16} strokeWidth={3} /> {/* 2. Add the icon */}

@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import { Header } from "../Header"; // 1. Add your import
 import SharedPostMessage from "./SharedPostMessage";
 import { useUser } from "../../context/user";
+import { useChat } from "../../context/ChatContext";
 import { useUI } from "../../context/UIContext";
 import { useUsers } from "../../context/UsersContext";
 import { toast } from "react-toastify";
@@ -57,7 +58,7 @@ const MessagingComponent = () => {
   const { user } = useUser();
   const { users, loading } = useUsers();
   const currentUser = user?._id;
-  const navigate = useNavigate();
+  const { targetUserId } = useChat();
   const socket = useSocket();
 
   // CSS animation for shine
@@ -170,7 +171,13 @@ const MessagingComponent = () => {
 
     fetchUnreadCounts();
   }, [isOpen]);
+  useEffect(() => {
+    if (!targetUserId) return;
 
+    setIsOpen(true);
+    handleUserClick(targetUserId);
+
+  }, [targetUserId]);
   useEffect(() => {
     if (!socket) return;
 
@@ -552,16 +559,16 @@ const MessagingComponent = () => {
                   >
                     {activeUser ? (
 
-                              <img
-                                src={activeUser.avatar ? activeUser.avatar : "/default_avatar.png"}
-                                alt={activeUser.name}
-                                className="w-10 h-10 rounded-full object-cover"
-                                onError={(e) => {
-                                  const img = e.currentTarget;
-                                  img.onerror = null;
-                                  img.src = "/default_avatar.png";
-                                }}
-                              />
+                      <img
+                        src={activeUser.avatar ? activeUser.avatar : "/default_avatar.png"}
+                        alt={activeUser.name}
+                        className="w-10 h-10 rounded-full object-cover"
+                        onError={(e) => {
+                          const img = e.currentTarget;
+                          img.onerror = null;
+                          img.src = "/default_avatar.png";
+                        }}
+                      />
                     ) : (
                       <MessageCircle size={16} />
                     )}
@@ -751,17 +758,17 @@ const MessagingComponent = () => {
                           >
                             <div className="relative">
                               <div className="relative w-10 h-10">
-                              <img
-                                src={u.avatar ? u.avatar : "/default_avatar.png"}
-                                alt={u.name}
-                                className="w-10 h-10 rounded-full object-cover"
-                                onError={(e) => {
-                                  const img = e.currentTarget;
-                                  img.onerror = null;
-                                  img.src = "/default_avatar.png";
-                                }}
-                              />
-                            </div>
+                                <img
+                                  src={u.avatar ? u.avatar : "/default_avatar.png"}
+                                  alt={u.name}
+                                  className="w-10 h-10 rounded-full object-cover"
+                                  onError={(e) => {
+                                    const img = e.currentTarget;
+                                    img.onerror = null;
+                                    img.src = "/default_avatar.png";
+                                  }}
+                                />
+                              </div>
                             </div>
                             <div className="ml-3 flex-1">
                               <div className="flex items-center justify-between">
