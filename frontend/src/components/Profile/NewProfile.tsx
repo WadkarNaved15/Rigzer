@@ -1,5 +1,5 @@
 import React from "react";
-import { X, Youtube, Instagram } from "lucide-react";
+import { X, Youtube, Instagram ,MessageSquare} from "lucide-react";
 import FollowButton from "../FollowButton";
 import type { ArticleProps } from "../../types/Article";
 import FollowersList from "../FollowersList";
@@ -33,12 +33,12 @@ interface ProfileUser {
 const ProfilePage: React.FC = () => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
   const [userPosts, setUserPosts] = useState<PostProps[]>([]);
-  const [cursor, setCursor] = useState(null);
+  const [cursor, setCursor] = useState<string | null>(null);
   const [hasMorePosts, setHasMorePosts] = useState(true);
   const { username } = useParams();
   const [profileUser, setProfileUser] = useState<ProfileUser | null>(null);
   const [userArticles, setUserArticles] = useState<ArticleProps[]>([]);
-  const navigate = useNavigate();
+  const requestUserRef = useRef<string | null>(null);
   const [postDetailsOpen, setPostDetailsOpen] = useState(false);
   const [selectedPost, setSelectedPost] = useState<PostProps | null>(null);
   const isModelPostOpen = postDetailsOpen && selectedPost?.type === "model_post";
@@ -47,89 +47,137 @@ const ProfilePage: React.FC = () => {
   const [loadingArticles, setLoadingArticles] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const { user } = useUser();
-  //Fetch profile user
-  useEffect(() => {
-  const fetchProfile = async () => {
-    if (!username) return;
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const fetchingRef = useRef(false);
+  const isOwnProfile = user?._id === profileUser?._id;
+  const navigate = useNavigate();
+  //Fecth Posts
+  const fetchPosts = async (cursorParam: string | null = null) => {
+    if (!profileUser?._id || !hasMorePosts) return;
+
+    const currentUser = profileUser._id;
+    requestUserRef.current = currentUser;
+
+    setLoadingPosts(true);
 
     try {
       const res = await axios.get(
-        `${BACKEND_URL}/api/users/username/${username}`
+        `${BACKEND_URL}/api/posts/user_posts/${currentUser}`,
+        {
+          params: {
+            cursor: cursorParam,
+            limit: 10,
+          },
+        }
       );
 
-      setProfileUser(res.data);
+      // 🚨 Ignore stale responses
+      if (requestUserRef.current !== currentUser) return;
+
+      setUserPosts((prev) => [...prev, ...res.data.posts]);
+      setCursor(res.data.nextCursor);
+
+      if (!res.data.nextCursor) {
+        setHasMorePosts(false);
+      }
+
     } catch (err) {
-      console.error("Failed to load profile", err);
+      console.error("Failed to load posts", err);
     } finally {
-      setLoadingProfile(false);
+      setLoadingPosts(false);
     }
   };
+  //Fetch profile user
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!username) return;
 
-  fetchProfile();
-}, [username, BACKEND_URL]);
+      setLoadingProfile(true);
+
+      // reset ALL feed state when profile changes
+      setUserPosts([]);
+      setCursor(null);
+      setHasMorePosts(true);
+      setLoadingPosts(true);
+
+      try {
+        const res = await axios.get(
+          `${BACKEND_URL}/api/users/username/${username}`
+        );
+
+        setProfileUser(res.data);
+      } catch (err) {
+        console.error("Failed to load profile", err);
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+
+    fetchProfile();
+  }, [username]);
   //fetch User posts
   useEffect(() => {
-  if (!profileUser?._id) return;
+    if (!profileUser?._id) return;
 
-  setUserPosts([]);
-  setCursor(null);
-  setHasMorePosts(true);
-  setLoadingPosts(true);
-
-  fetchPosts(null);
-
-}, [profileUser?._id]);
+    fetchPosts(null);
+  }, [profileUser?._id]);
 
   // fetch users articles
   useEffect(() => {
-  const fetchArticles = async () => {
-    if (!profileUser?._id) return;
+    const fetchArticles = async () => {
+      if (!profileUser?._id) return;
 
-    try {
-      const res = await axios.get(
-        `${BACKEND_URL}/api/articles/published/user/${profileUser._id}`
-      );
+      try {
+        const res = await axios.get(
+          `${BACKEND_URL}/api/articles/published/user/${profileUser._id}`
+        );
 
-      setUserArticles(res.data);
-    } catch (err) {
-      console.error("Failed to load articles", err);
-    } finally {
-      setLoadingArticles(false);
-    }
-  };
+        setUserArticles(res.data);
+      } catch (err) {
+        console.error("Failed to load articles", err);
+      } finally {
+        setLoadingArticles(false);
+      }
+    };
 
-  fetchArticles();
-}, [profileUser?._id, BACKEND_URL]);
+    fetchArticles();
+  }, [profileUser?._id, BACKEND_URL]);
   useLayoutEffect(() => {
     window.scrollTo({ top: 0, behavior: "auto" });
   }, [username]);
- const fetchPosts = async (cursorParam: string | null = null) => {
-  if (!profileUser?._id || !hasMorePosts) return;
 
-  try {
-    const res = await axios.get(
-      `${BACKEND_URL}/api/posts/user_posts/${profileUser._id}`,
+  useEffect(() => {
+    if (!loadMoreRef.current) return;
+    if (!profileUser?._id) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+
+        if (
+          entry.isIntersecting &&
+          hasMorePosts &&
+          !loadingPosts &&
+          !fetchingRef.current
+        ) {
+          fetchingRef.current = true;
+
+          fetchPosts(cursor).finally(() => {
+            fetchingRef.current = false;
+          });
+        }
+      },
       {
-        params: {
-          cursor: cursorParam,
-          limit: 10,
-        },
+        root: null,
+        rootMargin: "600px",
+        threshold: 0,
       }
     );
 
-    setUserPosts((prev) => [...prev, ...res.data.posts]);
-    setCursor(res.data.nextCursor);
+    observer.observe(loadMoreRef.current);
 
-    if (!res.data.nextCursor) {
-      setHasMorePosts(false);
-    }
+    return () => observer.disconnect();
+  }, [cursor, hasMorePosts, loadingPosts]);
 
-  } catch (err) {
-    console.error("Failed to load posts", err);
-  } finally {
-    setLoadingPosts(false);
-  }
-};
   if (loadingProfile) {
     return <div className="p-10 text-gray-400">Loading profile...</div>;
   }
@@ -160,13 +208,25 @@ const ProfilePage: React.FC = () => {
                   {profileUser?.username || "John Developer"}
                 </h1>
 
-                {user?._id === profileUser?._id && (
+                {isOwnProfile ? (
                   <button
                     onClick={() => setEditOpen(true)}
                     className="bg-gray-900 dark:bg-white hover:bg-gray-800 dark:hover:bg-gray-200 text-white dark:text-[#191919] px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all hover:shadow-[0_0_15px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_0_15px_rgba(255,255,255,0.3)] active:scale-95"
                   >
                     Edit Profile
                   </button>
+                ) : (
+                  <div className="flex gap-2">
+                    <FollowButton userId={user?._id ?? ''} targetId={profileUser?._id ?? ''} />
+
+                    <button
+                      onClick={() => navigate(`/chat/${profileUser?._id}`)}
+                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all active:scale-95"
+                    >
+                      <MessageSquare size={16} strokeWidth={3} /> {/* 2. Add the icon */}
+                      <span>Chat</span>
+                    </button>
+                  </div>
                 )}
                 {editOpen && <EditProfileModal onClose={() => setEditOpen(false)} />}
               </div>
@@ -359,6 +419,12 @@ const ProfilePage: React.FC = () => {
                         }}
                       />
                     ))}
+                    {/* Infinite scroll trigger */}
+                    {hasMorePosts && (
+                      <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
+                        <span className="text-xs text-gray-400">Loading more posts...</span>
+                      </div>
+                    )}
                   </div>
                 )}
 
