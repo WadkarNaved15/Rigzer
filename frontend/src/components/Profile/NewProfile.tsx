@@ -4,31 +4,16 @@ import FollowButton from "../FollowButton";
 import type { ArticleProps } from "../../types/Article";
 import FollowersList from "../FollowersList";
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useScrollRestoration } from "../../hooks/useScrollRestoration";
-import { saveProfileCache, getProfileCache } from "../../utils/profileCache";
+import { saveProfileCache, getProfileCache, clearProfileCache } from "../../utils/profileCache";
+import type { ProfileUser } from "../../utils/profileCache"; // ← import shared type
 import Post from "../Post";
 import { useChat } from "../../context/ChatContext";
 import EditProfileModal from "./EditProfileModal";
-import { useParams } from "react-router-dom";
 import type { PostProps } from "../../types/Post";
 import { useUser } from "../../context/user";
 import axios from "axios";
-
-interface ProfileUser {
-  _id: string;
-  username: string;
-  avatar?: string;
-  banner?: string;
-  bio?: string;
-  socials?: {
-    twitter?: string;
-    youtube?: string;
-    instagram?: string;
-    steam?: string;
-    discord?: string;
-  };
-}
 
 const ProfilePage: React.FC = () => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -37,46 +22,31 @@ const ProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const { openChatWith } = useChat();
 
-  // ── Cache lookup — re-read on every username change ──────────────────────
-  // We store the PREVIOUS username so we know when to reset state
-  const prevUsernameRef = useRef<string | undefined>(undefined);
-  const isUsernameChange = prevUsernameRef.current !== username;
+  // Cache is read ONCE at mount — ProfilePageWrapper's key={username}
+  // guarantees this component fully remounts on username change,
+  // so cachedRef is always fresh for the correct user.
+  const cachedRef = useRef(username ? getProfileCache(username) : null);
+  const cached = cachedRef.current;
 
-  // Read cache for the CURRENT username synchronously
-  const currentCache = username ? getProfileCache(username) : null;
-
-  // ── State — reset immediately when username changes ──────────────────────
-  const [profileUser, setProfileUser] = useState<ProfileUser | null>(
-    currentCache?.profileUser ?? null
-  );
-  const [userPosts, setUserPosts] = useState<PostProps[]>(currentCache?.posts ?? []);
-  const [cursor, setCursor] = useState<string | null>(currentCache?.cursor ?? null);
-  const [hasMorePosts, setHasMorePosts] = useState(currentCache?.hasMore ?? true);
-  const [userArticles, setUserArticles] = useState<ArticleProps[]>(currentCache?.articles ?? []);
-  const [loadingProfile, setLoadingProfile] = useState(!currentCache);
-  const [loadingPosts, setLoadingPosts] = useState(!currentCache);
-  const [loadingArticles, setLoadingArticles] = useState(!currentCache);
+  const [profileUser, setProfileUser] = useState<ProfileUser | null>(cached?.profileUser ?? null);
+  const [userPosts, setUserPosts] = useState<PostProps[]>(cached?.posts ?? []);
+  const [cursor, setCursor] = useState<string | null>(cached?.cursor ?? null);
+  const [hasMorePosts, setHasMorePosts] = useState(cached?.hasMore ?? true);
+  const [userArticles, setUserArticles] = useState<ArticleProps[]>(cached?.articles ?? []);
+  const [loadingProfile, setLoadingProfile] = useState(!cached);
+  const [loadingPosts, setLoadingPosts] = useState(!cached);
+  const [loadingArticles, setLoadingArticles] = useState(!cached);
   const [editOpen, setEditOpen] = useState(false);
-
-  // Synchronously reset state when username changes (before render effects fire)
-  // This prevents stale posts from a previous user from flashing
-  if (isUsernameChange) {
-    prevUsernameRef.current = username;
-    const cache = username ? getProfileCache(username) : null;
-
-    // Only reset if these would be wrong — avoid setState during render anti-pattern
-    // by using the initial useState values above on first render,
-    // and a key-based remount strategy below for subsequent changes.
-    // (Handled by the key prop in the router — see note below)
-  }
 
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const fetchingRef = useRef(false);
-  const requestUserRef = useRef<string | null>(null);
+  // Separate guards for posts vs articles — no shared requestUserRef confusion
+  const activeFetchIdRef = useRef<string | null>(null);
+  const activeArticleFetchIdRef = useRef<string | null>(null);
   const isOwnProfile = user?._id === profileUser?._id;
 
   const contentReady = !loadingProfile && userPosts.length > 0;
-  const savedScrollY = currentCache?.scrollY ?? 0;
+  const savedScrollY = cached?.scrollY ?? 0;
 
   useScrollRestoration(`profile_${username}`, savedScrollY, contentReady);
 
@@ -84,7 +54,6 @@ const ProfilePage: React.FC = () => {
   const stateRef = useRef({ userPosts, cursor, hasMorePosts, userArticles, profileUser });
   const usernameRef = useRef(username);
 
-  // Keep refs in sync with latest state
   useEffect(() => {
     stateRef.current = { userPosts, cursor, hasMorePosts, userArticles, profileUser };
     usernameRef.current = username;
@@ -105,36 +74,13 @@ const ProfilePage: React.FC = () => {
     };
   }, []);
 
-  // ── Reset all state when username changes ────────────────────────────────
-  useEffect(() => {
-    if (!username) return;
-
-    const cache = getProfileCache(username);
-
-    // Reset to cache (or empty) for the new username
-    setProfileUser(cache?.profileUser ?? null);
-    setUserPosts(cache?.posts ?? []);
-    setCursor(cache?.cursor ?? null);
-    setHasMorePosts(cache?.hasMore ?? true);
-    setUserArticles(cache?.articles ?? []);
-    setLoadingProfile(!cache);
-    setLoadingPosts(!cache);
-    setLoadingArticles(!cache);
-
-    // Reset scroll to top for fresh profile visit, restoration hook handles back-nav
-    if (!cache) {
-      window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
-    }
-  }, [username]);
-
-  // ── Fetch profile ────────────────────────────────────────────────────────
+  // ── Fetch profile (always refresh, but don't block if cached) ────────────
   useEffect(() => {
     const fetchProfile = async () => {
       if (!username) return;
       try {
         const res = await axios.get(`${BACKEND_URL}/api/users/username/${username}`);
-        // Guard: ignore response if username changed while request was in flight
-        if (usernameRef.current !== username) return;
+        if (usernameRef.current !== username) return; // stale guard
         setProfileUser(res.data);
       } catch (err) {
         console.error("Failed to load profile", err);
@@ -142,7 +88,6 @@ const ProfilePage: React.FC = () => {
         if (usernameRef.current === username) setLoadingProfile(false);
       }
     };
-
     fetchProfile();
   }, [username]);
 
@@ -151,16 +96,16 @@ const ProfilePage: React.FC = () => {
     if (!profileUser?._id) return;
     if (!hasMorePosts && cursorParam !== null) return;
 
-    const currentUser = profileUser._id;
-    requestUserRef.current = currentUser;
+    const fetchId = profileUser._id;
+    activeFetchIdRef.current = fetchId;
     setLoadingPosts(true);
 
     try {
       const res = await axios.get(
-        `${BACKEND_URL}/api/posts/user_posts/${currentUser}`,
+        `${BACKEND_URL}/api/posts/user_posts/${fetchId}`,
         { params: { cursor: cursorParam, limit: 10 } }
       );
-      if (requestUserRef.current !== currentUser) return;
+      if (activeFetchIdRef.current !== fetchId) return;
       setUserPosts((prev) =>
         cursorParam === null ? res.data.posts : [...prev, ...res.data.posts]
       );
@@ -169,45 +114,45 @@ const ProfilePage: React.FC = () => {
     } catch (err) {
       console.error("Failed to load posts", err);
     } finally {
-      setLoadingPosts(false);
+      if (activeFetchIdRef.current === fetchId) setLoadingPosts(false);
     }
   };
 
-  // ── Fetch posts when profileUser loads (skip if cached) ──────────────────
+  // ── Fetch posts on profile load (skip if cache is valid) ─────────────────
   useEffect(() => {
     if (!profileUser?._id) return;
-    // Check cache at call time (not a stale ref) — if we have posts, skip fetch
-    const cache = getProfileCache(username ?? "");
-    if (cache?.posts?.length) return;
+    if (cachedRef.current?.posts?.length) return;
     fetchPosts(null);
   }, [profileUser?._id]);
 
-  // ── Fetch articles when profileUser loads (skip if cached) ───────────────
+  // ── Fetch articles on profile load (skip if cache is valid) ──────────────
   useEffect(() => {
     if (!profileUser?._id) return;
-    const cache = getProfileCache(username ?? "");
-    if (cache?.articles?.length) return;
+    if (cachedRef.current?.articles?.length) return; // ← uses cachedRef, not requestUserRef
+
+    const fetchId = profileUser._id;
+    activeArticleFetchIdRef.current = fetchId;
 
     const fetchArticles = async () => {
       try {
         const res = await axios.get(
-          `${BACKEND_URL}/api/articles/published/user/${profileUser._id}`
+          `${BACKEND_URL}/api/articles/published/user/${fetchId}`
         );
-        if (requestUserRef.current !== null && profileUser._id !== requestUserRef.current) return;
+        if (activeArticleFetchIdRef.current !== fetchId) return; // stale guard
         setUserArticles(res.data);
       } catch (err) {
         console.error("Failed to load articles", err);
       } finally {
-        setLoadingArticles(false);
+        if (activeArticleFetchIdRef.current === fetchId) setLoadingArticles(false);
       }
     };
+
     fetchArticles();
   }, [profileUser?._id, BACKEND_URL]);
 
   // ── Infinite scroll ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!loadMoreRef.current || !profileUser?._id) return;
-
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
@@ -218,7 +163,6 @@ const ProfilePage: React.FC = () => {
       },
       { root: null, rootMargin: "600px", threshold: 0 }
     );
-
     observer.observe(loadMoreRef.current);
     return () => observer.disconnect();
   }, [cursor, hasMorePosts, loadingPosts, profileUser?._id]);
@@ -226,6 +170,7 @@ const ProfilePage: React.FC = () => {
   if (loadingProfile && !profileUser) {
     return <div className="p-10 text-gray-400">Loading profile...</div>;
   }
+
 
   return (
 
@@ -246,11 +191,12 @@ const ProfilePage: React.FC = () => {
       {/* Main Content - 75% width */}
       <div className="mx-auto px-2 ">
         {/* Header Section */}
-        <div className="w-full border-b  border-gray-200 dark:border-white/10 dark:bg-[#191919] pb-8 mb-8 pt-4">
+        <div className="w-full dark:border-white/10 dark:bg-[#191919] pb-4 pt-4">
           <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col">
+              {/* Top Row: Name and Action Buttons */}
               <div className="flex items-center gap-5 flex-wrap">
-                <h1 className="text-4xl font-black tracking-tight text-gray-900 dark:text-white italic uppercase">
+                <h1 className="text-4xl font-black tracking-tight text-gray-900 dark:text-white italic uppercase leading-none">
                   {profileUser?.username || "John Developer"}
                 </h1>
 
@@ -264,19 +210,34 @@ const ProfilePage: React.FC = () => {
                 ) : (
                   <div className="flex gap-2">
                     <FollowButton userId={user?._id ?? ''} targetId={profileUser?._id ?? ''} />
-
                     <button
                       onClick={() => openChatWith(profileUser!._id)}
                       className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all active:scale-95"
                     >
-                      <MessageSquare size={16} strokeWidth={3} /> {/* 2. Add the icon */}
+                      <MessageSquare size={16} strokeWidth={3} />
                       <span>Chat</span>
                     </button>
                   </div>
                 )}
-                {editOpen && <EditProfileModal onClose={() => setEditOpen(false)} />}
               </div>
+
+              {/* Bottom Row: Handle */}
+              <p className="text-sm font-bold text-gray-500 dark:text-gray-400 mt-1.5 lowercase opacity-80">
+                @{profileUser?.username?.replace(/\s+/g, '') || "johndeveloper"}
+              </p>
+
+              {editOpen && (
+                <EditProfileModal
+                  onClose={() => setEditOpen(false)}
+                  onSaved={() => {
+                    if (username) clearProfileCache(username);
+                    cachedRef.current = null;
+                    setEditOpen(false);
+                  }}
+                />
+              )}
             </div>
+
             <div className="md:mr-20 lg:mr-8">
               <FollowersList userId={profileUser?._id} />
             </div>
@@ -284,11 +245,11 @@ const ProfilePage: React.FC = () => {
         </div>
 
         {/* Profile Hero Section */}
-        <div className="max-w-6xl mx-auto px-4 mt-4">
+        <div className="max-w-5xl px-4">
           <div className="flex flex-col md:flex-row justify-between items-stretch gap-6">
 
             {/* LEFT SIDE: Profile Card Section */}
-            <div className="flex-1 pt-2">
+            <div className="flex-1 pt-0">
               <div className="relative overflow-hidden rounded-3xl bg-[#F9FAFB] dark:bg-[#191919] border border-gray-200 dark:border-white/10 shadow-2xl h-full min-h-[400px] flex flex-col">
 
                 {/* 1. Banner Section */}
@@ -332,7 +293,7 @@ const ProfilePage: React.FC = () => {
             </div>
 
             {/* RIGHT SIDE: Socials Card Section */}
-            <div className="w-full md:w-40 shrink-0 pt-2">
+            <div className="w-full md:w-40 shrink-0 pt-0">
               <div className="bg-white dark:bg-[#191919] p-6 rounded-3xl border border-gray-200 dark:border-white/10 text-gray-900 dark:text-white shadow-2xl flex flex-col items-center h-full transition-colors duration-300">
                 <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 mb-8">Socials</h3>
 

@@ -8,6 +8,7 @@ export function useScrollRestoration(
   const hasRestored = useRef(false);
   const rafRef = useRef<number | null>(null);
   const attemptsRef = useRef(0);
+  const startTimeRef = useRef(0);
 
   useEffect(() => {
     hasRestored.current = false;
@@ -16,16 +17,17 @@ export function useScrollRestoration(
 
   useEffect(() => {
     if (hasRestored.current || !isReady || savedPosition <= 0) return;
-
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
-    // Retry scroll until the page is tall enough to actually scroll there.
-    // This handles cases where content renders progressively (images loading, etc.)
-    const MAX_ATTEMPTS = 10;
+    const MAX_ATTEMPTS = 30;      // ~500ms at 60fps
+    const MAX_WAIT_MS = 2000;     // hard stop after 2 seconds
+
+    startTimeRef.current = performance.now();
 
     const attempt = () => {
       attemptsRef.current += 1;
 
+      const elapsed = performance.now() - startTimeRef.current;
       const pageHeight = document.documentElement.scrollHeight;
       const viewportHeight = window.innerHeight;
       const canScroll = pageHeight - viewportHeight >= savedPosition;
@@ -33,10 +35,10 @@ export function useScrollRestoration(
       if (canScroll) {
         hasRestored.current = true;
         window.scrollTo({ top: savedPosition, behavior: "instant" as ScrollBehavior });
-      } else if (attemptsRef.current < MAX_ATTEMPTS) {
-        // Page isn't tall enough yet — wait a frame and retry
+      } else if (attemptsRef.current < MAX_ATTEMPTS && elapsed < MAX_WAIT_MS) {
         rafRef.current = requestAnimationFrame(attempt);
       }
+      // If we exhausted attempts, silently give up — better than scrolling to wrong place
     };
 
     rafRef.current = requestAnimationFrame(attempt);
