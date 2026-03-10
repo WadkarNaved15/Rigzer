@@ -5,6 +5,7 @@ import MediaPostForm from "./MediaPostForm";
 import GamePostForm from "./GamePostForm";
 import ModelPostForm from "./ModelPostForm";
 import AdModelPostForm from "./AdModelPostForm";
+import PocketEditor from "./PocketEditor";
 import { PostType } from "../../../types/postTypes";
 
 
@@ -16,6 +17,7 @@ const postFormRegistry: Record<
   media: MediaPostForm,
   game: GamePostForm,
   ad_model: AdModelPostForm, // ← NEW: direct access if needed
+  pocket: PocketEditor,
   devlog: () => null,
   article: () => null,
 };

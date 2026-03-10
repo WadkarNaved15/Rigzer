@@ -16,6 +16,7 @@ import DevLogs from "./Pages/DevLogs";
 import DevLogsView from "./Pages/DevLogViewPage";
 import DevLogCanvas from "./Pages/DevlogCanvas";
 import DevlogViewer from "./Pages/DevlogViewer";
+import AdminPocketReview from "./Pages/AdminPocketReview";
 import PostModal from "./components/PostModal";
 import PostDetailsPage from "./Pages/PostDetailsPage";
 import Puck from "./Pages/Puck";
@@ -68,4 +69,7 @@ export const router = createBrowserRouter([
   { path: "/puck", element: <Puck /> },
   { path: "/recommendations", element: <Recommendations /> },
   { path: "/recommendationsposts", element: <RecommendationPosts /> },
+
+  // Admin Routes
+  { path: "/admin/pocketreview", element: <AdminPocketReview /> },
 ]);

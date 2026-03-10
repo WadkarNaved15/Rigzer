@@ -44,6 +44,7 @@ import followRoutes from "./routes/followRoutes.js";
 import canvasRoutes from "./routes/canvasRoutes.js";
 import sessionRoutes from "./routes/sessions.js";
 import internalRoutes from "./routes/internal.js";
+import pocketRoutes from "./routes/pocket.js";
 import { initializeInstancePool } from "./services/instanceAllocator.js";
 import { initializeSessionPubSub } from "./services/sessionPubSub.js";
 import streamProxyRouter from "./routes/streamProxy.js";
@@ -131,6 +132,7 @@ app.use("/api/canvas", canvasRoutes);
 app.use("/api/sessions", sessionRoutes);
 app.use("/api/internal", internalRoutes);
 app.use("/api/stream", streamProxyRouter);
+app.use("/api/pockets", pocketRoutes);
 
 // HTTP SERVER
 const server = http.createServer(app);
