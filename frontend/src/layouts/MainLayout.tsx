@@ -35,7 +35,13 @@ function MainLayout() {
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-[#191919]">
-      <ScrollRestoration />
+      <ScrollRestoration
+        getKey={(location) => {
+          // Don't use ScrollRestoration for profile pages — handled manually
+          if (location.pathname.startsWith("/profile")) return "no-restore-profile";
+          return location.key;
+        }}
+      />
       <Header />
 
       <main className="w-full px-0 sm:px-4 lg:px-8 2xl:px-16 pt-4">
@@ -109,7 +115,7 @@ function MainLayout() {
                     ? "lg:col-span-0 w-0 overflow-hidden pointer-events-none"
                     : "lg:col-span-4 2xl:col-span-5"}
                     `}
-                >
+              >
                 <div
                   className={`
                   sticky top-20

@@ -6,6 +6,7 @@ import Home from "./Pages/Home";
 import Auth from "./Pages/Auth";
 import ProfilePage from "./components/Profile/NewProfile";
 import EditProfilePage from "./Pages/EditProfile";
+import ProfilePageWrapper from "./components/Profile/ProfilePageWrapper";
 import ArticleOverlay from "./Pages/ArticleView";
 import CreatePostPage from "./Pages/CreatePostPage";
 import WishlistPage from "./Pages/WishlistPage";
@@ -37,7 +38,7 @@ export const router = createBrowserRouter([
     children: [
       { path: "/", element: <Home /> },
       { path: "/post/:postId", element: <PostDetailsPage /> },
-      { path: "/profile/:username", element: <ProfilePage /> },
+      { path: "/profile/:username", element: <ProfilePageWrapper /> },
       { path: "/articles/:canvasId", element: <ArticleOverlay /> },
       { path: "/create", element: <PostModal/> },
       { path: "/wishlist", element: <WishlistPage /> },

@@ -1,17 +1,15 @@
 import React from "react";
-import { X, Youtube, Instagram ,MessageSquare} from "lucide-react";
+import { X, Youtube, Instagram, MessageSquare } from "lucide-react";
 import FollowButton from "../FollowButton";
 import type { ArticleProps } from "../../types/Article";
 import FollowersList from "../FollowersList";
-import { useEffect, useState, useRef, useLayoutEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useScrollRestoration } from "../../hooks/useScrollRestoration";
+import { saveProfileCache, getProfileCache } from "../../utils/profileCache";
 import Post from "../Post";
-import { Suspense, lazy } from "react";
 import { useChat } from "../../context/ChatContext";
-import type { ExePostProps, NormalPostProps } from "../../types/Post";
 import EditProfileModal from "./EditProfileModal";
-const NormalPostDetails = lazy(() => import("../../Pages/NormalPostDetails"));
-const PostDetails = lazy(() => import("../../Pages/PostDetail"));
 import { useParams } from "react-router-dom";
 import type { PostProps } from "../../types/Post";
 import { useUser } from "../../context/user";
@@ -31,109 +29,171 @@ interface ProfileUser {
     discord?: string;
   };
 }
+
 const ProfilePage: React.FC = () => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-  const [userPosts, setUserPosts] = useState<PostProps[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [hasMorePosts, setHasMorePosts] = useState(true);
-  const { username } = useParams();
-  const [profileUser, setProfileUser] = useState<ProfileUser | null>(null);
-  const [userArticles, setUserArticles] = useState<ArticleProps[]>([]);
-  const requestUserRef = useRef<string | null>(null);
-  const [postDetailsOpen, setPostDetailsOpen] = useState(false);
-  const [selectedPost, setSelectedPost] = useState<PostProps | null>(null);
-  const isModelPostOpen = postDetailsOpen && selectedPost?.type === "model_post";
-  const [loadingProfile, setLoadingProfile] = useState(true);
-  const [loadingPosts, setLoadingPosts] = useState(true);
-  const [loadingArticles, setLoadingArticles] = useState(true);
-  const [editOpen, setEditOpen] = useState(false);
+  const { username } = useParams<{ username: string }>();
   const { user } = useUser();
+  const navigate = useNavigate();
+  const { openChatWith } = useChat();
+
+  // ── Cache lookup — re-read on every username change ──────────────────────
+  // We store the PREVIOUS username so we know when to reset state
+  const prevUsernameRef = useRef<string | undefined>(undefined);
+  const isUsernameChange = prevUsernameRef.current !== username;
+
+  // Read cache for the CURRENT username synchronously
+  const currentCache = username ? getProfileCache(username) : null;
+
+  // ── State — reset immediately when username changes ──────────────────────
+  const [profileUser, setProfileUser] = useState<ProfileUser | null>(
+    currentCache?.profileUser ?? null
+  );
+  const [userPosts, setUserPosts] = useState<PostProps[]>(currentCache?.posts ?? []);
+  const [cursor, setCursor] = useState<string | null>(currentCache?.cursor ?? null);
+  const [hasMorePosts, setHasMorePosts] = useState(currentCache?.hasMore ?? true);
+  const [userArticles, setUserArticles] = useState<ArticleProps[]>(currentCache?.articles ?? []);
+  const [loadingProfile, setLoadingProfile] = useState(!currentCache);
+  const [loadingPosts, setLoadingPosts] = useState(!currentCache);
+  const [loadingArticles, setLoadingArticles] = useState(!currentCache);
+  const [editOpen, setEditOpen] = useState(false);
+
+  // Synchronously reset state when username changes (before render effects fire)
+  // This prevents stale posts from a previous user from flashing
+  if (isUsernameChange) {
+    prevUsernameRef.current = username;
+    const cache = username ? getProfileCache(username) : null;
+
+    // Only reset if these would be wrong — avoid setState during render anti-pattern
+    // by using the initial useState values above on first render,
+    // and a key-based remount strategy below for subsequent changes.
+    // (Handled by the key prop in the router — see note below)
+  }
+
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
   const fetchingRef = useRef(false);
-  const { openChatWith } = useChat();
+  const requestUserRef = useRef<string | null>(null);
   const isOwnProfile = user?._id === profileUser?._id;
-  const navigate = useNavigate();
-  //Fecth Posts
+
+  const contentReady = !loadingProfile && userPosts.length > 0;
+  const savedScrollY = currentCache?.scrollY ?? 0;
+
+  useScrollRestoration(`profile_${username}`, savedScrollY, contentReady);
+
+  // ── Save to cache on unmount ──────────────────────────────────────────────
+  const stateRef = useRef({ userPosts, cursor, hasMorePosts, userArticles, profileUser });
+  const usernameRef = useRef(username);
+
+  // Keep refs in sync with latest state
+  useEffect(() => {
+    stateRef.current = { userPosts, cursor, hasMorePosts, userArticles, profileUser };
+    usernameRef.current = username;
+  });
+
+  useEffect(() => {
+    return () => {
+      const u = usernameRef.current;
+      if (!u || !stateRef.current.profileUser) return;
+      saveProfileCache(u, {
+        profileUser: stateRef.current.profileUser,
+        posts: stateRef.current.userPosts,
+        cursor: stateRef.current.cursor,
+        hasMore: stateRef.current.hasMorePosts,
+        articles: stateRef.current.userArticles,
+        scrollY: window.scrollY,
+      });
+    };
+  }, []);
+
+  // ── Reset all state when username changes ────────────────────────────────
+  useEffect(() => {
+    if (!username) return;
+
+    const cache = getProfileCache(username);
+
+    // Reset to cache (or empty) for the new username
+    setProfileUser(cache?.profileUser ?? null);
+    setUserPosts(cache?.posts ?? []);
+    setCursor(cache?.cursor ?? null);
+    setHasMorePosts(cache?.hasMore ?? true);
+    setUserArticles(cache?.articles ?? []);
+    setLoadingProfile(!cache);
+    setLoadingPosts(!cache);
+    setLoadingArticles(!cache);
+
+    // Reset scroll to top for fresh profile visit, restoration hook handles back-nav
+    if (!cache) {
+      window.scrollTo({ top: 0, behavior: "instant" as ScrollBehavior });
+    }
+  }, [username]);
+
+  // ── Fetch profile ────────────────────────────────────────────────────────
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!username) return;
+      try {
+        const res = await axios.get(`${BACKEND_URL}/api/users/username/${username}`);
+        // Guard: ignore response if username changed while request was in flight
+        if (usernameRef.current !== username) return;
+        setProfileUser(res.data);
+      } catch (err) {
+        console.error("Failed to load profile", err);
+      } finally {
+        if (usernameRef.current === username) setLoadingProfile(false);
+      }
+    };
+
+    fetchProfile();
+  }, [username]);
+
+  // ── Fetch posts ──────────────────────────────────────────────────────────
   const fetchPosts = async (cursorParam: string | null = null) => {
-    if (!profileUser?._id || !hasMorePosts) return;
+    if (!profileUser?._id) return;
+    if (!hasMorePosts && cursorParam !== null) return;
 
     const currentUser = profileUser._id;
     requestUserRef.current = currentUser;
-
     setLoadingPosts(true);
 
     try {
       const res = await axios.get(
         `${BACKEND_URL}/api/posts/user_posts/${currentUser}`,
-        {
-          params: {
-            cursor: cursorParam,
-            limit: 10,
-          },
-        }
+        { params: { cursor: cursorParam, limit: 10 } }
       );
-
-      // 🚨 Ignore stale responses
       if (requestUserRef.current !== currentUser) return;
-
-      setUserPosts((prev) => [...prev, ...res.data.posts]);
+      setUserPosts((prev) =>
+        cursorParam === null ? res.data.posts : [...prev, ...res.data.posts]
+      );
       setCursor(res.data.nextCursor);
-
-      if (!res.data.nextCursor) {
-        setHasMorePosts(false);
-      }
-
+      if (!res.data.nextCursor) setHasMorePosts(false);
     } catch (err) {
       console.error("Failed to load posts", err);
     } finally {
       setLoadingPosts(false);
     }
   };
-  //Fetch profile user
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (!username) return;
 
-      setLoadingProfile(true);
-
-      // reset ALL feed state when profile changes
-      setUserPosts([]);
-      setCursor(null);
-      setHasMorePosts(true);
-      setLoadingPosts(true);
-
-      try {
-        const res = await axios.get(
-          `${BACKEND_URL}/api/users/username/${username}`
-        );
-
-        setProfileUser(res.data);
-      } catch (err) {
-        console.error("Failed to load profile", err);
-      } finally {
-        setLoadingProfile(false);
-      }
-    };
-
-    fetchProfile();
-  }, [username]);
-  //fetch User posts
+  // ── Fetch posts when profileUser loads (skip if cached) ──────────────────
   useEffect(() => {
     if (!profileUser?._id) return;
-
+    // Check cache at call time (not a stale ref) — if we have posts, skip fetch
+    const cache = getProfileCache(username ?? "");
+    if (cache?.posts?.length) return;
     fetchPosts(null);
   }, [profileUser?._id]);
 
-  // fetch users articles
+  // ── Fetch articles when profileUser loads (skip if cached) ───────────────
   useEffect(() => {
-    const fetchArticles = async () => {
-      if (!profileUser?._id) return;
+    if (!profileUser?._id) return;
+    const cache = getProfileCache(username ?? "");
+    if (cache?.articles?.length) return;
 
+    const fetchArticles = async () => {
       try {
         const res = await axios.get(
           `${BACKEND_URL}/api/articles/published/user/${profileUser._id}`
         );
-
+        if (requestUserRef.current !== null && profileUser._id !== requestUserRef.current) return;
         setUserArticles(res.data);
       } catch (err) {
         console.error("Failed to load articles", err);
@@ -141,48 +201,32 @@ const ProfilePage: React.FC = () => {
         setLoadingArticles(false);
       }
     };
-
     fetchArticles();
   }, [profileUser?._id, BACKEND_URL]);
-  useLayoutEffect(() => {
-    window.scrollTo({ top: 0, behavior: "auto" });
-  }, [username]);
 
+  // ── Infinite scroll ──────────────────────────────────────────────────────
   useEffect(() => {
-    if (!loadMoreRef.current) return;
-    if (!profileUser?._id) return;
+    if (!loadMoreRef.current || !profileUser?._id) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-
-        if (
-          entry.isIntersecting &&
-          hasMorePosts &&
-          !loadingPosts &&
-          !fetchingRef.current
-        ) {
+        if (entry.isIntersecting && hasMorePosts && !loadingPosts && !fetchingRef.current) {
           fetchingRef.current = true;
-
-          fetchPosts(cursor).finally(() => {
-            fetchingRef.current = false;
-          });
+          fetchPosts(cursor).finally(() => { fetchingRef.current = false; });
         }
       },
-      {
-        root: null,
-        rootMargin: "600px",
-        threshold: 0,
-      }
+      { root: null, rootMargin: "600px", threshold: 0 }
     );
 
     observer.observe(loadMoreRef.current);
-
     return () => observer.disconnect();
-  }, [cursor, hasMorePosts, loadingPosts]);
+  }, [cursor, hasMorePosts, loadingPosts, profileUser?._id]);
 
-  if (loadingProfile) {
+  if (loadingProfile && !profileUser) {
     return <div className="p-10 text-gray-400">Loading profile...</div>;
   }
+
   return (
 
     <div className="relative pt-2 min-h-screen bg-gray-100 dark:bg-[#191919] text-gray-900 dark:text-white transition-colors duration-300">
@@ -376,179 +420,161 @@ const ProfilePage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 relative">
 
           {/* MODEL POST → replace LEFT + RIGHT */}
-          {isModelPostOpen ? (
-            <div className="lg:col-span-12 w-full">
-              <Suspense fallback={null}>
-                <PostDetails
-                  post={selectedPost as ExePostProps}
-                  onClose={() => {
-                    setPostDetailsOpen(false);
-                    setSelectedPost(null);
-                  }}
-                />
-              </Suspense>
-            </div>
-          ) : (
-            <>
-              {/* LEFT COLUMN */}
-              <div className="lg:col-span-7 flex flex-col w-full">
-                {loadingPosts && <div className="text-gray-400">Loading your posts...</div>}
+          <>
+            {/* LEFT COLUMN */}
+            <div className="lg:col-span-7 flex flex-col w-full">
+              {loadingPosts && (
+                <div className="text-gray-400">Loading your posts...</div>
+              )}
 
-                {!loadingPosts && userPosts.length === 0 && (
-                  <div className="text-gray-400">You haven’t uploaded any posts yet.</div>
-                )}
+              {!loadingPosts && userPosts.length === 0 && (
+                <div className="text-gray-400">
+                  You haven’t uploaded any posts yet.
+                </div>
+              )}
 
-                {postDetailsOpen && selectedPost ? (
-                  <Suspense fallback={null}>
-                    <NormalPostDetails
-                      post={selectedPost as NormalPostProps}
-                      BACKEND_URL={BACKEND_URL}
-                      onClose={() => {
-                        setPostDetailsOpen(false);
-                        setSelectedPost(null);
-                      }}
-                    />
-                  </Suspense>
-                ) : (
-                  <div className="flex flex-col">
-                    {userPosts.map((post) => (
-                      <Post
-                        key={post._id}
-                        {...post}
-                        onOpenDetails={() => {
-                          setSelectedPost(post);
-                          setPostDetailsOpen(true);
-                        }}
-                      />
-                    ))}
-                    {/* Infinite scroll trigger */}
-                    {hasMorePosts && (
-                      <div ref={loadMoreRef} className="h-10 flex items-center justify-center">
-                        <span className="text-xs text-gray-400">Loading more posts...</span>
-                      </div>
-                    )}
+              <div className="flex flex-col">
+                {userPosts.map((post) => (
+                  <Post
+                    key={post._id}
+                    {...post}
+                    onOpenDetails={() =>
+                      navigate(`/post/${post._id}`, {
+                        state: { post }
+                      })
+                    }
+                  />
+                ))}
+
+                {hasMorePosts && (
+                  <div
+                    ref={loadMoreRef}
+                    className="h-10 flex items-center justify-center"
+                  >
+                    <span className="text-xs text-gray-400">
+                      Loading more posts...
+                    </span>
                   </div>
                 )}
-
               </div>
+            </div>
 
-              {/* RIGHT COLUMN — ONLY FOR NON-MODEL POSTS */}
-              <div className="lg:col-span-5 hidden lg:block">
-                <div className="sticky top-4">
-                  {/* Match the background and border to your Hero/Socials cards */}
-                  <div className="bg-white dark:bg-[#191919] rounded-3xl p-8 w-full border border-gray-200 dark:border-white/10 shadow-2xl flex flex-col max-h-[calc(100vh-40px)]">
-                    {/* USER ARTICLES SECTION */}
-                    <div className="mb-10">
-                      <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 mb-4">
-                        Articles by {profileUser?.username || "User"}
-                      </h2>
+            {/* RIGHT COLUMN — ONLY FOR NON-MODEL POSTS */}
+            <div className="lg:col-span-5 hidden lg:block">
+              <div className="sticky top-4">
+                {/* Match the background and border to your Hero/Socials cards */}
+                <div className="bg-white dark:bg-[#191919] rounded-3xl p-8 w-full border border-gray-200 dark:border-white/10 shadow-2xl flex flex-col max-h-[calc(100vh-40px)]">
+                  {/* USER ARTICLES SECTION */}
+                  <div className="mb-10">
+                    <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 mb-4">
+                      Articles by {profileUser?.username || "User"}
+                    </h2>
 
-                      {loadingArticles && (
-                        <p className="text-gray-400 text-xs">Loading articles...</p>
-                      )}
+                    {loadingArticles && (
+                      <p className="text-gray-400 text-xs">Loading articles...</p>
+                    )}
 
-                      {!loadingArticles && userArticles.length === 0 && (
-                        <p className="text-gray-500 text-xs">
-                          No articles published yet.
-                        </p>
-                      )}
+                    {!loadingArticles && userArticles.length === 0 && (
+                      <p className="text-gray-500 text-xs">
+                        No articles published yet.
+                      </p>
+                    )}
 
-                      {!loadingArticles && userArticles.length > 0 && (
-                        <div
-                          className="flex gap-4 overflow-x-auto pb-3
+                    {!loadingArticles && userArticles.length > 0 && (
+                      <div
+                        className="flex gap-4 overflow-x-auto pb-3
                           [&::-webkit-scrollbar]:h-1
                           [&::-webkit-scrollbar-thumb]:bg-gray-200 dark:[&::-webkit-scrollbar-thumb]:bg-white/10
                           [&::-webkit-scrollbar-thumb]:rounded-full
                           [&::-webkit-scrollbar-track]:bg-transparent"
-                        >
-                          {userArticles.map((article) => (
-                            <div
-                              key={article._id}
-                              className="min-w-[220px] max-w-[220px] bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl overflow-hidden hover:bg-gray-100 dark:hover:bg-white/10 transition-all cursor-pointer shrink-0"
-                            >
-                              <div className="h-24 w-full overflow-hidden">
-                                <img
-                                  src={article.hero_image_url || "https://picsum.photos/300/200"}
-                                  alt="article"
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-
-                              <div className="p-4">
-                                <h3 className="text-sm font-bold text-gray-900 dark:text-white line-clamp-2">
-                                  {article.title}
-                                </h3>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
-                                  {article.subtitle || "No subtitle provided"}
-                                </p>
-                                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2">
-                                  {new Date(article.publishedAt).toDateString()}
-                                </p>
-                              </div>
+                      >
+                        {userArticles.map((article) => (
+                          <div
+                            key={article._id}
+                            className="min-w-[220px] max-w-[220px] bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-2xl overflow-hidden hover:bg-gray-100 dark:hover:bg-white/10 transition-all cursor-pointer shrink-0"
+                          >
+                            <div className="h-24 w-full overflow-hidden">
+                              <img
+                                src={article.hero_image_url || "https://picsum.photos/300/200"}
+                                alt="article"
+                                className="w-full h-full object-cover"
+                              />
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
 
-                    <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 mb-8 text-center lg:text-left">
-                      Support {profileUser?.username || "Author"}'s Causes
-                    </h2>
+                            <div className="p-4">
+                              <h3 className="text-sm font-bold text-gray-900 dark:text-white line-clamp-2">
+                                {article.title}
+                              </h3>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                                {article.subtitle || "No subtitle provided"}
+                              </p>
+                              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-2">
+                                {new Date(article.publishedAt).toDateString()}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
-                    <div className="overflow-y-auto pr-2 space-y-8 flex-grow
+                  <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gray-400 dark:text-gray-500 mb-8 text-center lg:text-left">
+                    Support {profileUser?.username || "Author"}'s Causes
+                  </h2>
+
+                  <div className="overflow-y-auto pr-2 space-y-8 flex-grow
                     [&::-webkit-scrollbar]:w-1
                     [&::-webkit-scrollbar-thumb]:bg-gray-200 dark:[&::-webkit-scrollbar-thumb]:bg-white/10
                     [&::-webkit-scrollbar-thumb]:rounded-full
                     [&::-webkit-scrollbar-track]:bg-transparent">
 
-                      {[
-                        {
-                          title: "Environmental Initiative",
-                          desc: "Support the bee sanctuary and environmental conservation efforts.",
-                          btn: "Donate Now",
-                          btnClass: "bg-gray-900 dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200",
-                        },
-                        {
-                          title: "Education Fund",
-                          desc: "Contribute to scholarship programs for aspiring actors and filmmakers.",
-                          btn: "Support Education",
-                          btnClass: "bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10",
-                        },
-                        {
-                          title: "Hurricane Relief",
-                          desc: "Help rebuild communities affected by natural disasters.",
-                          btn: "Emergency Relief Fund",
-                          btnClass: "bg-red-600 hover:bg-red-700 text-white",
-                        },
-                        {
-                          title: "Fan Club",
-                          desc: "Join the official community for exclusive content and updates.",
-                          btn: "Join – $9.99/month",
-                          btnClass: "bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10",
-                          divider: true,
-                        },
-                      ].map((item, idx) => (
-                        <div
-                          key={idx}
-                          className={`pt-6 ${item.divider ? "border-t border-gray-200 dark:border-white/10" : ""}`}
-                        >
-                          <h3 className="text-sm font-black uppercase tracking-tight text-gray-900 dark:text-white mb-2 italic">
-                            {item.title}
-                          </h3>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 leading-relaxed">
-                            {item.desc}
-                          </p>
-                          <button className={`w-full py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${item.btnClass}`}>
-                            {item.btn}
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                    {[
+                      {
+                        title: "Environmental Initiative",
+                        desc: "Support the bee sanctuary and environmental conservation efforts.",
+                        btn: "Donate Now",
+                        btnClass: "bg-gray-900 dark:bg-white text-white dark:text-black hover:bg-gray-800 dark:hover:bg-gray-200",
+                      },
+                      {
+                        title: "Education Fund",
+                        desc: "Contribute to scholarship programs for aspiring actors and filmmakers.",
+                        btn: "Support Education",
+                        btnClass: "bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10",
+                      },
+                      {
+                        title: "Hurricane Relief",
+                        desc: "Help rebuild communities affected by natural disasters.",
+                        btn: "Emergency Relief Fund",
+                        btnClass: "bg-red-600 hover:bg-red-700 text-white",
+                      },
+                      {
+                        title: "Fan Club",
+                        desc: "Join the official community for exclusive content and updates.",
+                        btn: "Join – $9.99/month",
+                        btnClass: "bg-gray-100 dark:bg-white/5 text-gray-900 dark:text-white hover:bg-gray-200 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10",
+                        divider: true,
+                      },
+                    ].map((item, idx) => (
+                      <div
+                        key={idx}
+                        className={`pt-6 ${item.divider ? "border-t border-gray-200 dark:border-white/10" : ""}`}
+                      >
+                        <h3 className="text-sm font-black uppercase tracking-tight text-gray-900 dark:text-white mb-2 italic">
+                          {item.title}
+                        </h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 leading-relaxed">
+                          {item.desc}
+                        </p>
+                        <button className={`w-full py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${item.btnClass}`}>
+                          {item.btn}
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
-            </>
-          )}
+            </div>
+          </>
         </div>
       </div>
     </div>
