@@ -18,6 +18,7 @@ const PostDetail = lazy(() => import("./Pages/PostDetail"));
 const DevlogViewer = lazy(() => import("./Pages/DevlogViewer"));
 const Puck = lazy(() => import("./Pages/Puck"));
 const StreamPage = lazy(() => import("./Pages/StreamPage"));
+const AdminPocketReview = lazy(() => import("./Pages/AdminPocketReview"));
 import ForgotPassword from "./Pages/ForgotPassword";
 import VerifyEmail from "./Pages/VerifyEmail";
 import ResetPassword from "./Pages/ResetPassword";
@@ -68,6 +69,9 @@ export default function AppRoutes() {
           <Route path="/puck" element={<Puck />} />
           <Route path="/recommendations" element={<Recommendations />} />
           <Route path="/recommendationsposts" element={<RecommendationPosts />} />
+
+          {/* Admin Routes */}
+          <Route path="/admin/pocket-review" element={<AdminPocketReview />} />
         </Routes>
       </Suspense>
     </>

@@ -1,0 +1,165 @@
+// controllers/pocketMedia.controller.js
+//
+// Handles media uploads for Pocket creators.
+// Files are stored under pockets/<pocketId>/media/<uuid>.<ext>
+// and returned as CDN URLs the creator can paste directly into their JSX.
+//
+// Supported types: images (jpg, png, gif, webp, svg) and video (mp4, webm)
+// Max size: 20 MB per file, 20 files total per pocket.
+
+import crypto          from "crypto";
+import path            from "path";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
+import Pocket          from "../models/Pocket.js";
+
+const s3       = new S3Client({ region: process.env.AWS_REGION });
+const BUCKET   = process.env.AWS_BUCKET_NAME;
+const CDN_BASE = process.env.GAMES_STORAGE_PRIVATE_CLOUDFRONT;
+
+const ALLOWED_MIME = new Set([
+  "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml",
+  "video/mp4",  "video/webm",
+]);
+const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20 MB
+const MAX_FILES      = 20;
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   POST /api/pockets/media/upload
+   multipart/form-data: file (single)
+   Uses multer (memory storage) — wire up in routes file.
+───────────────────────────────────────────────────────────────────────────── */
+export const uploadPocketMedia = async (req, res) => {
+  try {
+    const pocket = await Pocket.findOne({ owner: req.user.id }, "_id status media").lean();
+
+    if (!pocket) {
+      return res.status(404).json({ message: "Save a draft pocket first before uploading media." });
+    }
+    if (pocket.status === "pending_review") {
+      return res.status(400).json({ message: "Cannot upload media while pocket is under review." });
+    }
+
+    const file = req.file;
+    if (!file) return res.status(400).json({ message: "No file received." });
+
+    if (!ALLOWED_MIME.has(file.mimetype)) {
+      return res.status(400).json({
+        message: "Unsupported file type. Allowed: jpg, png, gif, webp, svg, mp4, webm.",
+      });
+    }
+    if (file.size > MAX_FILE_BYTES) {
+      return res.status(400).json({ message: "File exceeds 20 MB limit." });
+    }
+
+    // Count existing media files for this pocket
+    const listRes = await s3.send(new ListObjectsV2Command({
+      Bucket: BUCKET,
+      Prefix: `pockets/${pocket._id}/media/`,
+    }));
+    const existingCount = listRes.KeyCount ?? 0;
+    if (existingCount >= MAX_FILES) {
+      return res.status(400).json({ message: `Maximum ${MAX_FILES} media files per pocket.` });
+    }
+
+    // Build a unique S3 key
+    const ext    = path.extname(file.originalname).toLowerCase() || mimeToExt(file.mimetype);
+    const uuid   = crypto.randomUUID();
+    const s3Key  = `pockets/${pocket._id}/media/${uuid}${ext}`;
+
+    await s3.send(new PutObjectCommand({
+      Bucket:      BUCKET,
+      Key:         s3Key,
+      Body:        file.buffer,
+      ContentType: file.mimetype,
+      CacheControl: "public, max-age=31536000, immutable", // media never changes — safe to cache forever
+    }));
+
+    const cdnUrl = `${CDN_BASE}/${s3Key}`;
+
+    return res.status(200).json({
+      url:     cdnUrl,
+      s3Key,
+      name:    file.originalname,
+      sizeMB:  +(file.size / 1024 / 1024).toFixed(2),
+      type:    file.mimetype.startsWith("video/") ? "video" : "image",
+    });
+  } catch (err) {
+    console.error("uploadPocketMedia:", err);
+    return res.status(500).json({ message: "Upload failed" });
+  }
+};
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DELETE /api/pockets/media
+   Body: { s3Key: "pockets/<id>/media/<uuid>.ext" }
+───────────────────────────────────────────────────────────────────────────── */
+export const deletePocketMedia = async (req, res) => {
+  try {
+    const { s3Key } = req.body;
+    if (!s3Key) return res.status(400).json({ message: "s3Key is required" });
+
+    // Security: key must belong to the requesting user's pocket
+    const pocket = await Pocket.findOne({ owner: req.user.id }, "_id").lean();
+    if (!pocket) return res.status(404).json({ message: "Pocket not found" });
+
+    const expectedPrefix = `pockets/${pocket._id}/media/`;
+    if (!s3Key.startsWith(expectedPrefix)) {
+      return res.status(403).json({ message: "Cannot delete media from another pocket." });
+    }
+
+    await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: s3Key }));
+    return res.status(200).json({ ok: true });
+  } catch (err) {
+    console.error("deletePocketMedia:", err);
+    return res.status(500).json({ message: "Delete failed" });
+  }
+};
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   GET /api/pockets/media
+   Lists all media files already uploaded for the caller's pocket.
+   Called on editor mount to restore the media panel.
+───────────────────────────────────────────────────────────────────────────── */
+export const listPocketMedia = async (req, res) => {
+  try {
+    const pocket = await Pocket.findOne({ owner: req.user.id }, "_id").lean();
+    if (!pocket) return res.status(200).json({ files: [] });
+
+    const listRes = await s3.send(new ListObjectsV2Command({
+      Bucket: BUCKET,
+      Prefix: `pockets/${pocket._id}/media/`,
+    }));
+
+    const files = (listRes.Contents ?? []).map((obj) => {
+      const url  = `${CDN_BASE}/${obj.Key}`;
+      const ext  = path.extname(obj.Key).toLowerCase();
+      const type = [".mp4", ".webm"].includes(ext) ? "video" : "image";
+      return {
+        s3Key:  obj.Key,
+        url,
+        sizeMB: +(obj.Size / 1024 / 1024).toFixed(2),
+        type,
+        name:   obj.Key.split("/").pop(),
+      };
+    });
+
+    return res.status(200).json({ files });
+  } catch (err) {
+    console.error("listPocketMedia:", err);
+    return res.status(500).json({ message: "Failed to list media" });
+  }
+};
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+function mimeToExt(mime) {
+  const map = {
+    "image/jpeg":    ".jpg",
+    "image/png":     ".png",
+    "image/gif":     ".gif",
+    "image/webp":    ".webp",
+    "image/svg+xml": ".svg",
+    "video/mp4":     ".mp4",
+    "video/webm":    ".webm",
+  };
+  return map[mime] ?? ".bin";
+}

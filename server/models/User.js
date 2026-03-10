@@ -1,3 +1,4 @@
+// models/User.js
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
@@ -12,50 +13,42 @@ const userSchema = new mongoose.Schema(
       required: function () {
         return !this.isGoogleUser;
       },
-      select: false, // Don’t return by default
+      select: false,
     },
     isGoogleUser: { type: Boolean, default: false },
 
-    avatar: {
-      type: String, // CDN / Cloudinary URL
-      default: "",
-    },
-
-    banner: {
-      type: String,
-      default: "",
-    },
-
-    bio: {
-      type: String,
-      maxlength: 160,
-      default: "",
-    },
+    avatar:  { type: String, default: "" },
+    banner:  { type: String, default: "" },
+    bio:     { type: String, maxlength: 160, default: "" },
 
     socials: {
-      twitter: String,
+      twitter:   String,
       instagram: String,
-      youtube: String,
-      discord: String,
+      youtube:   String,
+      discord:   String,
     },
 
     followersCount: { type: Number, default: 0 },
     followingCount: { type: Number, default: 0 },
-    resetPasswordToken: {
-      type: String,
-      select: false,
-    },
-    resetPasswordExpires: {
-      type: Date,
-    },
-    isVerified: {
-      type: Boolean,
-      default: false
-    },
-    emailVerificationOTP: String,
-    emailVerificationExpires: Date
-  },
 
+    role: {
+      type:    String,
+      enum:    ["user", "admin"],
+      default: "user",
+    },
+
+    // General email verification
+    isVerified: { type: Boolean, default: false },
+
+    // Granted manually by admin — only these accounts can create/edit a Pocket.
+    // Being verified does NOT automatically grant this.
+    isPocketEligible: { type: Boolean, default: false },
+
+    resetPasswordToken:       { type: String, select: false },
+    resetPasswordExpires:     { type: Date },
+    emailVerificationOTP:     String,
+    emailVerificationExpires: Date,
+  },
   { timestamps: true }
 );
 

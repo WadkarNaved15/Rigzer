@@ -1,11 +1,12 @@
-// types/post.ts
+// src/types/Post.ts
 
 export type PostType =
   | 'normal_post'
   | 'game_post'
   | 'model_post'
   | 'devlog_post'
-  | 'ad_model_post'; // ⭐ NEW
+  | 'ad_model_post'
+  | 'pocket_update'   // feed.service.js sets feedType: "pocket_update" on normalised entries
 
 export interface UserSummary {
   _id: string;
@@ -17,51 +18,21 @@ export interface UserSummary {
 export interface ModelMetadata {
   fileName: string;
   downloadSizeMB: number;
-
-  geometry: {
-    meshes: number;
-    vertices: number;
-    triangles: number;
-  };
-
+  geometry: { meshes: number; vertices: number; triangles: number };
   materials: number;
-
-  textures: {
-    present: boolean;
-    count: number;
-  };
-
+  textures: { present: boolean; count: number };
   uvLayers: number;
   vertexColors: boolean;
-
-  animations: {
-    present: boolean;
-    count: number;
-  };
-
+  animations: { present: boolean; count: number };
   rigged: boolean;
   morphTargets: boolean;
-
   transforms: {
     scale: [number, number, number];
     position: [number, number, number];
-    rotation: {
-      values: [number, number, number];
-      order: 'XYZ' | 'XZY' | 'YXZ' | 'YZX' | 'ZXY' | 'ZYX';
-    };
+    rotation: { values: [number, number, number]; order: 'XYZ' | 'XZY' | 'YXZ' | 'YZX' | 'ZXY' | 'ZYX' };
   };
-
-  boundingBox: {
-    width: number;
-    height: number;
-    depth: number;
-  };
-
-  center: {
-    x: number;
-    y: number;
-    z: number;
-  };
+  boundingBox: { width: number; height: number; depth: number };
+  center: { x: number; y: number; z: number };
 }
 
 export interface NormalPostAsset {
@@ -80,17 +51,12 @@ export interface OptimizationInfo {
 
 export interface ModelAsset {
   name: string;
-
   originalKey: string;
   optimizedKey?: string | null;
-
   originalUrl: string;
   optimizedUrl?: string | null;
-
   sizeMB?: number;
-
   optimization?: OptimizationInfo;
-
   metadata?: ModelMetadata;
 }
 
@@ -101,9 +67,8 @@ export interface ModelPost {
   assets: ModelAsset[];
 }
 
-// ── Ad Model types ────────────────────────────────────────────────────────────
+// ── Ad Model types ─────────────────────────────────────────────────────────────
 
-/** The single model asset inside an ad post (mirrors ModelAsset) */
 export interface AdModelAsset {
   name: string;
   originalKey: string;
@@ -115,26 +80,23 @@ export interface AdModelAsset {
   metadata?: ModelMetadata;
 }
 
-/** Shape of the adModelPost sub-document returned from the API */
 export interface AdModelPost {
   brandName?: string | null;
   logoUrl?: string | null;
   bgMode: 'color' | 'image';
   bgColor?: string | null;
   bgImageUrl?: string | null;
-  bgImagePosition?: string | null; // e.g. "40% 60%"
-  bgImageSize?: string | null; // e.g. "cover", "contain", "100px 200px"
-  overlayOpacity: number; // 0-80
+  bgImagePosition?: string | null;
+  bgImageSize?: string | null;
+  overlayOpacity: number;
   asset: AdModelAsset;
 }
 
-/** Props for the AdModelPostForm creation component */
 export interface AdModelPostFormProps {
   onCancel: () => void;
   onBack?: () => void;
 }
 
-/** Local asset state used during upload inside the form */
 export interface AdAsset {
   id: string;
   file: File;
@@ -146,10 +108,16 @@ export interface AdAsset {
   status?: 'pending' | 'uploading' | 'done' | 'error';
 }
 
-// ── Common fields shared by all post variants ─────────────────────────────────
+// ── Editor prop types ──────────────────────────────────────────────────────────
+
+export interface PocketEditorProps {
+  onCancel: () => void;
+}
+
+// ── Common fields shared by all post variants ──────────────────────────────────
+
 interface CommonPostFields {
   _id: string;
-  type: PostType;
   user: UserSummary;
   avatarUrl?: string;
   description: string;
@@ -165,13 +133,11 @@ interface CommonPostFields {
   detailed?: boolean;
 }
 
-// ── Discriminated union members ───────────────────────────────────────────────
+// ── Discriminated union members ────────────────────────────────────────────────
 
 export interface NormalPostProps extends CommonPostFields {
   type: 'normal_post';
-  normalPost: {
-    assets: NormalPostAsset[];
-  };
+  normalPost: { assets: NormalPostAsset[] };
 }
 
 export interface GameSystemRequirements {
@@ -221,16 +187,30 @@ export interface DevlogPostProps extends CommonPostFields {
   devlogMeta?: DevlogMeta;
 }
 
-/** ⭐ NEW — feed card props for ad model posts */
 export interface AdModelPostProps extends CommonPostFields {
   type: 'ad_model_post';
-  adModelPost: AdModelPost; // required — no ad post without this
+  adModelPost: AdModelPost;
 }
 
-// ── Master union ──────────────────────────────────────────────────────────────
+// ── Pocket post ────────────────────────────────────────────────────────────────
+// Extends CommonPostFields so it has `type` — required for the discriminated union.
+// feed.service.js sets type: "pocket_update" when normalising PocketFeedEntry rows.
+// The flat props (brandName, tagline, compiledBundleUrl) are set by the same
+// normalisation step so PocketPost.tsx can read them directly.
+
+export interface PocketPostProps extends CommonPostFields {
+  type: 'pocket_update';
+  brandName:         string;
+  tagline?:          string;
+  compiledBundleUrl: string;
+}
+
+// ── Master union ───────────────────────────────────────────────────────────────
+
 export type PostProps =
   | NormalPostProps
   | GamePostProps
   | ExePostProps
   | DevlogPostProps
-  | AdModelPostProps; // ⭐ NEW
+  | AdModelPostProps
+  | PocketPostProps;
