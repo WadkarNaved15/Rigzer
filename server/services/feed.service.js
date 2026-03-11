@@ -1,31 +1,52 @@
 // services/feed.service.js
-// Cursor-based feed merge — matches the _id cursor pattern in posts.js.
-// Called by the /api/posts/fetch_posts route instead of querying AllPost directly.
+// Cursor-based feed merge — AllPost rows + PocketFeedEntry rows.
+//
+// Ordering:
+//   AllPost        — sorted by _id desc (ObjectId ≡ createdAt, existing behaviour)
+//   PocketFeedEntry — sorted by publishedAt desc (reset on every approval so
+//                     re-approved pockets surface as fresh content)
+//
+// The two collections use different sort keys so we normalise both to a
+// plain `sortKey` (millisecond timestamp) for the merge step, then derive
+// the nextCursor from whichever collection's natural key applies.
 
 import AllPost         from "../models/Allposts.js";
 import PocketFeedEntry from "../models/PocketFeedEntry.js";
 import Like            from "../models/Like.js";
 
 /**
- * Merged, cursor-paginated feed.
- *
- * Strategy: over-fetch from both collections, merge by _id desc
- * (ObjectId timestamps are monotonically increasing, so _id sort ≡ createdAt sort),
- * then slice to `limit`. The nextCursor returned is the last _id in the merged slice.
- *
  * @param {{ cursor?: string, limit?: number, userId?: string }} opts
- * @returns {Promise<{ posts: object[], nextCursor: string|null }>}
+ * cursor format:  "<type>:<value>"
+ *   allpost:      "a:<objectId>"   — filters _id < objectId
+ *   pocket:       "p:<isoDate>"    — filters publishedAt < date
+ *   initial:      undefined / ""
+ *
+ * We encode the cursor type so the feed can page independently
+ * across the two collections without conflating their sort keys.
  */
 export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
-  const idFilter = cursor ? { _id: { $lt: cursor } } : {};
-
-  // Over-fetch from both so the merge has enough to fill `limit` after sorting.
-  // 2× is conservative; increase if pocket density is high.
   const fetchLimit = limit * 2;
 
+  // ── Parse cursor ──────────────────────────────────────────────────────────
+  let allPostFilter    = {};
+  let pocketFilter     = {};
+
+  if (cursor) {
+    const [type, value] = cursor.split(/:(.+)/); // split on first colon only
+    if (type === "a") {
+      allPostFilter = { _id: { $lt: value } };
+    } else if (type === "p") {
+      pocketFilter  = { publishedAt: { $lt: new Date(value) } };
+    } else {
+      // Legacy plain-objectId cursor from before this change — treat as allpost
+      allPostFilter = { _id: { $lt: cursor } };
+    }
+  }
+
+  // ── Fetch both collections in parallel ────────────────────────────────────
   const [allPosts, pocketEntries] = await Promise.all([
     AllPost.find({
-      ...idFilter,
+      ...allPostFilter,
       type: { $ne: "canvas_article" },
     })
       .populate("user", "username avatar")
@@ -33,41 +54,50 @@ export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
       .limit(fetchLimit)
       .lean(),
 
-    PocketFeedEntry.find(idFilter)
+    PocketFeedEntry.find(pocketFilter)
       .populate("owner", "username avatar")
-      .sort({ _id: -1 })
-      .limit(limit)          // pockets are sparse — no need to over-fetch
+      .sort({ publishedAt: -1 })
+      .limit(limit)
       .lean(),
   ]);
 
-  // Normalise pocket entries to match AllPost shape expected by the frontend
+  // ── Normalise to a common shape ───────────────────────────────────────────
+  const normalisedAllPosts = allPosts.map((p) => ({
+    ...p,
+    _sortKey:    p._id.getTimestamp().getTime(), // ms from ObjectId
+    _cursorType: "a",
+    _cursorVal:  p._id.toString(),
+  }));
+
   const normalisedPockets = pocketEntries.map((e) => ({
     _id:               e._id,
     createdAt:         e.createdAt,
     updatedAt:         e.updatedAt,
-    type:              "pocket_update",   // Post.tsx dispatches on this
-    user:              e.owner,           // same prop name as AllPost
+    publishedAt:       e.publishedAt,
+    type:              "pocket_update",
+    user:              e.owner,
     likesCount:        e.likesCount,
     commentsCount:     e.commentsCount,
-    isLiked:           false,             // enriched below
-    // Pocket-specific — read by PocketPost.tsx directly from top-level props
+    isLiked:           false,
     brandName:         e.brandName,
     tagline:           e.tagline,
     compiledBundleUrl: e.compiledBundleUrl,
-    // Keep reference for analytics
     _pocketEntryId:    e._id,
+    _sortKey:          new Date(e.publishedAt).getTime(), // ms from publishedAt
+    _cursorType:       "p",
+    _cursorVal:        e.publishedAt.toISOString(),
   }));
 
-  // Merge and sort by _id descending, slice to limit
-  const merged = [...allPosts, ...normalisedPockets]
-    .sort((a, b) => (a._id < b._id ? 1 : a._id > b._id ? -1 : 0))
+  // ── Merge by sortKey desc, slice to limit ─────────────────────────────────
+  const merged = [...normalisedAllPosts, ...normalisedPockets]
+    .sort((a, b) => b._sortKey - a._sortKey)
     .slice(0, limit);
 
   if (merged.length === 0) {
     return { posts: [], nextCursor: null };
   }
 
-  // Enrich isLiked for the AllPost items (pocket entries use their own like model)
+  // ── Enrich isLiked for AllPost items ─────────────────────────────────────
   if (userId) {
     const allPostIds = merged
       .filter((p) => p.type !== "pocket_update")
@@ -88,8 +118,12 @@ export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
     }
   }
 
-  return {
-    posts:      merged,
-    nextCursor: merged[merged.length - 1]._id,
-  };
+  // ── Build nextCursor from the last item in the merged page ────────────────
+  const last       = merged[merged.length - 1];
+  const nextCursor = `${last._cursorType}:${last._cursorVal}`;
+
+  // Strip internal merge fields before sending to client
+  const posts = merged.map(({ _sortKey, _cursorType, _cursorVal, ...rest }) => rest);
+
+  return { posts, nextCursor };
 }

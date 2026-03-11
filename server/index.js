@@ -49,6 +49,8 @@ import { initializeInstancePool } from "./services/instanceAllocator.js";
 import { initializeSessionPubSub } from "./services/sessionPubSub.js";
 import streamProxyRouter from "./routes/streamProxy.js";
 
+import adminRouter from "./routes/admin.js"
+
 
 dotenv.config();
 
@@ -133,6 +135,9 @@ app.use("/api/sessions", sessionRoutes);
 app.use("/api/internal", internalRoutes);
 app.use("/api/stream", streamProxyRouter);
 app.use("/api/pockets", pocketRoutes);
+
+// Admin routes (protected by your isAdmin middleware)
+app.use("/api/admin", adminRouter);
 
 // HTTP SERVER
 const server = http.createServer(app);

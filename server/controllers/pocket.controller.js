@@ -121,11 +121,10 @@ export const submitForReview = async (req, res) => {
    Body: { action: "approve" | "reject", note?: string }
 
    On approve:
-   - Bundle is uploaded to a VERSIONED S3 key (includes a timestamp) so
-     CloudFront never serves a stale response — no invalidation needed.
-   - PocketFeedEntry is UPSERTED (one per Pocket) so only a single entry
-     ever appears in the feed. likesCount and commentsCount are reset to 0
-     on every approval because each content update is treated as a fresh post.
+   - Bundle uploaded to a versioned S3 key — CloudFront never serves stale.
+   - PocketFeedEntry upserted in place (stable _id) with publishedAt = now,
+     so it sorts to the top of the feed on every approval without losing
+     its analytics/likes reference or risking a delete+insert race condition.
 ───────────────────────────────────────────────────────────────────────────── */
 export const reviewPocket = async (req, res) => {
   try {
@@ -158,11 +157,9 @@ export const reviewPocket = async (req, res) => {
       return res.status(422).json({ message: "Compilation failed", error: compileErr.message });
     }
 
-    // Remember the old bundle URL so we can delete it after the new one is live
+    // Save old bundle URL before overwriting so we can delete it after upload
     const oldBundleUrl = pocket.compiledBundleUrl ?? null;
 
-    // Versioned key — timestamp makes it unique so CloudFront always fetches
-    // a fresh object. The old versioned key is deleted below after success.
     const version   = Date.now();
     const s3Key     = `pockets/${pocket._id}/bundle-${version}.js`;
     const bundleUrl = await uploadBundleToCDN(compiledCode, s3Key);
@@ -172,17 +169,18 @@ export const reviewPocket = async (req, res) => {
     pocket.reviewNote        = null;
     await pocket.save();
 
-    // Immediately delete the previous bundle from S3 now that the new one is live.
+    // Delete old bundle immediately now that new one is live
     if (oldBundleUrl) {
       const CDN_BASE = process.env.GAMES_STORAGE_PRIVATE_CLOUDFRONT;
       const oldKey   = CDN_BASE ? oldBundleUrl.replace(`${CDN_BASE}/`, "") : null;
       if (oldKey) await deleteBundleFromCDN(oldKey);
     }
 
-    // Upsert a SINGLE PocketFeedEntry per Pocket.
-    // $set refreshes all denormalised fields + compiledBundleUrl.
-    // $setOnInsert only fires on the very first approval (creates the doc).
-    // Using { new: true } so we can return the entry id if needed.
+    // Upsert the PocketFeedEntry in place — stable _id preserves all
+    // analytics/likes references. publishedAt = now floats it to the top
+    // of the feed on every approval. Counters reset because each approval
+    // is a fresh post from the audience's perspective.
+    const publishedAt = new Date();
     await PocketFeedEntry.findOneAndUpdate(
       { pocket: pocket._id },
       {
@@ -191,7 +189,7 @@ export const reviewPocket = async (req, res) => {
           brandName:         pocket.brandName,
           tagline:           pocket.tagline,
           compiledBundleUrl: bundleUrl,
-          // Reset engagement on every approval — each update is a fresh post
+          publishedAt,
           likesCount:        0,
           commentsCount:     0,
         },
@@ -199,7 +197,7 @@ export const reviewPocket = async (req, res) => {
           pocket: pocket._id,
         },
       },
-      { upsert: true, new: true, timestamps: true }
+      { upsert: true, new: true }
     );
 
     return res.status(200).json({ message: "Approved and published", pocket });

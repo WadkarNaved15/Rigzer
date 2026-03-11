@@ -20,8 +20,7 @@ interface MediaFile {
 const POCKET_HEIGHT = 480;
 
 // ─── Starter template ─────────────────────────────────────────────────────────
-const STARTER_CODE = `
-// Welcome to Pocket.
+const STARTER_CODE = `// NVIDIA Sponsored Pocket — Rigzer Cloud Gaming
 // Pure inline styles — no Tailwind needed.
 // Fixed 480px canvas. Design within this space.
 
@@ -771,21 +770,88 @@ const PocketEditor: React.FC<PocketEditorProps> = ({ onCancel: _onCancel }) => {
             {showTips ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           </button>
           {showTips && (
-            <div className="mt-3 p-4 rounded-xl bg-gray-50 dark:bg-zinc-900 border border-gray-100 dark:border-zinc-800 text-xs text-gray-600 dark:text-zinc-400 space-y-2 leading-relaxed">
-              <p className="font-bold text-black dark:text-white mb-1">Canvas rules</p>
-              <p>🖼 Your pocket is a <strong>fixed {POCKET_HEIGHT}px tall</strong> box. Content that overflows is clipped — design within this space.</p>
-              <p>🎨 Style everything with <strong>inline styles</strong> — <code className="bg-gray-200 dark:bg-zinc-800 px-1 rounded">style={"{{}}"}</code> props. Tailwind classes do not work inside the pocket sandbox.</p>
-              <p>🔒 The canvas width fills the post column (same as all other posts). Height is always exactly {POCKET_HEIGHT}px.</p>
-              <p className="font-bold text-black dark:text-white mt-3 mb-1">What you can use</p>
-              <p>✅ Full React — all hooks (useState, useEffect, useRef, useMemo, etc.)</p>
-              <p>✅ Inline styles — use the <code className="bg-gray-200 dark:bg-zinc-800 px-1 rounded">style={"{{}}"}</code> prop on every element</p>
-              <p>✅ Uploaded images and videos via the Media tab</p>
-              <p>✅ External images/video from <code className="bg-gray-200 dark:bg-zinc-800 px-1 rounded">https://</code> URLs</p>
-              <p className="font-bold text-black dark:text-white mt-3 mb-1">What is blocked</p>
-              <p>❌ Tailwind — the sandbox has no access to your app's stylesheet. Use inline styles only.</p>
-              <p>❌ <code className="bg-gray-200 dark:bg-zinc-800 px-1 rounded">fetch()</code> / XHR — CSP blocks all network calls</p>
-              <p>❌ <code className="bg-gray-200 dark:bg-zinc-800 px-1 rounded">localStorage</code> / cookies — sandbox isolation</p>
-              <p className="text-amber-500 mt-3">⚠ Every update goes through admin review before going live.</p>
+            <div className="mt-3 space-y-3 text-xs leading-relaxed">
+
+              {/* ── Critical requirements — things that will break the pocket ── */}
+              <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800">
+                <p className="font-black text-red-600 dark:text-red-400 uppercase tracking-wider mb-2">
+                  🚨 Required — preview &amp; live will break without these
+                </p>
+                <div className="space-y-2 text-red-700 dark:text-red-300">
+                  <p>
+                    <strong>1. Component must be named exactly <code className="bg-red-100 dark:bg-red-900 px-1.5 py-0.5 rounded font-mono">PocketApp</code></strong><br/>
+                    <span className="opacity-70">The sandbox looks for <code className="font-mono">window.PocketApp</code> by name. Any other name and nothing renders.</span>
+                  </p>
+                  <p>
+                    <strong>2. Use <code className="bg-red-100 dark:bg-red-900 px-1.5 py-0.5 rounded font-mono">React.useState</code>, <code className="bg-red-100 dark:bg-red-900 px-1.5 py-0.5 rounded font-mono">React.useEffect</code>, etc. — not destructured imports</strong><br/>
+                    <span className="opacity-70">There are no imports in the sandbox. React is available as the global <code className="font-mono">React</code> object only.</span>
+                  </p>
+                  <p>
+                    <strong>3. No <code className="bg-red-100 dark:bg-red-900 px-1.5 py-0.5 rounded font-mono">import</code> or <code className="bg-red-100 dark:bg-red-900 px-1.5 py-0.5 rounded font-mono">export</code> statements</strong><br/>
+                    <span className="opacity-70">The sandbox runs your code as a plain script, not a module. Any import/export will cause a syntax error.</span>
+                  </p>
+                  <p>
+                    <strong>4. Inline styles only — no Tailwind, no CSS classes</strong><br/>
+                    <span className="opacity-70">The sandbox has no stylesheet. Use <code className="font-mono">{"style={{ color: 'red' }}"}</code> on every element.</span>
+                  </p>
+                  <p>
+                    <strong>5. Fixed {POCKET_HEIGHT}px height — nothing outside renders</strong><br/>
+                    <span className="opacity-70">The canvas is hard-clipped at {POCKET_HEIGHT}px tall. Set <code className="font-mono">{"height: '100%'"}</code> on your root element and design within this space.</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* ── What's available ── */}
+              <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800">
+                <p className="font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-2">✅ What you can use</p>
+                <div className="space-y-1.5 text-emerald-800 dark:text-emerald-300">
+                  <p><code className="bg-emerald-100 dark:bg-emerald-900 px-1 rounded font-mono">React.useState / useEffect / useRef / useMemo / useCallback</code> — all hooks via the global <code className="font-mono">React</code> object</p>
+                  <p>Inline styles — <code className="bg-emerald-100 dark:bg-emerald-900 px-1 rounded font-mono">{"style={{ color: '#fff', fontSize: 14 }}"}</code></p>
+                  <p>Images &amp; videos uploaded via the <strong>Media tab</strong> — paste URLs directly into <code className="font-mono">src</code> props</p>
+                  <p>External <code className="font-mono">https://</code> images and videos</p>
+                  <p>SVG inline or via <code className="font-mono">&lt;img src="https://...svg"/&gt;</code></p>
+                  <p>setTimeout / setInterval / requestAnimationFrame</p>
+                  <p>Math, Date, JSON — all standard JS globals</p>
+                </div>
+              </div>
+
+              {/* ── What's blocked ── */}
+              <div className="p-4 rounded-xl bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700">
+                <p className="font-black text-zinc-600 dark:text-zinc-400 uppercase tracking-wider mb-2">❌ What is blocked</p>
+                <div className="space-y-1.5 text-zinc-600 dark:text-zinc-400">
+                  <p><code className="bg-zinc-200 dark:bg-zinc-800 px-1 rounded font-mono">fetch()</code> / XHR / WebSocket — all network calls are blocked by CSP</p>
+                  <p><code className="bg-zinc-200 dark:bg-zinc-800 px-1 rounded font-mono">localStorage</code> / <code className="bg-zinc-200 dark:bg-zinc-800 px-1 rounded font-mono">sessionStorage</code> / cookies — sandbox isolation</p>
+                  <p>Third-party libraries (lodash, axios, etc.) — no CDN access inside the sandbox</p>
+                  <p>Tailwind / CSS modules / any stylesheet</p>
+                  <p><code className="bg-zinc-200 dark:bg-zinc-800 px-1 rounded font-mono">document.cookie</code> / <code className="bg-zinc-200 dark:bg-zinc-800 px-1 rounded font-mono">window.location</code> navigation</p>
+                </div>
+              </div>
+
+              {/* ── Quick reference ── */}
+              <div className="p-4 rounded-xl bg-violet-50 dark:bg-violet-900/10 border border-violet-200 dark:border-violet-800">
+                <p className="font-black text-violet-700 dark:text-violet-400 uppercase tracking-wider mb-2">💡 Quick-start template</p>
+                <pre className="text-violet-800 dark:text-violet-300 font-mono text-[10px] leading-relaxed whitespace-pre-wrap bg-violet-100 dark:bg-violet-900/30 p-3 rounded-lg">{`const PocketApp = () => {
+  const [count, setCount] = React.useState(0);
+
+  return (
+    <div style={{ width: "100%", height: "100%",
+                  display: "flex", alignItems: "center",
+                  justifyContent: "center",
+                  background: "#0f0f0f", color: "#fff" }}>
+      <button
+        onClick={() => setCount(c => c + 1)}
+        style={{ padding: "12px 28px", borderRadius: 8,
+                 background: "#7c3aed", color: "#fff",
+                 border: "none", cursor: "pointer",
+                 fontSize: 16, fontWeight: 700 }}>
+        Clicked {count} times
+      </button>
+    </div>
+  );
+};`}</pre>
+              </div>
+
+              <p className="text-amber-500 text-center">⚠ Every submission goes through admin review before going live.</p>
             </div>
           )}
         </div>
