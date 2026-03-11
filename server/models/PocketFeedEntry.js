@@ -4,12 +4,10 @@ import mongoose from "mongoose";
 /**
  * ONE document per Pocket (not per approval).
  *
- * On first approval:  document is created   → createdAt set by Mongoose timestamps
- * On re-approval:     document is $set       → compiledBundleUrl updated, likes preserved
- *
- * Feed ordering uses _id (ObjectId) descending — stable, indexed, no ties.
- * compiledBundleUrl points to a versioned S3 key so PocketPost.tsx always
- * fetches the latest bundle without any CloudFront invalidation needed.
+ * Feed ordering uses `publishedAt` descending — reset to now() on every
+ * approval so the pocket always surfaces as fresh content without needing
+ * a new _id. This preserves the stable _id reference used by analytics,
+ * likes, comments, and any client-side caches.
  */
 const PocketFeedEntrySchema = new mongoose.Schema(
   {
@@ -17,7 +15,7 @@ const PocketFeedEntrySchema = new mongoose.Schema(
       type:     mongoose.Schema.Types.ObjectId,
       ref:      "Pocket",
       required: true,
-      unique:   true,  // enforces one entry per Pocket at the DB level
+      unique:   true,
       index:    true,
     },
     owner: {
@@ -26,20 +24,24 @@ const PocketFeedEntrySchema = new mongoose.Schema(
       required: true,
     },
 
-    // Denormalised at publish time — avoids a join on every feed load.
-    // Updated in-place on each re-approval via $set.
+    // Denormalised at publish time — updated in-place on each re-approval.
     brandName:         { type: String, required: true },
     tagline:           { type: String, default: "" },
     compiledBundleUrl: { type: String, required: true },
 
-    likesCount:    { type: Number, default: 0, index: true },
+    // Feed position — set to Date.now() on every approval so the pocket
+    // always sorts above older content. Indexed for fast feed queries.
+    publishedAt: {
+      type:     Date,
+      required: true,
+      index:    true,
+    },
+
+    // Counters — reset on every approval (each update is a fresh post).
+    likesCount:    { type: Number, default: 0 },
     commentsCount: { type: Number, default: 0 },
   },
-  {
-    // createdAt = first publish timestamp (immutable after insert)
-    // updatedAt = last re-approval timestamp (updated on every $set)
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 export default mongoose.model("PocketFeedEntry", PocketFeedEntrySchema);
