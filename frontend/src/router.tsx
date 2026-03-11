@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router-dom";
 import MainLayout from "./layouts/MainLayout";
+import AdminRoute from "./components/Routing/AdminRoutes";
 
 // Pages
 import Home from "./Pages/Home";
@@ -15,7 +16,7 @@ import DevLogs from "./Pages/DevLogs";
 import DevLogsView from "./Pages/DevLogViewPage";
 import DevLogCanvas from "./Pages/DevlogCanvas";
 import DevlogViewer from "./Pages/DevlogViewer";
-import AdminPocketReview from "./Pages/AdminPocketReview";
+import AdminPocketDashboard from "./Pages/AdminPocketDashboard";
 import PostModal from "./components/PostModal";
 import PostDetailsPage from "./Pages/PostDetailsPage";
 import Puck from "./Pages/Puck";
@@ -69,6 +70,16 @@ export const router = createBrowserRouter([
   { path: "/recommendations", element: <Recommendations /> },
   { path: "/recommendationsposts", element: <RecommendationPosts /> },
 
-  // Admin Routes
-  { path: "/admin/pocketreview", element: <AdminPocketReview /> },
+  // ── Admin routes ───────────────────────────────────────────────────────────
+  // AdminRoute checks:  not logged in → /login?next=…  |  not admin → 403 page
+  // Real security is enforced by isAdmin middleware on every /api/admin/* and
+  // /api/pockets/pending|review|eligibility endpoint — never trust this alone.
+  {
+    path: "/admin/pockets",
+    element: (
+      <AdminRoute>
+        <AdminPocketDashboard />
+      </AdminRoute>
+    ),
+  },
 ]);
