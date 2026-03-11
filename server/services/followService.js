@@ -4,7 +4,7 @@ import redis from "../config/redis.js";
 import mongoose from "mongoose";
 
 class FollowService {
-static async followUser(followerId, followingId) {
+  static async followUser(followerId, followingId) {
     if (!mongoose.Types.ObjectId.isValid(followerId) || !mongoose.Types.ObjectId.isValid(followingId))
       throw new Error("Invalid user ID");
 
@@ -33,13 +33,13 @@ static async followUser(followerId, followingId) {
       if (error.code === 11000) {
         throw new Error("Already following");
       }
-      
+
       // Throw any other errors
-      throw error; 
+      throw error;
     } finally {
       session.endSession();
     }
-    
+
     // --- Cache Invalidation (remains the same) ---
     try {
       await Promise.all([
@@ -47,7 +47,7 @@ static async followUser(followerId, followingId) {
         redis.sAdd(`user:${followingId}:followers`, followerId),
         redis.del(`followersCount:${followingId}`),
         redis.del(`followingCount:${followerId}`),
-        redis.del(`suggested:${followerId}`) 
+        redis.del(`suggested:${followerId}`)
       ]);
     } catch (cacheError) {
       console.error("Cache invalidation failed after follow:", cacheError);
@@ -59,7 +59,7 @@ static async followUser(followerId, followingId) {
   static async unfollowUser(followerId, followingId) {
     if (!mongoose.Types.ObjectId.isValid(followerId) || !mongoose.Types.ObjectId.isValid(followingId))
       throw new Error("Invalid user ID");
-    
+
     // Start a session for the transaction
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -75,10 +75,10 @@ static async followUser(followerId, followingId) {
         User.findByIdAndUpdate(followerId, { $inc: { followingCount: -1 } }, opts),
         User.findByIdAndUpdate(followingId, { $inc: { followersCount: -1 } }, opts),
       ]);
-      
+
       // If all DB operations succeed, commit the transaction
       await session.commitTransaction();
-      
+
     } catch (error) {
       // If any operation fails, abort the entire transaction
       await session.abortTransaction();
@@ -101,32 +101,30 @@ static async followUser(followerId, followingId) {
     } catch (cacheError) {
       console.error("Cache invalidation failed after unfollow:", cacheError);
     }
-    
+
     return true;
   }
 
   // --- Read-only methods below do not need transactions ---
 
   static async getFollowers(userId) {
-    let followers = await redis.sMembers(`user:${userId}:followers`);
-    if (followers.length) return followers;
+    const docs = await Follow.find({ following: userId })
+      .populate("follower", "username avatar")
+      .select("follower -_id");
 
-    const docs = await Follow.find({ following: userId }).select("follower -_id");
-    followers = docs.map(d => d.follower.toString());
-
-    if (followers.length) await redis.sAdd(`user:${userId}:followers`, ...followers);
-    return followers;
+    return docs
+      .map(d => d.follower)
+      .filter(Boolean);
   }
 
   static async getFollowing(userId) {
-    let following = await redis.sMembers(`user:${userId}:following`);
-    if (following.length) return following;
+    const docs = await Follow.find({ follower: userId })
+      .populate("following", "username avatar")
+      .select("following -_id");
 
-    const docs = await Follow.find({ follower: userId }).select("following -_id");
-    following = docs.map(d => d.following.toString());
-
-    if (following.length) await redis.sAdd(`user:${userId}:following`, ...following);
-    return following;
+    return docs
+      .map(d => d.following)
+      .filter(Boolean);
   }
 
   static async getFollowersCount(userId) {

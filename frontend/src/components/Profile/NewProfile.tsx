@@ -239,7 +239,7 @@ const ProfilePage: React.FC = () => {
             </div>
 
             <div className="md:mr-20 lg:mr-8">
-              <FollowersList userId={profileUser?._id} />
+              <FollowersList userId={profileUser ? profileUser._id : ''} />
             </div>
           </div>
         </div>

@@ -1,44 +1,48 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
+import FollowModal from "./FollowModal";
 import { Users } from "lucide-react";
 type FollowCountResponse = {
   count: number;
   users?: any[];
 };
-const FollowersList = ({ userId }: { userId: unknown }) => {
+const FollowersList = ({ userId }: { userId: string }) => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-   const [followers, setFollowers] = useState<FollowCountResponse>({ count: 0 });
+  const [followers, setFollowers] = useState<FollowCountResponse>({ count: 0 });
   const [following, setFollowing] = useState<FollowCountResponse>({ count: 0 });
   const [loading, setLoading] = useState(true);
+  const [modalType, setModalType] = useState<
+    "followers" | "following" | null
+  >(null);
   const [error, setError] = useState("");
 
-useEffect(() => {
-  const fetchFollowData = async () => {
-    try {
-      setLoading(true);
-      setError("");
-      console.log("Fetching from:", `${BACKEND_URL}/api/follow/${userId}/followers`);
+  useEffect(() => {
+    const fetchFollowData = async () => {
+      try {
+        setLoading(true);
+        setError("");
+        console.log("Fetching from:", `${BACKEND_URL}/api/follow/${userId}/followers`);
 
-      const [followersRes, followingRes] = await Promise.all([
-        axios.get(`${BACKEND_URL}/api/follow/${userId}/followers`),
-        axios.get(`${BACKEND_URL}/api/follow/${userId}/following`)
-      ]);
+        const [followersRes, followingRes] = await Promise.all([
+          axios.get(`${BACKEND_URL}/api/follow/${userId}/followers`),
+          axios.get(`${BACKEND_URL}/api/follow/${userId}/following`)
+        ]);
 
-      console.log("Followers:", followersRes.data);
-      console.log("Following:", followingRes.data);
+        console.log("Followers:", followersRes.data);
+        console.log("Following:", followingRes.data);
 
-      setFollowers(followersRes.data || []);
-      setFollowing(followingRes.data || []);
-    } catch (err) {
-      console.error("Error fetching follow data:", err);
-      setError("Failed to load data.");
-    } finally {
-      setLoading(false);
-    }
-  };
+        setFollowers(followersRes.data || []);
+        setFollowing(followingRes.data || []);
+      } catch (err) {
+        console.error("Error fetching follow data:", err);
+        setError("Failed to load data.");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  if (userId) fetchFollowData();
-}, [userId]);
+    if (userId) fetchFollowData();
+  }, [userId]);
 
 
   if (loading) {
@@ -54,16 +58,37 @@ useEffect(() => {
   }
 
   return (
-    <div className="flex items-center space-x-6 text-gray-700 dark:text-gray-300">
-      <div className="text-center">
-        <div className="text-xl font-bold">{followers?.count}</div>
-        <div className="text-sm text-gray-500 dark:text-gray-400">Followers</div>
+    <>
+      <div className="flex items-center space-x-6 text-gray-700 dark:text-gray-300">
+
+        {/* Followers */}
+        <div
+          className="text-center cursor-pointer hover:opacity-70 transition"
+          onClick={() => setModalType("followers")}
+        >
+          <div className="text-xl font-bold">{followers?.count}</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">Followers</div>
+        </div>
+
+        {/* Following */}
+        <div
+          className="text-center cursor-pointer hover:opacity-70"
+          onClick={() => setModalType("following")}
+        >
+          <div className="text-xl font-bold">{following?.count}</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">Following</div>
+        </div>
+
       </div>
-      <div className="text-center">
-        <div className="text-xl font-bold">{following?.count}</div>
-        <div className="text-sm text-gray-500 dark:text-gray-400">Following</div>
-      </div>
-    </div>
+      {/* Modal */}
+      {modalType && (
+        <FollowModal
+          userId={userId}
+          type={modalType}
+          onClose={() => setModalType(null)}
+        />
+      )}
+    </>
   );
 };
 
