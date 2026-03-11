@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { UsersProvider } from "./context/UsersContext";
+import { FollowProvider } from "./context/FollowContext";
 import { FeedProvider } from "./context/FeedContext";
 import { ChatProvider } from "./context/ChatContext";
 import FeedbackProvider from "./context/FeedbackProvider";
@@ -21,26 +22,28 @@ function App() {
   return (
     <UIProvider>
       <SocketProvider userId={user?._id}>
-        <ChatProvider>
-        <UsersProvider>
-          <NotificationProvider>
-            <SearchProvider>
-              <PublishedArticlesProvider>
-                <GoogleOAuthProvider clientId="970893892840-8ecshtmle4kip6ps0bl7vbkg3nogl5od.apps.googleusercontent.com">
-                  <FeedProvider>
-                    <FeedbackProvider>
-                      <>
-                        <ToastContainer />
-                        <RouterProvider router={router} />
-                      </>
-                    </FeedbackProvider>
-                  </FeedProvider>
-                </GoogleOAuthProvider>
-              </PublishedArticlesProvider>
-            </SearchProvider>
-          </NotificationProvider>
-        </UsersProvider>
-        </ChatProvider>
+        <FollowProvider>
+          <ChatProvider>
+            <UsersProvider>
+              <NotificationProvider>
+                <SearchProvider>
+                  <PublishedArticlesProvider>
+                    <GoogleOAuthProvider clientId="970893892840-8ecshtmle4kip6ps0bl7vbkg3nogl5od.apps.googleusercontent.com">
+                      <FeedProvider>
+                        <FeedbackProvider>
+                          <>
+                            <ToastContainer />
+                            <RouterProvider router={router} />
+                          </>
+                        </FeedbackProvider>
+                      </FeedProvider>
+                    </GoogleOAuthProvider>
+                  </PublishedArticlesProvider>
+                </SearchProvider>
+              </NotificationProvider>
+            </UsersProvider>
+          </ChatProvider>
+        </FollowProvider>
       </SocketProvider>
     </UIProvider>
   );

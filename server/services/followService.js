@@ -107,24 +107,52 @@ class FollowService {
 
   // --- Read-only methods below do not need transactions ---
 
-  static async getFollowers(userId) {
+  static async getFollowers(userId, page = 1, limit = 20) {
+
+    const skip = (page - 1) * limit;
+
     const docs = await Follow.find({ following: userId })
       .populate("follower", "username avatar")
-      .select("follower -_id");
+      .select("follower -_id")
+      .skip(skip)
+      .limit(limit);
 
-    return docs
+    const followers = docs
       .map(d => d.follower)
       .filter(Boolean);
+
+    const total = await Follow.countDocuments({ following: userId });
+
+    return {
+      followers,
+      total,
+      page,
+      hasMore: skip + followers.length < total
+    };
   }
 
-  static async getFollowing(userId) {
+  static async getFollowing(userId, page = 1, limit = 20) {
+
+    const skip = (page - 1) * limit;
+
     const docs = await Follow.find({ follower: userId })
       .populate("following", "username avatar")
-      .select("following -_id");
+      .select("following -_id")
+      .skip(skip)
+      .limit(limit);
 
-    return docs
+    const following = docs
       .map(d => d.following)
       .filter(Boolean);
+
+    const total = await Follow.countDocuments({ follower: userId });
+
+    return {
+      following,
+      total,
+      page,
+      hasMore: skip + following.length < total
+    };
   }
 
   static async getFollowersCount(userId) {
