@@ -3,7 +3,7 @@ import Pocket          from "../models/Pocket.js";
 import PocketFeedEntry from "../models/PocketFeedEntry.js";
 import User            from "../models/User.js";
 import { compilePocketBundle } from "../services/pocketCompiler.service.js";
-import { uploadBundleToCDN }   from "../services/pocketCDN.service.js";
+import { uploadBundleToCDN, deleteBundleFromCDN, invalidateCDNPath } from "../services/pocketCDN.service.js";
 
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /api/pockets/eligibility/:userId   (admin only)
@@ -30,10 +30,8 @@ export const setPocketEligibility = async (req, res) => {
   }
 };
 
-
 /* ─────────────────────────────────────────────────────────────────────────────
    GET /api/pockets/pending   (admin only)
-   Returns all pockets with status === "pending_review", newest first.
 ───────────────────────────────────────────────────────────────────────────── */
 export const getPendingPockets = async (req, res) => {
   try {
@@ -42,7 +40,7 @@ export const getPendingPockets = async (req, res) => {
       .populate("owner", "username avatar email")
       .sort({ updatedAt: -1 })
       .lean();
-      console.log(`Fetched ${pockets.length} pending pockets for review`);
+    console.log(`Fetched ${pockets.length} pending pockets for review`);
     return res.status(200).json({ pockets });
   } catch (err) {
     console.error("getPendingPockets:", err);
@@ -105,7 +103,7 @@ export const submitForReview = async (req, res) => {
     const pocket = await Pocket.findOne({ owner: req.user.id });
     if (!pocket) return res.status(404).json({ message: "No pocket found. Save a draft first." });
     if (pocket.status === "pending_review") return res.status(400).json({ message: "Already under review." });
-    if (!["draft", "rejected"].includes(pocket.status)) {
+    if (!["draft", "rejected", "live"].includes(pocket.status)) {
       return res.status(400).json({ message: "Save new code before resubmitting." });
     }
     pocket.status     = "pending_review";
@@ -121,6 +119,13 @@ export const submitForReview = async (req, res) => {
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /api/pockets/:pocketId/review   (admin only)
    Body: { action: "approve" | "reject", note?: string }
+
+   On approve:
+   - Bundle is uploaded to a VERSIONED S3 key (includes a timestamp) so
+     CloudFront never serves a stale response — no invalidation needed.
+   - PocketFeedEntry is UPSERTED (one per Pocket) so only a single entry
+     ever appears in the feed. likesCount and commentsCount are reset to 0
+     on every approval because each content update is treated as a fresh post.
 ───────────────────────────────────────────────────────────────────────────── */
 export const reviewPocket = async (req, res) => {
   try {
@@ -134,7 +139,7 @@ export const reviewPocket = async (req, res) => {
       return res.status(400).json({ message: "Pocket is not pending review" });
     }
 
-    // Reject
+    // ── Reject ──────────────────────────────────────────────────────────────
     if (action === "reject") {
       pocket.status     = "rejected";
       pocket.reviewNote = note ?? null;
@@ -142,7 +147,7 @@ export const reviewPocket = async (req, res) => {
       return res.status(200).json({ message: "Rejected", pocket });
     }
 
-    // Approve: compile → upload → create PocketFeedEntry
+    // ── Approve ─────────────────────────────────────────────────────────────
     let compiledCode;
     try {
       compiledCode = await compilePocketBundle(pocket.sourceCode);
@@ -153,7 +158,13 @@ export const reviewPocket = async (req, res) => {
       return res.status(422).json({ message: "Compilation failed", error: compileErr.message });
     }
 
-    const s3Key     = `pockets/${pocket._id}/bundle.js`;
+    // Remember the old bundle URL so we can delete it after the new one is live
+    const oldBundleUrl = pocket.compiledBundleUrl ?? null;
+
+    // Versioned key — timestamp makes it unique so CloudFront always fetches
+    // a fresh object. The old versioned key is deleted below after success.
+    const version   = Date.now();
+    const s3Key     = `pockets/${pocket._id}/bundle-${version}.js`;
     const bundleUrl = await uploadBundleToCDN(compiledCode, s3Key);
 
     pocket.status            = "live";
@@ -161,16 +172,35 @@ export const reviewPocket = async (req, res) => {
     pocket.reviewNote        = null;
     await pocket.save();
 
-    // Each approved publish creates a fresh PocketFeedEntry.
-    // Its _id (ObjectId) drives feed ordering — newer _id = higher in feed.
-    // likesCount / commentsCount live here so each publish has independent counts.
-    await PocketFeedEntry.create({
-      pocket:            pocket._id,
-      owner:             pocket.owner,
-      brandName:         pocket.brandName,
-      tagline:           pocket.tagline,
-      compiledBundleUrl: bundleUrl,
-    });
+    // Immediately delete the previous bundle from S3 now that the new one is live.
+    if (oldBundleUrl) {
+      const CDN_BASE = process.env.GAMES_STORAGE_PRIVATE_CLOUDFRONT;
+      const oldKey   = CDN_BASE ? oldBundleUrl.replace(`${CDN_BASE}/`, "") : null;
+      if (oldKey) await deleteBundleFromCDN(oldKey);
+    }
+
+    // Upsert a SINGLE PocketFeedEntry per Pocket.
+    // $set refreshes all denormalised fields + compiledBundleUrl.
+    // $setOnInsert only fires on the very first approval (creates the doc).
+    // Using { new: true } so we can return the entry id if needed.
+    await PocketFeedEntry.findOneAndUpdate(
+      { pocket: pocket._id },
+      {
+        $set: {
+          owner:             pocket.owner,
+          brandName:         pocket.brandName,
+          tagline:           pocket.tagline,
+          compiledBundleUrl: bundleUrl,
+          // Reset engagement on every approval — each update is a fresh post
+          likesCount:        0,
+          commentsCount:     0,
+        },
+        $setOnInsert: {
+          pocket: pocket._id,
+        },
+      },
+      { upsert: true, new: true, timestamps: true }
+    );
 
     return res.status(200).json({ message: "Approved and published", pocket });
   } catch (err) {
@@ -181,8 +211,6 @@ export const reviewPocket = async (req, res) => {
 
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /api/pockets/entries/:entryId/analytics
-   entryId = PocketFeedEntry._id
-   Body: { event: "impression" | "click" | "engagement", seconds?: number }
 ───────────────────────────────────────────────────────────────────────────── */
 export const trackAnalytics = async (req, res) => {
   try {
