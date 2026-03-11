@@ -2,7 +2,12 @@ import User from "../models/User.js";
 
 const requireAdmin = async (req, res, next) => {
   try {
-    const user = await User.findById(req.user.id, "role").lean();
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+
+    // verifyToken sets req.user to a full Mongoose document, so use ._id
+    const user = await User.findById(req.user._id, "role").lean();
 
     if (!user) {
       return res.status(401).json({ message: "User not found" });
