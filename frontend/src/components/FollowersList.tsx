@@ -4,7 +4,6 @@ import FollowModal from "./FollowModal";
 import { Users } from "lucide-react";
 type FollowCountResponse = {
   count: number;
-  users?: any[];
 };
 const FollowersList = ({ userId }: { userId: string }) => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
@@ -24,15 +23,12 @@ const FollowersList = ({ userId }: { userId: string }) => {
         console.log("Fetching from:", `${BACKEND_URL}/api/follow/${userId}/followers`);
 
         const [followersRes, followingRes] = await Promise.all([
-          axios.get(`${BACKEND_URL}/api/follow/${userId}/followers`),
-          axios.get(`${BACKEND_URL}/api/follow/${userId}/following`)
+          axios.get(`${BACKEND_URL}/api/follow/${userId}/followers/count`),
+          axios.get(`${BACKEND_URL}/api/follow/${userId}/following/count`)
         ]);
 
-        console.log("Followers:", followersRes.data);
-        console.log("Following:", followingRes.data);
-
-        setFollowers(followersRes.data || []);
-        setFollowing(followingRes.data || []);
+        setFollowers({ count: followersRes.data.count });
+        setFollowing({ count: followingRes.data.count });
       } catch (err) {
         console.error("Error fetching follow data:", err);
         setError("Failed to load data.");

@@ -36,22 +36,30 @@ router.post("/:id/unfollow",verifyToken, async (req, res) => {
     res.status(400).json({ error: err.message });
   }
 });
-
-// Get followers
+// Get followers and following
 router.get("/:id/followers", async (req, res) => {
   try {
-    const followers = await FollowService.getFollowers(req.params.id);
-    res.json({ count: followers.length, followers });
+    const userId = req.params.id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+
+    const result = await FollowService.getFollowers(userId, page, limit);
+
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Get following
 router.get("/:id/following", async (req, res) => {
   try {
-    const following = await FollowService.getFollowing(req.params.id);
-    res.json({ count: following.length, following });
+    const userId = req.params.id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+
+    const result = await FollowService.getFollowing(userId, page, limit);
+
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -67,6 +75,14 @@ router.get("/:id/suggested", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+router.get("/:id/followers/count", async (req, res) => {
+  const count = await FollowService.getFollowersCount(req.params.id);
+  res.json({ count });
+});
 
+router.get("/:id/following/count", async (req, res) => {
+  const count = await FollowService.getFollowingCount(req.params.id);
+  res.json({ count });
+});
 
 export default router;

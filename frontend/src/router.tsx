@@ -5,8 +5,6 @@ import AdminRoute from "./components/Routing/AdminRoutes";
 // Pages
 import Home from "./Pages/Home";
 import Auth from "./Pages/Auth";
-import ProfilePage from "./components/Profile/NewProfile";
-import EditProfilePage from "./Pages/EditProfile";
 import ProfilePageWrapper from "./components/Profile/ProfilePageWrapper";
 import ArticleOverlay from "./Pages/ArticleView";
 import CreatePostPage from "./Pages/CreatePostPage";
