@@ -5,18 +5,20 @@ function VerticalBackButton() {
 
   if (location.pathname === "/") return null;
 
-  const text = "BACK TO FEED".replace(/\s/g, "").split("");
+  const text = "BACKTOFEED".split("");
 
   return (
     <Link
       to="/"
       className="
         hidden lg:flex
-        fixed
-        left-[calc(16.66%+4rem)]
+        absolute
+        left-[calc(100%/12*2)]
+        xl:left-[calc(100%/12*2)]
+        2xl:left-[calc(100%/16*3)]
         top-[30vh]
         -translate-x-1/2
-        z-50
+        z-40
         flex-col items-center
         gap-1
         px-3 py-6
@@ -32,7 +34,7 @@ function VerticalBackButton() {
       {text.map((letter, i) => (
         <span
           key={i}
-          className="text-sm font-bold text-gray-700 dark:text-gray-200 tracking-wide"
+          className="text-sm font-bold text-gray-700 dark:text-gray-200"
         >
           {letter}
         </span>
