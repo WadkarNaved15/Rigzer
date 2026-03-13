@@ -406,5 +406,23 @@ const PostSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+PostSchema.index(
+  {
+    description: "text",
+    "modelPost.title": "text",
+    "gamePost.gameName": "text",
+    "adModelPost.brandName": "text",
+  },
+  {
+    weights: {
+      "modelPost.title": 5,
+      "gamePost.gameName": 5,
+      "adModelPost.brandName": 4,
+      description: 2,
+    },
+    name: "PostSearchIndex",
+  }
+);
+PostSchema.index({ createdAt: -1 });
 
 export default mongoose.model("AllPost", PostSchema);

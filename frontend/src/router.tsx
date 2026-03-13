@@ -37,6 +37,7 @@ export const router = createBrowserRouter([
     element: <MainLayout />,
     children: [
       { path: "/", element: <Home /> },
+      { path: "/search", element: <Home /> },
       { path: "/post/:postId", element: <PostDetailsPage /> },
       { path: "/profile/:username", element: <ProfilePageWrapper /> },
       { path: "/articles/:canvasId", element: <ArticleOverlay /> },

@@ -5,17 +5,20 @@ import {
   useCallback,
   useRef,
 } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useFeed } from "../context/FeedContext";
 import Post from "../components/Post";
 import axios from "axios";
 import type { PostProps } from "../types/Post";
 import CircleLoader from "../components/Loader/CircleLoader";
-import { useSearch } from "../components/Home/SearchContext";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 function Home() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const query = searchParams.get("q") || "";
+  const isSearch = query.length > 0;
   const BACKEND_URL =
     import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
@@ -30,17 +33,12 @@ function Home() {
 
   const [loading, setLoading] = useState(false);
   const loaderRef = useRef<HTMLDivElement | null>(null);
-  // Search
-  const {
-    submittedQuery,
-    showFilteredFeed,
-    setShowFilteredFeed,
-    setSubmittedQuery,
-  } = useSearch();
-
+  const searchAbortRef = useRef<AbortController | null>(null);
   const [filteredPosts, setFilteredPosts] = useState<PostProps[]>([]);
+  const [searchExecuted, setSearchExecuted] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
-
+  const [searchCursor, setSearchCursor] = useState<string | null>(null);
+  const [searchHasMore, setSearchHasMore] = useState(true);
   // ── Fetch Main Feed ──────────────────────────────────────────────────────
   const fetchMainPosts = useCallback(
     async (reset = false) => {
@@ -86,49 +84,86 @@ function Home() {
   }, [fetchMainPosts]);
   // ── Fetch Filtered Posts ─────────────────────────────────────────────────
   const fetchFilteredPosts = useCallback(
-    async (query: string) => {
+    async (query: string, reset = false) => {
       if (!query.trim()) return;
+      if (searchLoading) return;
+      if (!reset && !searchHasMore) return;
+
       setSearchLoading(true);
+      setSearchExecuted(true);
+
       try {
         const res = await axios.get(`${BACKEND_URL}/api/posts/filter_posts`, {
-          params: { query },
+          params: {
+            query,
+            cursor: reset ? null : searchCursor,
+            limit: 5,
+          },
         });
-        setFilteredPosts(res.data.posts);
+
+        const newPosts = res.data.posts;
+        const newCursor = res.data.nextCursor;
+        setFilteredPosts((prev: PostProps[]) => {
+          const all: PostProps[] = reset ? newPosts : [...prev, ...newPosts];
+
+          const uniquePosts: PostProps[] = Array.from(
+            new Map<string, PostProps>(
+              all.map((p: PostProps) => [p._id, p])
+            ).values()
+          );
+
+          return uniquePosts;
+        });
+
+        setSearchCursor(newCursor);
+
+        if (!newCursor) {
+          setSearchHasMore(false);
+        }
       } catch (err) {
         console.error("Failed to fetch filtered posts:", err);
       } finally {
         setSearchLoading(false);
       }
     },
-    [BACKEND_URL]
+    [searchCursor, searchHasMore, BACKEND_URL]
   );
-
   // ── Initial Load ─────────────────────────────────────────────────────────
   useEffect(() => {
-    if (mainPosts.length === 0) {
+    if (mainPosts.length === 0 && !isSearch) {
       fetchMainPosts(true);
     }
-  }, []);
+  }, [mainPosts.length, isSearch]);
 
   // ── Search Trigger ───────────────────────────────────────────────────────
   useEffect(() => {
-    if (submittedQuery.trim()) {
-      setShowFilteredFeed(true);
-      fetchFilteredPosts(submittedQuery);
+    if (!query) {
+      setFilteredPosts([]);
+      setSearchExecuted(false);
+      return;
     }
-  }, [submittedQuery]);
 
+    setFilteredPosts([]);
+    setSearchCursor(null);
+    setSearchHasMore(true);
+
+    fetchFilteredPosts(query, true);
+  }, [query]);
   // ── Infinite Scroll ──────────────────────────────────────────────────────
   useEffect(() => {
-    if (!hasMore || showFilteredFeed) return;
+    if (isSearch ? !searchHasMore : !hasMore) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) {
+        if (!entries[0].isIntersecting) return;
+
+        if (isSearch) {
+          fetchFilteredPosts(query);
+        } else {
           fetchRef.current();
         }
       },
-      { rootMargin: "200px" }
+      { rootMargin: "1200px" }
     );
 
     const loader = loaderRef.current;
@@ -136,20 +171,18 @@ function Home() {
     if (loader) observer.observe(loader);
 
     return () => observer.disconnect();
-  }, [hasMore, showFilteredFeed]);
+  }, [hasMore, searchHasMore, isSearch, query, fetchFilteredPosts]);
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
     <div className="flex flex-col items-center min-h-[80vh] w-full">
 
       {/* SEARCH FEED */}
-      {showFilteredFeed ? (
+      {isSearch ? (
         <div className="w-full mt-4 flex flex-col md:px-0 px-0">
           <button
             onClick={() => {
-              setShowFilteredFeed(false);
-              setSubmittedQuery("");
-              setFilteredPosts([]);
+              navigate("/");
             }}
             className="flex items-center gap-2 text-blue-500 hover:text-blue-600 mb-4"
           >
@@ -159,9 +192,9 @@ function Home() {
 
           {searchLoading && <CircleLoader />}
 
-          {!searchLoading && filteredPosts.length === 0 && (
+          {!searchLoading && searchExecuted && filteredPosts.length === 0 && (
             <div className="text-gray-400 dark:text-gray-500 mt-4">
-              No posts found for "{submittedQuery}"
+              No posts found for "{query}"
             </div>
           )}
 
@@ -171,13 +204,14 @@ function Home() {
               {...post}
               onOpenDetails={() =>
                 navigate(`/post/${post._id}`, {
-                  state: {
-                    post,
-                  }
+                  state: { post }
                 })
               }
             />
           ))}
+
+          {/* Loader for infinite scroll */}
+          <div ref={loaderRef} className="h-10 w-full" />
         </div>
       ) : (
         <>

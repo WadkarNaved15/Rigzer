@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   Moon,
   Search,
   Sun,
 } from "lucide-react";
 import { useTheme } from "../hooks/useTheme";
-import { useSearch } from "../components/Home/SearchContext.js";
 import Logo from "../assets/Rigzer.svg?react";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
@@ -21,16 +21,17 @@ interface User {
 
 export function Header() {
   // Correctly type the state with the new User interface
-  const { searchQuery, setSearchQuery, setSubmittedQuery, setShowFilteredFeed } = useSearch();
+  const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<User[]>([]);
   const { isDark, toggleTheme } = useTheme();
   const [isScrolled, setIsScrolled] = useState(false);
+  const navigate = useNavigate();
   // const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch suggestions as user types
   useEffect(() => {
     const fetchSuggestions = async () => {
-      if (searchQuery.trim() === "" && searchQuery.trim().length < 2) {
+      if (searchQuery.trim() === "" || searchQuery.trim().length < 2) {
         setSuggestions([]);
         return;
       }
@@ -51,19 +52,12 @@ export function Header() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  // const handleSearch = (e: React.FormEvent) => {
-  //   e.preventDefault();
-  //   if (searchQuery.trim() === "") return;
-  //   console.log("Searching for:", searchQuery);
-  //   // window.location.href = `/search?q=${encodeURIComponent(searchQuery)}`;
-  // };
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim() !== "") {
-      setSubmittedQuery(searchQuery); // 🔹 save submitted query
-      setShowFilteredFeed(true);   // ✅ switch to filtered feed
-    }
+
+    if (!searchQuery.trim()) return;
+    setSuggestions([]);
+    navigate(`/search?q=${encodeURIComponent(searchQuery)}`);
   };
 
   return (
