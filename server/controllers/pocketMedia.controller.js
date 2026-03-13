@@ -20,7 +20,7 @@ const ALLOWED_MIME = new Set([
   "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml",
   "video/mp4",  "video/webm",
 ]);
-const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20 MB
+const MAX_FILE_BYTES = 30 * 1024 * 1024; // 30 MB
 const MAX_FILES      = 20;
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -63,7 +63,7 @@ export const uploadPocketMedia = async (req, res) => {
         return;
       }
       if (file.size > MAX_FILE_BYTES) {
-        errors.push({ name: file.originalname, error: "Exceeds 20 MB limit." });
+        errors.push({ name: file.originalname, error: "Exceeds 30 MB limit." });
         return;
       }
  

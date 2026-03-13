@@ -710,7 +710,7 @@ const PocketEditor: React.FC<PocketEditorProps> = ({ onCancel: _onCancel }) => {
                         Click to upload or drag & drop
                       </p>
                       <p className="text-xs text-gray-500 dark:text-zinc-500 mt-0.5">
-                        JPG, PNG, GIF, WebP, SVG, MP4, WebM · Max 20 MB each · {slotsLeft} slot{slotsLeft !== 1 ? "s" : ""} remaining
+                        JPG, PNG, GIF, WebP, SVG, MP4, WebM · Max 30 MB each · {slotsLeft} slot{slotsLeft !== 1 ? "s" : ""} remaining
                       </p>
                     </div>
                   </>
