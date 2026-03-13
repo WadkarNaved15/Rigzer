@@ -23,8 +23,8 @@ import {
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize:  20 * 1024 * 1024,   // 20 MB per file
-    files:     10,                  // max 10 files per request
+    fileSize:  30 * 1024 * 1024,   // 30 MB per file — must match controller
+    files:     10,
   },
 });
 
@@ -53,7 +53,19 @@ router.get   ("/media",                verifyToken, requirePocketEligible, listP
 
 // upload.array("files", 10) accepts up to 10 files under the field name "files".
 // The controller receives req.files (array) instead of req.file.
-router.post  ("/media/upload",         verifyToken, requirePocketEligible, upload.array("files", 10), uploadPocketMedia);
+router.post("/media/upload", verifyToken, requirePocketEligible,
+  (req, res, next) => upload.array("files", 10)(req, res, (err) => {
+    if (err?.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({ message: "File exceeds 30 MB limit." });
+    }
+    if (err?.code === "LIMIT_FILE_COUNT") {
+      return res.status(400).json({ message: "Maximum 10 files per upload." });
+    }
+    if (err) return res.status(400).json({ message: err.message });
+    next();
+  }),
+  uploadPocketMedia
+);
 
 router.delete("/media",                verifyToken, requirePocketEligible, deletePocketMedia);
 
