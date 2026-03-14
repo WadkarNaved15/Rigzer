@@ -1,6 +1,7 @@
 import express from "express";
 import Article from "../models/Canvas.js";
 import AllPost from "../models/Allposts.js";
+import redis from "../config/redis.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
 import {
   getPublishedArticleById,
@@ -58,6 +59,8 @@ router.post("/publish", authMiddleware, async (req, res) => {
       description: description || title,
       canvasRef: article._id, // ✅ FIXED
     });
+    //clear cache
+    await redis.del("billboard_articles");
 
     res.status(201).json({
       article,

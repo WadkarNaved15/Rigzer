@@ -187,7 +187,10 @@ class FollowService {
     // Exclude current user and already following users
     const suggested = await User.find({
       _id: { $nin: [...followingIds, userId] },
-    }).limit(5);
+    })
+      .select("_id username avatar name")
+      .limit(5)
+      .lean();
 
     // Cache for 10 minutes
     await redis.set(cacheKey, JSON.stringify(suggested), "EX", 600);

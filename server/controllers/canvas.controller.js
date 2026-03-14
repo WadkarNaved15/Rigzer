@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 import Article from "../models/Canvas.js";
-
+import redis from "../config/redis.js";
 /**
  * GET /api/articles/:id
  */
@@ -35,6 +35,17 @@ export const getPublishedArticleById = async (req, res) => {
  */
 export const getPublishedArticles = async (req, res) => {
   try {
+
+    const cacheKey = "billboard_articles";
+
+    // 1️⃣ Check Redis first
+    const cached = await redis.get(cacheKey);
+
+    if (cached) {
+      return res.status(200).json(JSON.parse(cached));
+    }
+
+    // 2️⃣ If not cached → query Mongo
     const articles = await Article.find(
       { status: "published" },
       {
@@ -46,9 +57,19 @@ export const getPublishedArticles = async (req, res) => {
       }
     )
       .sort({ publishedAt: -1 })
+      .limit(12)
       .lean();
 
+    // 3️⃣ Store in Redis
+    await redis.set(
+      cacheKey,
+      JSON.stringify(articles),
+      "EX",
+      300
+    );
+
     res.status(200).json(articles);
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to fetch articles" });
@@ -82,6 +103,7 @@ export const getUserPublishedArticles = async (req, res) => {
       }
     )
       .sort({ publishedAt: -1 })
+      .limit(12)
       .lean();
 
     res.status(200).json(articles);

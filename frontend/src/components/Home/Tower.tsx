@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { PlusCircle } from "lucide-react";
 import FollowFace from "./FollowFace";
-import { useUser } from "../../context/user";
 import { usePublishedArticles } from "../../context/PublishedArticleContext";
-import FollowButton from "../FollowButton";
 interface CanvasPreview {
   _id: string;
   title: string;

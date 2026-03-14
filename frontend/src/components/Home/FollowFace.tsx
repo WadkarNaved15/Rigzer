@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef} from "react";
 import axios from "axios";
 import { useUser } from "../../context/user";
 import FollowButton from "../FollowButton";
@@ -7,14 +7,16 @@ const FollowFace = ({ translateZ }: { translateZ: number }) => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const { user } = useUser();
   const [users, setUsers] = useState<any[]>([]);
+  const fetchedRef = useRef(false);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (!user?._id) return;
+    if (!user?._id || fetchedRef.current) return;
     const fetchUsers = async () => {
       try {
         const res = await axios.get(`${BACKEND_URL}/api/follow/${user._id}/suggested`, { withCredentials: true });
         setUsers(res.data.users || []);
+        fetchedRef.current
       } catch (err) {
         console.error(err);
       } finally {
