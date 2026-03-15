@@ -78,7 +78,11 @@ export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
       "adModelPost.bgImagePosition": 1,
       "adModelPost.bgImageSize": 1,
       "adModelPost.overlayOpacity": 1,
-      "adModelPost.asset": 1,
+
+       // asset (only required fields)
+      "adModelPost.asset.originalUrl": 1,
+      "adModelPost.asset.optimizedUrl": 1,
+      "adModelPost.asset.optimization": 1,
     })
     .populate("user", "username avatar")
     .sort({ _id: -1 })
