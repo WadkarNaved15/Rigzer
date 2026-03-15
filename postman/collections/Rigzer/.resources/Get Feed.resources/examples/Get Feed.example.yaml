@@ -1,0 +1,269 @@
+$kind: http-example
+request:
+  url: https://backend.rigzer.com/api/posts/fetch_posts?limit=10
+  method: GET
+  queryParams:
+    limit: "10"
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    - key: server
+      value: nginx/1.24.0 (Ubuntu)
+    - key: date
+      value: Sat, 14 Mar 2026 11:47:23 GMT
+    - key: content-type
+      value: application/json; charset=utf-8
+    - key: content-length
+      value: "15059"
+    - key: connection
+      value: keep-alive
+    - key: x-powered-by
+      value: Express
+    - key: vary
+      value: Origin
+    - key: access-control-allow-credentials
+      value: "true"
+    - key: set-cookie
+      value: device_id=f31667b2-5abc-41a0-8948-a78fff0304ab; Max-Age=31536000; Path=/;
+        Expires=Sun, 14 Mar 2027 11:47:23 GMT; HttpOnly; Secure; SameSite=None
+    - key: set-cookie
+      value: connect.sid=s%3ASx9ACzv89HJl5e37CrGfP7VyTsNvHrjK.rsFUpR8wjmpi5DKUCWBmd%2Bu68lFH13kmIqIIDvP2Q64;
+        Path=/; HttpOnly
+    - key: etag
+      value: W/"3ad3-KH8xlmqGDlRA2I9zJo9FKh0RVF8"
+  body:
+    type: json
+    content: "{\"posts\":[{\"_id\":\"69b3e80ff2e97b0bcb050751\",\"createdAt\":\"202\
+      6-03-13T10:33:51.433Z\",\"updatedAt\":\"2026-03-14T11:01:34.698Z\",\"publ\
+      ishedAt\":\"2026-03-14T11:01:34.697Z\",\"type\":\"pocket_update\",\"user\
+      \":{\"_id\":\"67e916a29402880d7301f721\",\"username\":\"Naved
+      Wadkar\"},\"likesCount\":0,\"commentsCount\":0,\"isLiked\":false,\"brandN\
+      ame\":\"Tsitski\",\"tagline\":\"\",\"compiledBundleUrl\":\"https://d2hc16\
+      lzmcm380.cloudfront.net/pockets/69b2cc5d16522bca996e27de/bundle-177348609\
+      4609.js\",\"_pocketEntryId\":\"69b3e80ff2e97b0bcb050751\"},{\"_id\":\"69b\
+      31f903a07f2da35d6977e\",\"user\":{\"_id\":\"697253ac063490a4836dad55\",\"\
+      username\":\"wadkar_naved_\",\"avatar\":\"https://d2hc16lzmcm380.cloudfro\
+      nt.net/media/images/cb74080e-e7ed-4999-b8c0-8dc7c1018240-avatar.jpg\"},\"\
+      description\":\"Testing\",\"type\":\"model_post\",\"likesCount\":0,\"comm\
+      entsCount\":0,\"normalPost\":null,\"modelPost\":{\"title\":\"3D
+      Car\",\"price\":0,\"assets\":[{\"name\":\"free_1972_datsun_240k_gt.glb\",\
+      \"originalKey\":\"models/original/7334a161-eb1d-4601-bf83-91972561a5be-fr\
+      ee_1972_datsun_240k_gt.glb\",\"optimizedKey\":\"models/optimized/7334a161\
+      -eb1d-4601-bf83-91972561a5be-free_1972_datsun_240k_gt.glb\",\"originalUrl\
+      \":\"https://d2hc16lzmcm380.cloudfront.net/models/original/7334a161-eb1d-\
+      4601-bf83-91972561a5be-free_1972_datsun_240k_gt.glb\",\"optimizedUrl\":\"\
+      https://d2hc16lzmcm380.cloudfront.net/models/optimized/7334a161-eb1d-4601\
+      -bf83-91972561a5be-free_1972_datsun_240k_gt.glb\",\"sizeMB\":67.95,\"opti\
+      mization\":{\"status\":\"completed\",\"optimizedSizeMB\":6.62791061401367\
+      2,\"compressionRatio\":10.251558159090216,\"error\":null,\"processedAt\":\
+      \"2026-03-12T20:19:39.774Z\"},\"metadata\":{\"fileName\":\"7334a161-eb1d-\
+      4601-bf83-91972561a5be-free_1972_datsun_240k_gt.glb\",\"downloadSizeMB\":\
+      67.95,\"geometry\":{\"meshes\":70,\"vertices\":1146430,\"triangles\":3821\
+      43},\"materials\":70,\"textures\":{\"present\":true},\"uvLayers\":2,\"ver\
+      texColors\":false,\"animations\":{\"present\":false,\"count\":0},\"rigged\
+      \":false,\"morphTargets\":false,\"transforms\":{\"scale\":[1,1,1],\"posit\
+      ion\":[0,0,0],\"rotation\":{\"values\":[0,0,0],\"order\":\"XYZ\"}},\"boun\
+      dingBox\":{\"width\":2.375,\"height\":1.274,\"depth\":4.749},\"center\":{\
+      \"x\":-9.41,\"y\":-10.317,\"z\":3.781}}}]},\"gamePost\":null,\"adModelPost\
+      \":null,\"canvasRef\":null,\"devlogRef\":null,\"devlogMeta\":null,\"creat\
+      edAt\":\"2026-03-12T20:18:24.979Z\",\"updatedAt\":\"2026-03-12T20:18:24.9\
+      79Z\",\"__v\":0},{\"_id\":\"69b2af1416522bca996e245b\",\"createdAt\":\"20\
+      26-03-12T12:18:28.470Z\",\"updatedAt\":\"2026-03-12T12:18:28.470Z\",\"pub\
+      lishedAt\":\"2026-03-12T12:18:28.470Z\",\"type\":\"pocket_update\",\"user\
+      \":{\"_id\":\"67e3e2a32cbe5f5162d02eb3\",\"username\":\"sayed
+      Usaid\",\"avatar\":\"https://d2hc16lzmcm380.cloudfront.net/media/images/c\
+      cbd2b2b-67ab-4b8e-9902-2ff640a24d1c-avatar.jpg\"},\"likesCount\":0,\"comm\
+      entsCount\":0,\"isLiked\":false,\"brandName\":\"Reaction
+      Game\",\"tagline\":\"\",\"compiledBundleUrl\":\"https://d2hc16lzmcm380.cl\
+      oudfront.net/pockets/69b2ac1316522bca996e2452/bundle-1773317908377.js\",\
+      \"_pocketEntryId\":\"69b2af1416522bca996e245b\"},{\"_id\":\"69af78d32358e\
+      eecc7f69c38\",\"createdAt\":\"2026-03-10T01:50:11.652Z\",\"updatedAt\":\"\
+      2026-03-12T00:18:58.990Z\",\"publishedAt\":\"2026-03-12T00:18:58.989Z\",\
+      \"type\":\"pocket_update\",\"user\":{\"_id\":\"697253ac063490a4836dad55\",\
+      \"username\":\"wadkar_naved_\",\"avatar\":\"https://d2hc16lzmcm380.cloudf\
+      ront.net/media/images/cb74080e-e7ed-4999-b8c0-8dc7c1018240-avatar.jpg\"},\
+      \"likesCount\":0,\"commentsCount\":0,\"isLiked\":false,\"brandName\":\"NV\
+      IDIA\",\"tagline\":\"The way it's meant to be
+      played\",\"compiledBundleUrl\":\"https://d2hc16lzmcm380.cloudfront.net/po\
+      ckets/69aeba95cd173fcd16b0f01d/bundle-1773274738906.js\",\"_pocketEntryId\
+      \":\"69af78d32358eeecc7f69c38\"},{\"_id\":\"69b1434f8e5752e8501eeb65\",\"\
+      user\":{\"_id\":\"697253ac063490a4836dad55\",\"username\":\"wadkar_naved_\
+      \",\"avatar\":\"https://d2hc16lzmcm380.cloudfront.net/media/images/cb7408\
+      0e-e7ed-4999-b8c0-8dc7c1018240-avatar.jpg\"},\"description\":\"This is a
+      3D model of a gaming
+      chair\",\"type\":\"model_post\",\"likesCount\":0,\"commentsCount\":0,\"no\
+      rmalPost\":null,\"modelPost\":{\"title\":\"Gaming
+      Chair\",\"price\":0,\"assets\":[{\"name\":\"quersus_gaming_chair_vaos.3_a\
+      udi.glb\",\"originalKey\":\"models/original/36f85be2-4eec-4af9-9465-8b4a7\
+      ba766ef-quersus_gaming_chair_vaos.3_audi.glb\",\"optimizedKey\":\"models/\
+      optimized/36f85be2-4eec-4af9-9465-8b4a7ba766ef-quersus_gaming_chair_vaos.\
+      3_audi.glb\",\"originalUrl\":\"https://d2hc16lzmcm380.cloudfront.net/mode\
+      ls/original/36f85be2-4eec-4af9-9465-8b4a7ba766ef-quersus_gaming_chair_vao\
+      s.3_audi.glb\",\"optimizedUrl\":\"https://d2hc16lzmcm380.cloudfront.net/m\
+      odels/optimized/36f85be2-4eec-4af9-9465-8b4a7ba766ef-quersus_gaming_chair\
+      _vaos.3_audi.glb\",\"sizeMB\":123.4,\"optimization\":{\"status\":\"comple\
+      ted\",\"optimizedSizeMB\":14.824386596679688,\"compressionRatio\":8.32405\
+      2191849772,\"error\":null,\"processedAt\":\"2026-03-11T10:27:04.771Z\"},\
+      \"metadata\":{\"fileName\":\"36f85be2-4eec-4af9-9465-8b4a7ba766ef-quersus\
+      _gaming_chair_vaos.3_audi.glb\",\"downloadSizeMB\":123.4,\"geometry\":{\"\
+      meshes\":123,\"vertices\":1798369,\"triangles\":599456},\"materials\":123,\
+      \"textures\":{\"present\":true},\"uvLayers\":2,\"vertexColors\":false,\"a\
+      nimations\":{\"present\":false,\"count\":0},\"rigged\":false,\"morphTarge\
+      ts\":false,\"transforms\":{\"scale\":[1,1,1],\"position\":[0,0,0],\"rotat\
+      ion\":{\"values\":[0,0,0],\"order\":\"XYZ\"}},\"boundingBox\":{\"width\":\
+      1.332,\"height\":2.422,\"depth\":1.445},\"center\":{\"x\":-12.712,\"y\":1\
+      .69,\"z\":21.368}}}]},\"gamePost\":null,\"adModelPost\":null,\"canvasRef\
+      \":null,\"devlogRef\":null,\"devlogMeta\":null,\"createdAt\":\"2026-03-11\
+      T10:26:23.186Z\",\"updatedAt\":\"2026-03-11T10:26:23.186Z\",\"__v\":0},{\
+      \"_id\":\"69aed809e98d2addbdc1ead5\",\"user\":{\"_id\":\"696d06694fdbd203\
+      0467857e\",\"username\":\"Adamya
+      Saini\",\"avatar\":\"https://d2hc16lzmcm380.cloudfront.net/media/images/a\
+      c480847-d24a-4fa3-baa3-4bc37b4559b5-avatar.jpg\"},\"description\":\"\",\"\
+      type\":\"ad_model_post\",\"likesCount\":0,\"commentsCount\":0,\"normalPost\
+      \":null,\"modelPost\":null,\"gamePost\":null,\"adModelPost\":{\"brandName\
+      \":\"Sony\",\"logoUrl\":null,\"bgMode\":\"image\",\"bgColor\":null,\"bgIm\
+      ageUrl\":\"https://d2hc16lzmcm380.cloudfront.net/models/images/4fd54c0b-b\
+      019-4b4c-ae88-43c46f932778-3038869-poster-p-1-the-sony-logo-that-never-wa\
+      s.webp\",\"bgImagePosition\":\"50% 0%\",\"bgImageSize\":\"100%
+      130%\",\"overlayOpacity\":80,\"asset\":{\"name\":\"sony_wh1000.glb\",\"or\
+      iginalKey\":\"models/original/71d0d09a-0682-46fd-a392-55c5e4483de3-sony_w\
+      h1000.glb\",\"optimizedKey\":\"models/optimized/71d0d09a-0682-46fd-a392-5\
+      5c5e4483de3-sony_wh1000.glb\",\"originalUrl\":\"https://d2hc16lzmcm380.cl\
+      oudfront.net/models/original/71d0d09a-0682-46fd-a392-55c5e4483de3-sony_wh\
+      1000.glb\",\"optimizedUrl\":\"https://d2hc16lzmcm380.cloudfront.net/model\
+      s/optimized/71d0d09a-0682-46fd-a392-55c5e4483de3-sony_wh1000.glb\",\"size\
+      MB\":1.09,\"optimization\":{\"status\":\"completed\",\"optimizedSizeMB\":\
+      0.12163925170898438,\"compressionRatio\":8.97974096026594,\"error\":null,\
+      \"processedAt\":\"2026-03-09T14:24:11.999Z\"},\"metadata\":{\"fileName\":\
+      \"71d0d09a-0682-46fd-a392-55c5e4483de3-sony_wh1000.glb\",\"downloadSizeMB\
+      \":1.09,\"geometry\":{\"meshes\":6,\"vertices\":22800,\"triangles\":7600},\
+      \"materials\":6,\"textures\":{\"present\":true},\"uvLayers\":1,\"vertexCo\
+      lors\":false,\"animations\":{\"present\":false,\"count\":0},\"rigged\":fa\
+      lse,\"morphTargets\":false,\"transforms\":{\"scale\":[1,1,1],\"position\"\
+      :[0,0,0],\"rotation\":{\"values\":[0,0,0],\"order\":\"XYZ\"}},\"boundingB\
+      ox\":{\"width\":0.154,\"height\":0.167,\"depth\":0.077},\"center\":{\"x\"\
+      :-0.001,\"y\":0.076,\"z\":0.026}}}},\"canvasRef\":null,\"devlogRef\":null,\
+      \"devlogMeta\":null,\"createdAt\":\"2026-03-09T14:24:09.282Z\",\"updatedAt\
+      \":\"2026-03-09T14:24:09.282Z\",\"__v\":0},{\"_id\":\"69ada145e98d2addbdc\
+      1e48a\",\"user\":{\"_id\":\"696d06694fdbd2030467857e\",\"username\":\"Ada\
+      mya
+      Saini\",\"avatar\":\"https://d2hc16lzmcm380.cloudfront.net/media/images/a\
+      c480847-d24a-4fa3-baa3-4bc37b4559b5-avatar.jpg\"},\"description\":\"\",\"\
+      type\":\"ad_model_post\",\"likesCount\":0,\"commentsCount\":0,\"normalPost\
+      \":null,\"modelPost\":null,\"gamePost\":null,\"adModelPost\":{\"brandName\
+      \":\"Sony\",\"logoUrl\":null,\"bgMode\":\"image\",\"bgColor\":null,\"bgIm\
+      ageUrl\":\"https://d2hc16lzmcm380.cloudfront.net/models/images/845dae4d-d\
+      2c8-4592-a412-e451b8a5b37f-3038869-poster-p-1-the-sony-logo-that-never-wa\
+      s.webp\",\"bgImagePosition\":\"50% 50%\",\"bgImageSize\":\"100%
+      130%\",\"overlayOpacity\":39,\"asset\":{\"name\":\"sony_wh1000.glb\",\"or\
+      iginalKey\":\"models/original/1dddb891-df5c-45fe-84d0-9e40db879457-sony_w\
+      h1000.glb\",\"optimizedKey\":\"models/optimized/1dddb891-df5c-45fe-84d0-9\
+      e40db879457-sony_wh1000.glb\",\"originalUrl\":\"https://d2hc16lzmcm380.cl\
+      oudfront.net/models/original/1dddb891-df5c-45fe-84d0-9e40db879457-sony_wh\
+      1000.glb\",\"optimizedUrl\":\"https://d2hc16lzmcm380.cloudfront.net/model\
+      s/optimized/1dddb891-df5c-45fe-84d0-9e40db879457-sony_wh1000.glb\",\"size\
+      MB\":1.09,\"optimization\":{\"status\":\"completed\",\"optimizedSizeMB\":\
+      0.12163925170898438,\"compressionRatio\":8.97974096026594,\"error\":null,\
+      \"processedAt\":\"2026-03-08T16:18:16.267Z\"},\"metadata\":{\"fileName\":\
+      \"1dddb891-df5c-45fe-84d0-9e40db879457-sony_wh1000.glb\",\"downloadSizeMB\
+      \":1.09,\"geometry\":{\"meshes\":6,\"vertices\":22800,\"triangles\":7600},\
+      \"materials\":6,\"textures\":{\"present\":true},\"uvLayers\":1,\"vertexCo\
+      lors\":false,\"animations\":{\"present\":false,\"count\":0},\"rigged\":fa\
+      lse,\"morphTargets\":false,\"transforms\":{\"scale\":[1,1,1],\"position\"\
+      :[0,0,0],\"rotation\":{\"values\":[0,0,0],\"order\":\"XYZ\"}},\"boundingB\
+      ox\":{\"width\":0.154,\"height\":0.167,\"depth\":0.077},\"center\":{\"x\"\
+      :-0.001,\"y\":0.076,\"z\":0.026}}}},\"canvasRef\":null,\"devlogRef\":null,\
+      \"devlogMeta\":null,\"createdAt\":\"2026-03-08T16:18:13.574Z\",\"updatedAt\
+      \":\"2026-03-08T16:18:13.574Z\",\"__v\":0},{\"_id\":\"69aacc5a74838e1b644\
+      46773\",\"user\":{\"_id\":\"696d06694fdbd2030467857e\",\"username\":\"Ada\
+      mya
+      Saini\",\"avatar\":\"https://d2hc16lzmcm380.cloudfront.net/media/images/a\
+      c480847-d24a-4fa3-baa3-4bc37b4559b5-avatar.jpg\"},\"description\":\"Resid\
+      ent_evil_tyrant...\",\"type\":\"ad_model_post\",\"likesCount\":0,\"commen\
+      tsCount\":0,\"normalPost\":null,\"modelPost\":null,\"gamePost\":null,\"ad\
+      ModelPost\":{\"brandName\":\"Capcom\",\"logoUrl\":\"https://d2hc16lzmcm38\
+      0.cloudfront.net/models/images/70f54d17-48d1-4d59-9cee-0d092b5f29b9-Resid\
+      ent Evil_ Welcome To The Raccoon City (2021) Phone Wallpaper _
+      Wallcinemania.jpg\",\"bgMode\":\"image\",\"bgColor\":null,\"bgImageUrl\":\
+      \"https://d2hc16lzmcm380.cloudfront.net/models/images/c79f75f9-1df3-4b96-\
+      acfc-223c4beb4d80-tfjxz3Wp1x2EDcdVyqt9PLZWu1o.webp\",\"bgImagePosition\":\
+      \"50% 92%\",\"bgImageSize\":\"100%
+      346%\",\"asset\":{\"name\":\"resident_evil_tyrant.glb\",\"originalKey\":\
+      \"models/original/0d91f62e-e1f9-4c7e-8914-337a819dd2df-resident_evil_tyra\
+      nt.glb\",\"optimizedKey\":\"models/optimized/0d91f62e-e1f9-4c7e-8914-337a\
+      819dd2df-resident_evil_tyrant.glb\",\"originalUrl\":\"https://d2hc16lzmcm\
+      380.cloudfront.net/models/original/0d91f62e-e1f9-4c7e-8914-337a819dd2df-r\
+      esident_evil_tyrant.glb\",\"optimizedUrl\":\"https://d2hc16lzmcm380.cloud\
+      front.net/models/optimized/0d91f62e-e1f9-4c7e-8914-337a819dd2df-resident_\
+      evil_tyrant.glb\",\"sizeMB\":1.74,\"optimization\":{\"status\":\"completed\
+      \",\"optimizedSizeMB\":0.7340431213378906,\"compressionRatio\":2.37151097\
+      8303235,\"error\":null,\"processedAt\":\"2026-03-06T12:45:17.583Z\"},\"me\
+      tadata\":{\"fileName\":\"0d91f62e-e1f9-4c7e-8914-337a819dd2df-resident_ev\
+      il_tyrant.glb\",\"downloadSizeMB\":1.74,\"geometry\":{\"meshes\":1,\"vert\
+      ices\":6010,\"triangles\":2003},\"materials\":1,\"textures\":{\"present\"\
+      :true},\"uvLayers\":1,\"vertexColors\":false,\"animations\":{\"present\":\
+      true,\"count\":1},\"rigged\":true,\"morphTargets\":false,\"transforms\":{\
+      \"scale\":[1,1,1],\"position\":[0,0,0],\"rotation\":{\"values\":[0,0,0],\
+      \"order\":\"XYZ\"}},\"boundingBox\":{\"width\":93.21,\"height\":180.142,\
+      \"depth\":82.647},\"center\":{\"x\":0.065,\"y\":89.901,\"z\":15.143}}}},\
+      \"canvasRef\":null,\"devlogRef\":null,\"devlogMeta\":null,\"createdAt\":\
+      \"2026-03-06T12:45:14.917Z\",\"updatedAt\":\"2026-03-06T12:45:14.917Z\",\
+      \"__v\":0},{\"_id\":\"69aaaa7f3c4c36a556256a0d\",\"user\":{\"_id\":\"6972\
+      53ac063490a4836dad55\",\"username\":\"wadkar_naved_\",\"avatar\":\"https:\
+      //d2hc16lzmcm380.cloudfront.net/media/images/cb74080e-e7ed-4999-b8c0-8dc7\
+      c1018240-avatar.jpg\"},\"description\":\"\",\"type\":\"ad_model_post\",\"\
+      likesCount\":0,\"commentsCount\":0,\"normalPost\":null,\"modelPost\":null,\
+      \"gamePost\":null,\"adModelPost\":{\"brandName\":null,\"logoUrl\":null,\"\
+      bgMode\":\"image\",\"bgColor\":null,\"bgImageUrl\":\"https://d2hc16lzmcm3\
+      80.cloudfront.net/models/images/5e85699e-798d-4fb0-a82a-5f75d9c3d970-sony\
+      _bg.jpeg\",\"bgImagePosition\":\"100% 3%\",\"bgImageSize\":\"110%
+      398%\",\"asset\":{\"name\":\"sony_wh1000.glb\",\"originalKey\":\"models/o\
+      riginal/87bab759-f51a-49bd-94cf-29ca8bfa5fc6-sony_wh1000.glb\",\"optimize\
+      dKey\":\"models/optimized/87bab759-f51a-49bd-94cf-29ca8bfa5fc6-sony_wh100\
+      0.glb\",\"originalUrl\":\"https://d2hc16lzmcm380.cloudfront.net/models/or\
+      iginal/87bab759-f51a-49bd-94cf-29ca8bfa5fc6-sony_wh1000.glb\",\"optimized\
+      Url\":\"https://d2hc16lzmcm380.cloudfront.net/models/optimized/87bab759-f\
+      51a-49bd-94cf-29ca8bfa5fc6-sony_wh1000.glb\",\"sizeMB\":1.09,\"optimizati\
+      on\":{\"status\":\"completed\",\"optimizedSizeMB\":0.12163925170898438,\"\
+      compressionRatio\":8.97974096026594,\"error\":null,\"processedAt\":\"2026\
+      -03-06T10:20:48.309Z\"},\"metadata\":{\"fileName\":\"87bab759-f51a-49bd-9\
+      4cf-29ca8bfa5fc6-sony_wh1000.glb\",\"downloadSizeMB\":1.09,\"geometry\":{\
+      \"meshes\":6,\"vertices\":22800,\"triangles\":7600},\"materials\":6,\"tex\
+      tures\":{\"present\":true},\"uvLayers\":1,\"vertexColors\":false,\"animat\
+      ions\":{\"present\":false,\"count\":0},\"rigged\":false,\"morphTargets\":\
+      false,\"transforms\":{\"scale\":[1,1,1],\"position\":[0,0,0],\"rotation\"\
+      :{\"values\":[0,0,0],\"order\":\"XYZ\"}},\"boundingBox\":{\"width\":0.154,\
+      \"height\":0.167,\"depth\":0.077},\"center\":{\"x\":-0.001,\"y\":0.076,\"z\
+      \":0.026}}}},\"canvasRef\":null,\"devlogRef\":null,\"devlogMeta\":null,\"\
+      createdAt\":\"2026-03-06T10:20:47.056Z\",\"updatedAt\":\"2026-03-06T10:20\
+      :47.056Z\",\"__v\":0},{\"_id\":\"69aa11f0043869ed34c8cc15\",\"user\":{\"_\
+      id\":\"697253ac063490a4836dad55\",\"username\":\"wadkar_naved_\",\"avatar\
+      \":\"https://d2hc16lzmcm380.cloudfront.net/media/images/cb74080e-e7ed-499\
+      9-b8c0-8dc7c1018240-avatar.jpg\"},\"description\":\"\",\"type\":\"ad_mode\
+      l_post\",\"likesCount\":0,\"commentsCount\":0,\"normalPost\":null,\"model\
+      Post\":null,\"gamePost\":null,\"adModelPost\":{\"brandName\":null,\"logoU\
+      rl\":null,\"bgMode\":\"image\",\"bgColor\":null,\"bgImageUrl\":\"https://\
+      d2hc16lzmcm380.cloudfront.net/models/images/ded85e16-3e95-4887-8f8b-9425d\
+      008e9f0-sony_bg.jpeg\",\"asset\":{\"name\":\"sony_wh1000.glb\",\"original\
+      Key\":\"models/original/9d29755f-cf74-40a1-be06-c4caf7d0d02f-sony_wh1000.\
+      glb\",\"optimizedKey\":\"models/optimized/9d29755f-cf74-40a1-be06-c4caf7d\
+      0d02f-sony_wh1000.glb\",\"originalUrl\":\"https://d2hc16lzmcm380.cloudfro\
+      nt.net/models/original/9d29755f-cf74-40a1-be06-c4caf7d0d02f-sony_wh1000.g\
+      lb\",\"optimizedUrl\":\"https://d2hc16lzmcm380.cloudfront.net/models/opti\
+      mized/9d29755f-cf74-40a1-be06-c4caf7d0d02f-sony_wh1000.glb\",\"sizeMB\":1\
+      .09,\"optimization\":{\"status\":\"completed\",\"optimizedSizeMB\":0.1216\
+      3925170898438,\"compressionRatio\":8.97974096026594,\"error\":null,\"proc\
+      essedAt\":\"2026-03-05T23:29:53.803Z\"},\"metadata\":{\"fileName\":\"9d29\
+      755f-cf74-40a1-be06-c4caf7d0d02f-sony_wh1000.glb\",\"downloadSizeMB\":1.0\
+      9,\"geometry\":{\"meshes\":6,\"vertices\":22800,\"triangles\":7600},\"mat\
+      erials\":6,\"textures\":{\"present\":true},\"uvLayers\":1,\"vertexColors\
+      \":false,\"animations\":{\"present\":false,\"count\":0},\"rigged\":false,\
+      \"morphTargets\":false,\"transforms\":{\"scale\":[1,1,1],\"position\":[0,\
+      0,0],\"rotation\":{\"values\":[0,0,0],\"order\":\"XYZ\"}},\"boundingBox\"\
+      :{\"width\":0.154,\"height\":0.167,\"depth\":0.077},\"center\":{\"x\":-0.\
+      001,\"y\":0.076,\"z\":0.026}}}},\"canvasRef\":null,\"devlogRef\":null,\"d\
+      evlogMeta\":null,\"createdAt\":\"2026-03-05T23:29:52.445Z\",\"updatedAt\":\
+      \"2026-03-05T23:29:52.445Z\",\"__v\":0}],\"nextCursor\":\"a:69aa11f004386\
+      9ed34c8cc15\"}"
+order: 1773488925538

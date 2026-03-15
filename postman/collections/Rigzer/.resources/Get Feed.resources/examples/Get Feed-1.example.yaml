@@ -1,0 +1,251 @@
+$kind: http-example
+name: Get Feed
+request:
+  url: https://backend.rigzer.com/api/posts/fetch_posts?limit=20
+  method: GET
+  queryParams:
+    limit: "20"
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    server: nginx/1.24.0 (Ubuntu)
+    date: Sat, 14 Mar 2026 11:57:47 GMT
+    content-type: application/json; charset=utf-8
+    content-length: "14881"
+    connection: keep-alive
+    x-powered-by: Express
+    vary: Origin
+    access-control-allow-credentials: "true"
+    etag: W/"3a21-7PjZElX4CXSECbrFiFa9PSAj2zQ"
+  body:
+    type: json
+    content: "{\"posts\":[{\"_id\":\"69b3e80ff2e97b0bcb050751\",\"createdAt\":\"202\
+      6-03-13T10:33:51.433Z\",\"updatedAt\":\"2026-03-14T11:01:34.698Z\",\"publ\
+      ishedAt\":\"2026-03-14T11:01:34.697Z\",\"type\":\"pocket_update\",\"user\
+      \":{\"_id\":\"67e916a29402880d7301f721\",\"username\":\"Naved
+      Wadkar\"},\"likesCount\":0,\"commentsCount\":0,\"isLiked\":false,\"brandN\
+      ame\":\"Tsitski\",\"tagline\":\"\",\"compiledBundleUrl\":\"https://d2hc16\
+      lzmcm380.cloudfront.net/pockets/69b2cc5d16522bca996e27de/bundle-177348609\
+      4609.js\",\"_pocketEntryId\":\"69b3e80ff2e97b0bcb050751\"},{\"_id\":\"69b\
+      2af1416522bca996e245b\",\"createdAt\":\"2026-03-12T12:18:28.470Z\",\"upda\
+      tedAt\":\"2026-03-12T12:18:28.470Z\",\"publishedAt\":\"2026-03-12T12:18:2\
+      8.470Z\",\"type\":\"pocket_update\",\"user\":{\"_id\":\"67e3e2a32cbe5f516\
+      2d02eb3\",\"username\":\"sayed
+      Usaid\",\"avatar\":\"https://d2hc16lzmcm380.cloudfront.net/media/images/c\
+      cbd2b2b-67ab-4b8e-9902-2ff640a24d1c-avatar.jpg\"},\"likesCount\":0,\"comm\
+      entsCount\":0,\"isLiked\":false,\"brandName\":\"Reaction
+      Game\",\"tagline\":\"\",\"compiledBundleUrl\":\"https://d2hc16lzmcm380.cl\
+      oudfront.net/pockets/69b2ac1316522bca996e2452/bundle-1773317908377.js\",\
+      \"_pocketEntryId\":\"69b2af1416522bca996e245b\"},{\"_id\":\"69af78d32358e\
+      eecc7f69c38\",\"createdAt\":\"2026-03-10T01:50:11.652Z\",\"updatedAt\":\"\
+      2026-03-12T00:18:58.990Z\",\"publishedAt\":\"2026-03-12T00:18:58.989Z\",\
+      \"type\":\"pocket_update\",\"user\":{\"_id\":\"697253ac063490a4836dad55\",\
+      \"username\":\"wadkar_naved_\",\"avatar\":\"https://d2hc16lzmcm380.cloudf\
+      ront.net/media/images/cb74080e-e7ed-4999-b8c0-8dc7c1018240-avatar.jpg\"},\
+      \"likesCount\":0,\"commentsCount\":0,\"isLiked\":false,\"brandName\":\"NV\
+      IDIA\",\"tagline\":\"The way it's meant to be
+      played\",\"compiledBundleUrl\":\"https://d2hc16lzmcm380.cloudfront.net/po\
+      ckets/69aeba95cd173fcd16b0f01d/bundle-1773274738906.js\",\"_pocketEntryId\
+      \":\"69af78d32358eeecc7f69c38\"},{\"_id\":\"69aa118e043869ed34c8cbf6\",\"\
+      user\":{\"_id\":\"697253ac063490a4836dad55\",\"username\":\"wadkar_naved_\
+      \",\"avatar\":\"https://d2hc16lzmcm380.cloudfront.net/media/images/cb7408\
+      0e-e7ed-4999-b8c0-8dc7c1018240-avatar.jpg\"},\"description\":\"\",\"type\
+      \":\"ad_model_post\",\"likesCount\":0,\"commentsCount\":0,\"normalPost\":\
+      null,\"modelPost\":null,\"gamePost\":null,\"adModelPost\":{\"brandName\":\
+      null,\"logoUrl\":null,\"bgMode\":\"image\",\"bgColor\":null,\"bgImageUrl\
+      \":\"https://d2hc16lzmcm380.cloudfront.net/models/images/beeb1b45-7324-4c\
+      da-99e5-5a8097384142-Rigzer_logo.png\",\"asset\":{\"name\":\"free_1972_da\
+      tsun_240k_gt.glb\",\"originalKey\":\"models/original/5c6166b7-7c68-49f9-a\
+      775-fe1b60ca502e-free_1972_datsun_240k_gt.glb\",\"optimizedKey\":\"models\
+      /optimized/5c6166b7-7c68-49f9-a775-fe1b60ca502e-free_1972_datsun_240k_gt.\
+      glb\",\"originalUrl\":\"https://d2hc16lzmcm380.cloudfront.net/models/orig\
+      inal/5c6166b7-7c68-49f9-a775-fe1b60ca502e-free_1972_datsun_240k_gt.glb\",\
+      \"optimizedUrl\":\"https://d2hc16lzmcm380.cloudfront.net/models/optimized\
+      /5c6166b7-7c68-49f9-a775-fe1b60ca502e-free_1972_datsun_240k_gt.glb\",\"si\
+      zeMB\":67.95,\"optimization\":{\"status\":\"completed\",\"optimizedSizeMB\
+      \":6.627910614013672,\"compressionRatio\":10.251558159090216,\"error\":nu\
+      ll,\"processedAt\":\"2026-03-06T11:41:21.666Z\"},\"metadata\":{\"fileName\
+      \":\"5c6166b7-7c68-49f9-a775-fe1b60ca502e-free_1972_datsun_240k_gt.glb\",\
+      \"downloadSizeMB\":67.95,\"geometry\":{\"meshes\":70,\"vertices\":1146430,\
+      \"triangles\":382143},\"materials\":70,\"textures\":{\"present\":true},\"\
+      uvLayers\":2,\"vertexColors\":false,\"animations\":{\"present\":false,\"c\
+      ount\":0},\"rigged\":false,\"morphTargets\":false,\"transforms\":{\"scale\
+      \":[1,1,1],\"position\":[0,0,0],\"rotation\":{\"values\":[0,0,0],\"order\
+      \":\"XYZ\"}},\"boundingBox\":{\"width\":2.375,\"height\":1.274,\"depth\":\
+      4.749},\"center\":{\"x\":-9.41,\"y\":-10.317,\"z\":3.781}}}},\"canvasRef\
+      \":null,\"devlogRef\":null,\"devlogMeta\":null,\"createdAt\":\"2026-03-05\
+      T23:28:14.905Z\",\"updatedAt\":\"2026-03-05T23:28:14.905Z\",\"__v\":0},{\
+      \"_id\":\"69aa0e8098e8205d7d0fe7a6\",\"user\":{\"_id\":\"697253ac063490a4\
+      836dad55\",\"username\":\"wadkar_naved_\",\"avatar\":\"https://d2hc16lzmc\
+      m380.cloudfront.net/media/images/cb74080e-e7ed-4999-b8c0-8dc7c1018240-ava\
+      tar.jpg\"},\"description\":\"\",\"type\":\"ad_model_post\",\"likesCount\"\
+      :0,\"commentsCount\":0,\"normalPost\":null,\"modelPost\":null,\"gamePost\
+      \":null,\"adModelPost\":{\"brandName\":null,\"logoUrl\":null,\"bgMode\":\
+      \"image\",\"bgColor\":null,\"bgImageUrl\":\"https://d2hc16lzmcm380.cloudf\
+      ront.net/models/images/6f3a39d5-5fc2-4a53-affb-04f9b201bed1-WhatsApp Image
+      2026-03-03 at 16.58.14.jpeg\",\"bgImagePosition\":\"24%
+      41%\",\"asset\":{\"name\":\"sony_wh1000.glb\",\"originalKey\":\"models/or\
+      iginal/7bbe2f42-b442-4b31-93c5-8c98a5e27cc9-sony_wh1000.glb\",\"optimized\
+      Key\":\"models/optimized/7bbe2f42-b442-4b31-93c5-8c98a5e27cc9-sony_wh1000\
+      .glb\",\"originalUrl\":\"https://d2hc16lzmcm380.cloudfront.net/models/ori\
+      ginal/7bbe2f42-b442-4b31-93c5-8c98a5e27cc9-sony_wh1000.glb\",\"optimizedU\
+      rl\":\"https://d2hc16lzmcm380.cloudfront.net/models/optimized/7bbe2f42-b4\
+      42-4b31-93c5-8c98a5e27cc9-sony_wh1000.glb\",\"sizeMB\":1.09,\"optimization\
+      \":{\"status\":\"completed\",\"optimizedSizeMB\":0.12163925170898438,\"co\
+      mpressionRatio\":8.97974096026594,\"error\":null,\"processedAt\":\"2026-0\
+      3-05T23:15:14.476Z\"},\"metadata\":{\"fileName\":\"7bbe2f42-b442-4b31-93c\
+      5-8c98a5e27cc9-sony_wh1000.glb\",\"downloadSizeMB\":1.09,\"geometry\":{\"\
+      meshes\":6,\"vertices\":22800,\"triangles\":7600},\"materials\":6,\"textu\
+      res\":{\"present\":true},\"uvLayers\":1,\"vertexColors\":false,\"animatio\
+      ns\":{\"present\":false,\"count\":0},\"rigged\":false,\"morphTargets\":fa\
+      lse,\"transforms\":{\"scale\":[1,1,1],\"position\":[0,0,0],\"rotation\":{\
+      \"values\":[0,0,0],\"order\":\"XYZ\"}},\"boundingBox\":{\"width\":0.154,\
+      \"height\":0.167,\"depth\":0.077},\"center\":{\"x\":-0.001,\"y\":0.076,\"z\
+      \":0.026}}}},\"canvasRef\":null,\"devlogRef\":null,\"devlogMeta\":null,\"\
+      createdAt\":\"2026-03-05T23:15:12.423Z\",\"updatedAt\":\"2026-03-05T23:15\
+      :12.423Z\",\"__v\":0},{\"_id\":\"69aa05db8fffd2f7bd1a4514\",\"user\":{\"_\
+      id\":\"697253ac063490a4836dad55\",\"username\":\"wadkar_naved_\",\"avatar\
+      \":\"https://d2hc16lzmcm380.cloudfront.net/media/images/cb74080e-e7ed-499\
+      9-b8c0-8dc7c1018240-avatar.jpg\"},\"description\":\"\",\"type\":\"ad_mode\
+      l_post\",\"likesCount\":0,\"commentsCount\":0,\"normalPost\":null,\"model\
+      Post\":null,\"gamePost\":null,\"adModelPost\":{\"brandName\":\"SONY\",\"l\
+      ogoUrl\":null,\"bgMode\":\"image\",\"bgColor\":null,\"bgImageUrl\":\"http\
+      s://d2hc16lzmcm380.cloudfront.net/models/images/72eb6e1c-48f8-47be-89e2-c\
+      f3ec226e36c-Gemini_Generated_Image_1v0buy1v0buy1v0b.png\",\"asset\":{\"na\
+      me\":\"sony_wh1000.glb\",\"originalKey\":\"models/original/57765058-3cea-\
+      4d13-97db-1b0d89b48a0d-sony_wh1000.glb\",\"optimizedKey\":\"models/optimi\
+      zed/57765058-3cea-4d13-97db-1b0d89b48a0d-sony_wh1000.glb\",\"originalUrl\
+      \":\"https://d2hc16lzmcm380.cloudfront.net/models/original/57765058-3cea-\
+      4d13-97db-1b0d89b48a0d-sony_wh1000.glb\",\"optimizedUrl\":\"https://d2hc1\
+      6lzmcm380.cloudfront.net/models/optimized/57765058-3cea-4d13-97db-1b0d89b\
+      48a0d-sony_wh1000.glb\",\"sizeMB\":1.09,\"optimization\":{\"status\":\"co\
+      mpleted\",\"optimizedSizeMB\":0.12163925170898438,\"compressionRatio\":8.\
+      97974096026594,\"error\":null,\"processedAt\":\"2026-03-06T11:44:29.610Z\
+      \"},\"metadata\":{\"fileName\":\"57765058-3cea-4d13-97db-1b0d89b48a0d-son\
+      y_wh1000.glb\",\"downloadSizeMB\":1.09,\"geometry\":{\"meshes\":6,\"verti\
+      ces\":22800,\"triangles\":7600},\"materials\":6,\"textures\":{\"present\"\
+      :true},\"uvLayers\":1,\"vertexColors\":false,\"animations\":{\"present\":\
+      false,\"count\":0},\"rigged\":false,\"morphTargets\":false,\"transforms\"\
+      :{\"scale\":[1,1,1],\"position\":[0,0,0],\"rotation\":{\"values\":[0,0,0],\
+      \"order\":\"XYZ\"}},\"boundingBox\":{\"width\":0.154,\"height\":0.167,\"d\
+      epth\":0.077},\"center\":{\"x\":-0.001,\"y\":0.076,\"z\":0.026}}}},\"canv\
+      asRef\":null,\"devlogRef\":null,\"devlogMeta\":null,\"createdAt\":\"2026-\
+      03-05T22:38:19.571Z\",\"updatedAt\":\"2026-03-05T22:38:19.571Z\",\"__v\":\
+      0},{\"_id\":\"69aa04cb8fffd2f7bd1a445a\",\"user\":{\"_id\":\"697253ac0634\
+      90a4836dad55\",\"username\":\"wadkar_naved_\",\"avatar\":\"https://d2hc16\
+      lzmcm380.cloudfront.net/media/images/cb74080e-e7ed-4999-b8c0-8dc7c1018240\
+      -avatar.jpg\"},\"description\":\"Sony Headphones
+      \",\"type\":\"ad_model_post\",\"likesCount\":0,\"commentsCount\":0,\"norm\
+      alPost\":null,\"modelPost\":null,\"gamePost\":null,\"adModelPost\":{\"bra\
+      ndName\":\"SONY\",\"logoUrl\":null,\"bgMode\":\"color\",\"bgColor\":\"#14\
+      b8a6\",\"bgImageUrl\":null,\"asset\":{\"name\":\"sony_wh1000.glb\",\"orig\
+      inalKey\":\"models/original/8b6eb44c-8cfb-4471-af75-f8bc3e481cb7-sony_wh1\
+      000.glb\",\"optimizedKey\":\"models/optimized/8b6eb44c-8cfb-4471-af75-f8b\
+      c3e481cb7-sony_wh1000.glb\",\"originalUrl\":\"https://d2hc16lzmcm380.clou\
+      dfront.net/models/original/8b6eb44c-8cfb-4471-af75-f8bc3e481cb7-sony_wh10\
+      00.glb\",\"optimizedUrl\":\"https://d2hc16lzmcm380.cloudfront.net/models/\
+      optimized/8b6eb44c-8cfb-4471-af75-f8bc3e481cb7-sony_wh1000.glb\",\"sizeMB\
+      \":1.09,\"optimization\":{\"status\":\"completed\",\"optimizedSizeMB\":0.\
+      12163925170898438,\"compressionRatio\":8.97974096026594,\"error\":null,\"\
+      processedAt\":\"2026-03-06T11:45:04.933Z\"},\"metadata\":{\"fileName\":\"\
+      8b6eb44c-8cfb-4471-af75-f8bc3e481cb7-sony_wh1000.glb\",\"downloadSizeMB\"\
+      :1.09,\"geometry\":{\"meshes\":6,\"vertices\":22800,\"triangles\":7600},\
+      \"materials\":6,\"textures\":{\"present\":true},\"uvLayers\":1,\"vertexCo\
+      lors\":false,\"animations\":{\"present\":false,\"count\":0},\"rigged\":fa\
+      lse,\"morphTargets\":false,\"transforms\":{\"scale\":[1,1,1],\"position\"\
+      :[0,0,0],\"rotation\":{\"values\":[0,0,0],\"order\":\"XYZ\"}},\"boundingB\
+      ox\":{\"width\":0.154,\"height\":0.167,\"depth\":0.077},\"center\":{\"x\"\
+      :-0.001,\"y\":0.076,\"z\":0.026}}}},\"canvasRef\":null,\"devlogRef\":null,\
+      \"devlogMeta\":null,\"createdAt\":\"2026-03-05T22:33:47.664Z\",\"updatedAt\
+      \":\"2026-03-05T22:33:47.664Z\",\"__v\":0},{\"_id\":\"69a9815c4661fbc56c4\
+      97005\",\"user\":{\"_id\":\"696d06694fdbd2030467857e\",\"username\":\"Ada\
+      mya
+      Saini\",\"avatar\":\"https://d2hc16lzmcm380.cloudfront.net/media/images/a\
+      c480847-d24a-4fa3-baa3-4bc37b4559b5-avatar.jpg\"},\"description\":\"\",\"\
+      type\":\"ad_model_post\",\"likesCount\":0,\"commentsCount\":0,\"normalPost\
+      \":null,\"modelPost\":null,\"gamePost\":null,\"adModelPost\":{\"brandName\
+      \":null,\"logoUrl\":null,\"bgMode\":\"image\",\"bgColor\":null,\"bgImageU\
+      rl\":\"https://d2hc16lzmcm380.cloudfront.net/models/images/f77249a8-2f28-\
+      497a-b93c-4b39e9b1df43-tfjxz3Wp1x2EDcdVyqt9PLZWu1o.webp\",\"asset\":{\"na\
+      me\":\"resident_evil_tyrant.glb\",\"originalKey\":\"models/original/8fbd6\
+      f6e-74ac-4030-8fd6-a75901beee1c-resident_evil_tyrant.glb\",\"optimizedKey\
+      \":\"models/optimized/8fbd6f6e-74ac-4030-8fd6-a75901beee1c-resident_evil_\
+      tyrant.glb\",\"originalUrl\":\"https://d2hc16lzmcm380.cloudfront.net/mode\
+      ls/original/8fbd6f6e-74ac-4030-8fd6-a75901beee1c-resident_evil_tyrant.glb\
+      \",\"optimizedUrl\":\"https://d2hc16lzmcm380.cloudfront.net/models/optimi\
+      zed/8fbd6f6e-74ac-4030-8fd6-a75901beee1c-resident_evil_tyrant.glb\",\"siz\
+      eMB\":1.74,\"optimization\":{\"status\":\"completed\",\"optimizedSizeMB\"\
+      :0.7340431213378906,\"compressionRatio\":2.371510978303235,\"error\":null,\
+      \"processedAt\":\"2026-03-05T13:13:03.433Z\"},\"metadata\":{\"fileName\":\
+      \"8fbd6f6e-74ac-4030-8fd6-a75901beee1c-resident_evil_tyrant.glb\",\"downl\
+      oadSizeMB\":1.74,\"geometry\":{\"meshes\":1,\"vertices\":6010,\"triangles\
+      \":2003},\"materials\":1,\"textures\":{\"present\":true},\"uvLayers\":1,\
+      \"vertexColors\":false,\"animations\":{\"present\":true,\"count\":1},\"ri\
+      gged\":true,\"morphTargets\":false,\"transforms\":{\"scale\":[1,1,1],\"po\
+      sition\":[0,0,0],\"rotation\":{\"values\":[0,0,0],\"order\":\"XYZ\"}},\"b\
+      oundingBox\":{\"width\":93.21,\"height\":180.142,\"depth\":82.647},\"cent\
+      er\":{\"x\":0.065,\"y\":89.901,\"z\":15.143}}}},\"canvasRef\":null,\"devl\
+      ogRef\":null,\"devlogMeta\":null,\"createdAt\":\"2026-03-05T13:13:00.219Z\
+      \",\"updatedAt\":\"2026-03-05T13:13:00.219Z\",\"__v\":0},{\"_id\":\"69a98\
+      0b94661fbc56c496fde\",\"user\":{\"_id\":\"696d06694fdbd2030467857e\",\"us\
+      ername\":\"Adamya
+      Saini\",\"avatar\":\"https://d2hc16lzmcm380.cloudfront.net/media/images/a\
+      c480847-d24a-4fa3-baa3-4bc37b4559b5-avatar.jpg\"},\"description\":\"\",\"\
+      type\":\"ad_model_post\",\"likesCount\":0,\"commentsCount\":0,\"normalPost\
+      \":null,\"modelPost\":null,\"gamePost\":null,\"adModelPost\":{\"brandName\
+      \":null,\"logoUrl\":null,\"bgMode\":\"image\",\"bgColor\":null,\"bgImageU\
+      rl\":\"https://d2hc16lzmcm380.cloudfront.net/models/images/eaaa6d28-ea8b-\
+      4dcb-94e3-2ead10d85b72-wp15863311-resident-evil-2026-wallpapers.jpg\",\"a\
+      sset\":{\"name\":\"resident_evil_tyrant.glb\",\"originalKey\":\"models/or\
+      iginal/3ec6eaaa-a9ad-4e4c-a66e-e5e8a5445ae8-resident_evil_tyrant.glb\",\"\
+      optimizedKey\":\"models/optimized/3ec6eaaa-a9ad-4e4c-a66e-e5e8a5445ae8-re\
+      sident_evil_tyrant.glb\",\"originalUrl\":\"https://d2hc16lzmcm380.cloudfr\
+      ont.net/models/original/3ec6eaaa-a9ad-4e4c-a66e-e5e8a5445ae8-resident_evi\
+      l_tyrant.glb\",\"optimizedUrl\":\"https://d2hc16lzmcm380.cloudfront.net/m\
+      odels/optimized/3ec6eaaa-a9ad-4e4c-a66e-e5e8a5445ae8-resident_evil_tyrant\
+      .glb\",\"sizeMB\":1.74,\"optimization\":{\"status\":\"completed\",\"optim\
+      izedSizeMB\":0.7340431213378906,\"compressionRatio\":2.371510978303235,\"\
+      error\":null,\"processedAt\":\"2026-03-05T13:10:20.720Z\"},\"metadata\":{\
+      \"fileName\":\"3ec6eaaa-a9ad-4e4c-a66e-e5e8a5445ae8-resident_evil_tyrant.\
+      glb\",\"downloadSizeMB\":1.74,\"geometry\":{\"meshes\":1,\"vertices\":601\
+      0,\"triangles\":2003},\"materials\":1,\"textures\":{\"present\":true},\"u\
+      vLayers\":1,\"vertexColors\":false,\"animations\":{\"present\":true,\"cou\
+      nt\":1},\"rigged\":true,\"morphTargets\":false,\"transforms\":{\"scale\":\
+      [1,1,1],\"position\":[0,0,0],\"rotation\":{\"values\":[0,0,0],\"order\":\
+      \"XYZ\"}},\"boundingBox\":{\"width\":93.21,\"height\":180.142,\"depth\":8\
+      2.647},\"center\":{\"x\":0.065,\"y\":89.901,\"z\":15.143}}}},\"canvasRef\
+      \":null,\"devlogRef\":null,\"devlogMeta\":null,\"createdAt\":\"2026-03-05\
+      T13:10:17.504Z\",\"updatedAt\":\"2026-03-05T13:10:17.504Z\",\"__v\":0},{\
+      \"_id\":\"69a979674661fbc56c496f87\",\"user\":{\"_id\":\"696d06694fdbd203\
+      0467857e\",\"username\":\"Adamya
+      Saini\",\"avatar\":\"https://d2hc16lzmcm380.cloudfront.net/media/images/a\
+      c480847-d24a-4fa3-baa3-4bc37b4559b5-avatar.jpg\"},\"description\":\"\",\"\
+      type\":\"ad_model_post\",\"likesCount\":0,\"commentsCount\":0,\"normalPost\
+      \":null,\"modelPost\":null,\"gamePost\":null,\"adModelPost\":{\"brandName\
+      \":\"Chanel\",\"logoUrl\":\"https://d2hc16lzmcm380.cloudfront.net/models/\
+      images/f4a85451-a723-4c8e-b429-42432bbaeaf7-WhatsApp Image 2026-03-03 at
+      11.54.10.jpeg\",\"bgMode\":\"color\",\"bgColor\":\"#f59e0b\",\"bgImageUrl\
+      \":null,\"asset\":{\"name\":\"chanel_leather_bag_for_women.glb\",\"origin\
+      alKey\":\"models/original/be52d109-f412-483e-88f6-0d4a1215f0a2-chanel_lea\
+      ther_bag_for_women.glb\",\"optimizedKey\":\"models/optimized/be52d109-f41\
+      2-483e-88f6-0d4a1215f0a2-chanel_leather_bag_for_women.glb\",\"originalUrl\
+      \":\"https://d2hc16lzmcm380.cloudfront.net/models/original/be52d109-f412-\
+      483e-88f6-0d4a1215f0a2-chanel_leather_bag_for_women.glb\",\"optimizedUrl\
+      \":\"https://d2hc16lzmcm380.cloudfront.net/models/optimized/be52d109-f412\
+      -483e-88f6-0d4a1215f0a2-chanel_leather_bag_for_women.glb\",\"sizeMB\":29.\
+      28,\"optimization\":{\"status\":\"completed\",\"optimizedSizeMB\":1.92821\
+      88415527344,\"compressionRatio\":15.184429967297827,\"error\":null,\"proc\
+      essedAt\":\"2026-03-06T11:46:46.519Z\"},\"metadata\":{\"fileName\":\"be52\
+      d109-f412-483e-88f6-0d4a1215f0a2-chanel_leather_bag_for_women.glb\",\"dow\
+      nloadSizeMB\":29.28,\"geometry\":{\"meshes\":4,\"vertices\":213286,\"tria\
+      ngles\":71095},\"materials\":4,\"textures\":{\"present\":true},\"uvLayers\
+      \":1,\"vertexColors\":false,\"animations\":{\"present\":false,\"count\":0\
+      },\"rigged\":false,\"morphTargets\":false,\"transforms\":{\"scale\":[1,1,\
+      1],\"position\":[0,0,0],\"rotation\":{\"values\":[0,0,0],\"order\":\"XYZ\
+      \"}},\"boundingBox\":{\"width\":0.448,\"height\":0.367,\"depth\":0.335},\
+      \"center\":{\"x\":0,\"y\":0,\"z\":0}}}},\"canvasRef\":null,\"devlogRef\":\
+      null,\"devlogMeta\":null,\"createdAt\":\"2026-03-05T12:39:03.064Z\",\"upd\
+      atedAt\":\"2026-03-05T12:39:03.064Z\",\"__v\":0}],\"nextCursor\":\"a:69a9\
+      79674661fbc56c496f87\"}"
+order: 3403401270648272

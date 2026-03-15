@@ -4,16 +4,48 @@ import {
   Move, Activity, Download, ShoppingCart, CreditCard, ShieldCheck, Info, HardDrive, FileCode, Monitor, Tag
 } from "lucide-react";
 import { ExePostProps } from "../types/Post";
+import axios from "axios";
 import CommentSection from "../components/Post/CommentSection";
-import { useState } from "react";
+import { useState,useEffect} from "react";
 import "@google/model-viewer";
 
-const PostDetail = ({ post, onClose }: { post: ExePostProps; onClose: () => void }) => {
-  const assets = post.modelPost?.assets ?? [];
+const PostDetail = ({ post:initialPost, onClose }: { post: ExePostProps; onClose: () => void }) => {
+  const [post, setPost] = useState<ExePostProps>(initialPost);
+  const [loading, setLoading] = useState(true);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL
+  const [activeIndex, setActiveIndex] = useState(0);
+  // 🔹 fetch full model post
+  useEffect(() => {
+    const fetchFullPost = async () => {
+      try {
+        const res = await axios.get(
+          `${BACKEND_URL}/api/posts/${initialPost._id}`,
+          { withCredentials: true }
+        );
+
+        setPost(res.data);
+        console.log("Full model post fetched:", res.data);
+      } catch (err) {
+        console.error("Failed to fetch full model post:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFullPost();
+  }, [initialPost._id]);
+
+  if (loading) {
+    return (
+      <div className="w-full flex justify-center py-40">
+        <div className="text-gray-400 text-sm">Loading 3D Model...</div>
+      </div>
+    );
+  }
+
+  const assets = post.modelPost?.assets ?? [];
   const title = post.modelPost?.title
   const price = post.modelPost?.price
-  const [activeIndex, setActiveIndex] = useState(0);
   const activeAsset = assets[activeIndex];
   const meta = activeAsset?.metadata;
   const modelUrl =
@@ -260,15 +292,15 @@ const PostDetail = ({ post, onClose }: { post: ExePostProps; onClose: () => void
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
                           <p className="text-gray-500 dark:text-gray-400">Meshes</p>
-                          <p className="font-mono font-medium">{meta?.geometry.meshes}</p>
+                          <p className="font-mono font-medium">{meta?.geometry?.meshes ?? "N/A"}</p>
                         </div>
                         <div className="flex justify-between items-center">
                           <p className="text-gray-500 dark:text-gray-400">Vertices</p>
-                          <p className="font-mono font-medium">{meta?.geometry.vertices.toLocaleString()}</p>
+                          <p className="font-mono font-medium">{meta?.geometry?.vertices?.toLocaleString() ?? "N/A"}</p>
                         </div>
                         <div className="flex justify-between items-center">
                           <p className="text-gray-500 dark:text-gray-400">Triangles</p>
-                          <p className="font-mono font-medium">{meta?.geometry.triangles.toLocaleString()}</p>
+                          <p className="font-mono font-medium">{meta?.geometry?.triangles?.toLocaleString() ?? "N/A"}</p>
                         </div>
                       </div>
                     </div>

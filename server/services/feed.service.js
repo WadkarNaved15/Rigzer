@@ -10,9 +10,9 @@
 // plain `sortKey` (millisecond timestamp) for the merge step, then derive
 // the nextCursor from whichever collection's natural key applies.
 
-import AllPost         from "../models/Allposts.js";
+import AllPost from "../models/Allposts.js";
 import PocketFeedEntry from "../models/PocketFeedEntry.js";
-import Like            from "../models/Like.js";
+import Like from "../models/Like.js";
 
 /**
  * @param {{ cursor?: string, limit?: number, userId?: string }} opts
@@ -28,15 +28,15 @@ export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
   const fetchLimit = limit * 2;
 
   // ── Parse cursor ──────────────────────────────────────────────────────────
-  let allPostFilter    = {};
-  let pocketFilter     = {};
+  let allPostFilter = {};
+  let pocketFilter = {};
 
   if (cursor) {
     const [type, value] = cursor.split(/:(.+)/); // split on first colon only
     if (type === "a") {
       allPostFilter = { _id: { $lt: value } };
     } else if (type === "p") {
-      pocketFilter  = { publishedAt: { $lt: new Date(value) } };
+      pocketFilter = { publishedAt: { $lt: new Date(value) } };
     } else {
       // Legacy plain-objectId cursor from before this change — treat as allpost
       allPostFilter = { _id: { $lt: cursor } };
@@ -46,46 +46,82 @@ export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
   // ── Fetch both collections in parallel ────────────────────────────────────
   const [allPosts, pocketEntries] = await Promise.all([
     AllPost.find({
-      ...allPostFilter,
-      type: { $ne: "canvas_article" },
+    ...allPostFilter,
+    type: { $ne: "canvas_article" },
+  })
+    .select({
+      _id: 1,
+      user: 1,
+      description: 1,
+      type: 1,
+      likesCount: 1,
+      commentsCount: 1,
+      createdAt: 1,
+
+      // model post
+      "modelPost.price": 1,
+      "modelPost.assets.originalUrl": 1,
+      "modelPost.assets.optimizedUrl": 1,
+
+      // game post
+      "gamePost.gameName": 1,
+
+      // normal post
+      "normalPost.assets": 1,
+
+      // ad model post
+      "adModelPost.brandName": 1,
+      "adModelPost.logoUrl": 1,
+      "adModelPost.bgMode": 1,
+      "adModelPost.bgColor": 1,
+      "adModelPost.bgImageUrl": 1,
+      "adModelPost.bgImagePosition": 1,
+      "adModelPost.bgImageSize": 1,
+      "adModelPost.overlayOpacity": 1,
+      "adModelPost.asset": 1,
     })
-      .populate("user", "username avatar")
-      .sort({ _id: -1 })
-      .limit(fetchLimit)
-      .lean(),
+    .populate("user", "username avatar")
+    .sort({ _id: -1 })
+    .limit(fetchLimit)
+    .lean(),
 
-    PocketFeedEntry.find(pocketFilter)
-      .populate("owner", "username avatar")
-      .sort({ publishedAt: -1 })
-      .limit(limit)
-      .lean(),
+  PocketFeedEntry.find(pocketFilter)
+    .populate("owner", "username avatar")
+    .sort({ publishedAt: -1 })
+    .limit(limit)
+    .lean(),
   ]);
-
+const trimmedPosts = allPosts.map((post) => {
+  if (post.modelPost?.assets?.length) {
+    post.modelPost.assets = [post.modelPost.assets[0]];
+  }
+  return post;
+});
   // ── Normalise to a common shape ───────────────────────────────────────────
-  const normalisedAllPosts = allPosts.map((p) => ({
+  const normalisedAllPosts = trimmedPosts.map((p) => ({
     ...p,
-    _sortKey:    p._id.getTimestamp().getTime(), // ms from ObjectId
+    _sortKey: p._id.getTimestamp().getTime(), // ms from ObjectId
     _cursorType: "a",
-    _cursorVal:  p._id.toString(),
+    _cursorVal: p._id.toString(),
   }));
 
   const normalisedPockets = pocketEntries.map((e) => ({
-    _id:               e._id,
-    createdAt:         e.createdAt,
-    updatedAt:         e.updatedAt,
-    publishedAt:       e.publishedAt,
-    type:              "pocket_update",
-    user:              e.owner,
-    likesCount:        e.likesCount,
-    commentsCount:     e.commentsCount,
-    isLiked:           false,
-    brandName:         e.brandName,
-    tagline:           e.tagline,
+    _id: e._id,
+    createdAt: e.createdAt,
+    updatedAt: e.updatedAt,
+    publishedAt: e.publishedAt,
+    type: "pocket_update",
+    user: e.owner,
+    likesCount: e.likesCount,
+    commentsCount: e.commentsCount,
+    isLiked: false,
+    brandName: e.brandName,
+    tagline: e.tagline,
     compiledBundleUrl: e.compiledBundleUrl,
-    _pocketEntryId:    e._id,
-    _sortKey:          new Date(e.publishedAt).getTime(), // ms from publishedAt
-    _cursorType:       "p",
-    _cursorVal:        e.publishedAt.toISOString(),
+    _pocketEntryId: e._id,
+    _sortKey: new Date(e.publishedAt).getTime(), // ms from publishedAt
+    _cursorType: "p",
+    _cursorVal: e.publishedAt.toISOString(),
   }));
 
   // ── Merge by sortKey desc, slice to limit ─────────────────────────────────
@@ -119,7 +155,7 @@ export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
   }
 
   // ── Build nextCursor from the last item in the merged page ────────────────
-  const last       = merged[merged.length - 1];
+  const last = merged[merged.length - 1];
   const nextCursor = `${last._cursorType}:${last._cursorVal}`;
 
   // Strip internal merge fields before sending to client

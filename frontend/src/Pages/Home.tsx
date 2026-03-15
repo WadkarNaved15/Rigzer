@@ -50,7 +50,6 @@ function Home() {
           params: { cursor: reset ? null : nextCursor, limit: 5 },
           withCredentials: true,
         });
-
         const newPosts = res.data.posts;
         const newCursor = res.data.nextCursor;
 
