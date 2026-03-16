@@ -13,6 +13,7 @@ type PostWrapperProps = PostProps & {
   onOpenDetails?: () => void;
 };
 
+
 const Fallback = () => (
   <div className="w-full h-32 bg-gray-100 dark:bg-gray-800 rounded-lg animate-pulse" />
 );

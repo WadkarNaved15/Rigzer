@@ -91,12 +91,14 @@ router.post("/register", async (req, res) => {
     });
 
     await newUser.save();
-    await sendVerificationEmail(email, otp);
     res.status(200).json({
       message: "OTP sent to email",
       requiresVerification: true,
       email
     });
+    sendVerificationEmail(email, otp).catch(err =>
+      console.error("Email send failed:", err)
+    );
     // const token = jwt.sign({ id: newUser._id },process.env.JWT_SECRET, { expiresIn: "30d" });
     // const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
 
@@ -111,7 +113,7 @@ router.post("/register", async (req, res) => {
     // res.status(201).json({ message: "User registered & authenticated successfully", user: newUser, token });
   } catch (error) {
     console.error("Error in registration:", error);
-    // res.status(500).json({ error: "Registration failed" });
+    res.status(500).json({ error: "Registration failed" });
   }
 });
 // Verify email
