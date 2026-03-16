@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Lock, ArrowRight, Zap, User, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Zap, User, Eye, EyeOff, AlertCircle, CheckCircle2} from 'lucide-react';
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { saveAccount } from "../utils/accountRegistry.js";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -12,6 +12,7 @@ function Auth() {
   const { login, user, loading } = useUser();
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000"; // Ensure this is set in your .env file
   const [mode, setMode] = useState<AuthMode>('login');
+  const [status, setStatus] = useState<{ type: 'error' | 'success', message: string } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -32,6 +33,7 @@ function Auth() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+    if (status) setStatus(null);
   };
   useEffect(() => {
     if (user && !loading && !addMode) {
@@ -43,10 +45,11 @@ function Auth() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setStatus(null);
     try {
       // Example: Check if passwords match during signup
       if (mode === 'signup' && formData.password !== formData.confirmPassword) {
-        alert("Passwords do not match.");
+        setStatus({ type: 'error', message: "Passwords do not match." });
         setIsLoading(false);
         return; // Stop further processing
       }
@@ -116,9 +119,12 @@ function Auth() {
           return;
         }
 
-        alert(err.response?.data?.error || "Something went wrong.");
+        setStatus({ 
+          type: 'error', 
+          message: err.response?.data?.error || "Something went wrong. Please try again." 
+        });
       } else {
-        alert("Unexpected error occurred.");
+        setStatus({ type: 'error', message: "An unexpected error occurred." });
       }
     } finally {
       setIsLoading(false);
@@ -133,6 +139,7 @@ function Auth() {
   const toggleMode = () => {
     setMode(prev => prev === 'login' ? 'signup' : 'login');
     setFormData({ username: '', email: '', password: '', confirmPassword: '' });
+    setStatus(null);
   };
 
   return (
@@ -154,7 +161,17 @@ function Auth() {
             </h1>
             <p className="text-gray-600">Where Developers Connect & Games Shine!</p>
           </div>
-
+          {/* NEW: Status Message Component */}
+          {status && (
+            <div className={`p-4 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300 ${
+              status.type === 'error' 
+                ? 'bg-red-50 text-red-700 border border-red-100' 
+                : 'bg-green-50 text-green-700 border border-green-100'
+            }`}>
+              {status.type === 'error' ? <AlertCircle className="h-5 w-5 shrink-0" /> : <CheckCircle2 className="h-5 w-5 shrink-0" />}
+              <p className="text-sm font-medium">{status.message}</p>
+            </div>
+          )}
           {/* Auth Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
             {mode === 'signup' && (
