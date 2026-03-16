@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import Session from "../models/Session.js";
 import crypto from "crypto";
+import { createRateLimiter, ipRateLimiter } from "../middlewares/rateLimiter.js";
 import dotenv from "dotenv";
 import User from "../models/User.js"; // Correct import after fixing export
 import passport from "passport";
@@ -14,6 +15,8 @@ dotenv.config();
 const router = express.Router();
 const url = process.env.FRONTEND_URL
 const isProduction = process.env.NODE_ENV === "production";
+const authLimiter = createRateLimiter("sessionStart");
+const verifyLimiter = ipRateLimiter(10, 60); 
 const cookieOptions = {
   httpOnly: true,
   secure: isProduction,        // true only on HTTPS
@@ -60,7 +63,7 @@ router.get(
 );
 
 
-router.post("/register", async (req, res) => {
+router.post("/register", authLimiter, async (req, res) => {
   try {
     const { username, email, password } = req.body;
 
@@ -125,7 +128,7 @@ router.post("/register", async (req, res) => {
   }
 });
 // Verify email
-router.post("/verify-email", async (req, res) => {
+router.post("/verify-email",verifyLimiter, async (req, res) => {
   try {
     const { email, otp } = req.body;
 
@@ -181,7 +184,7 @@ router.post("/verify-email", async (req, res) => {
 });
 
 // Login Route
-router.post("/login", async (req, res) => {
+router.post("/login", authLimiter,async (req, res) => {
   try {
     const { emailOrUsername, password } = req.body;
 
@@ -241,7 +244,7 @@ router.post("/logout", verifyToken, async (req, res) => {
   res.json({ message: "Logged out successfully" });
 });
 
-router.post("/forgot-password", async (req, res) => {
+router.post("/forgot-password",authLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -278,7 +281,7 @@ router.post("/forgot-password", async (req, res) => {
   }
 });
 
-router.post("/reset-password", async (req, res) => {
+router.post("/reset-password",authLimiter, async (req, res) => {
   try {
     const { token, newPassword } = req.body;
 
