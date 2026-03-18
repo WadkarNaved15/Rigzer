@@ -5,5 +5,5 @@ const WishlistSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   createdAt: { type: Date, default: Date.now }
 });
-
+WishlistSchema.index({ post: 1, user: 1 }, { unique: true });
 export default mongoose.model("Wishlist", WishlistSchema);

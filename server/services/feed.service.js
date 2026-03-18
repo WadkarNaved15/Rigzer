@@ -13,7 +13,7 @@
 import AllPost from "../models/Allposts.js";
 import PocketFeedEntry from "../models/PocketFeedEntry.js";
 import Like from "../models/Like.js";
-
+import Wishlist from "../models/Wishlist.js";
 /**
  * @param {{ cursor?: string, limit?: number, userId?: string }} opts
  * cursor format:  "<type>:<value>"
@@ -46,61 +46,61 @@ export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
   // ── Fetch both collections in parallel ────────────────────────────────────
   const [allPosts, pocketEntries] = await Promise.all([
     AllPost.find({
-    ...allPostFilter,
-    type: { $ne: "canvas_article" },
-  })
-    .select({
-      _id: 1,
-      user: 1,
-      description: 1,
-      type: 1,
-      likesCount: 1,
-      commentsCount: 1,
-      createdAt: 1,
-
-      // model post
-      "modelPost.price": 1,
-      "modelPost.assets.originalUrl": 1,
-      "modelPost.assets.optimizedUrl": 1,
-
-      // game post
-      "gamePost.gameName": 1,
-
-      // normal post
-      "normalPost.assets": 1,
-
-      // ad model post
-      "adModelPost.brandName": 1,
-      "adModelPost.logoUrl": 1,
-      "adModelPost.bgMode": 1,
-      "adModelPost.bgColor": 1,
-      "adModelPost.bgImageUrl": 1,
-      "adModelPost.bgImagePosition": 1,
-      "adModelPost.bgImageSize": 1,
-      "adModelPost.overlayOpacity": 1,
-
-       // asset (only required fields)
-      "adModelPost.asset.originalUrl": 1,
-      "adModelPost.asset.optimizedUrl": 1,
-      "adModelPost.asset.optimization": 1,
+      ...allPostFilter,
+      type: { $ne: "canvas_article" },
     })
-    .populate("user", "username avatar")
-    .sort({ _id: -1 })
-    .limit(fetchLimit)
-    .lean(),
+      .select({
+        _id: 1,
+        user: 1,
+        description: 1,
+        type: 1,
+        likesCount: 1,
+        commentsCount: 1,
+        createdAt: 1,
 
-  PocketFeedEntry.find(pocketFilter)
-    .populate("owner", "username avatar")
-    .sort({ publishedAt: -1 })
-    .limit(limit)
-    .lean(),
+        // model post
+        "modelPost.price": 1,
+        "modelPost.assets.originalUrl": 1,
+        "modelPost.assets.optimizedUrl": 1,
+
+        // game post
+        "gamePost.gameName": 1,
+
+        // normal post
+        "normalPost.assets": 1,
+
+        // ad model post
+        "adModelPost.brandName": 1,
+        "adModelPost.logoUrl": 1,
+        "adModelPost.bgMode": 1,
+        "adModelPost.bgColor": 1,
+        "adModelPost.bgImageUrl": 1,
+        "adModelPost.bgImagePosition": 1,
+        "adModelPost.bgImageSize": 1,
+        "adModelPost.overlayOpacity": 1,
+
+        // asset (only required fields)
+        "adModelPost.asset.originalUrl": 1,
+        "adModelPost.asset.optimizedUrl": 1,
+        "adModelPost.asset.optimization": 1,
+      })
+      .populate("user", "username avatar")
+      .sort({ _id: -1 })
+      .limit(fetchLimit)
+      .lean(),
+
+    PocketFeedEntry.find(pocketFilter)
+      .populate("owner", "username avatar")
+      .sort({ publishedAt: -1 })
+      .limit(limit)
+      .lean(),
   ]);
-const trimmedPosts = allPosts.map((post) => {
-  if (post.modelPost?.assets?.length) {
-    post.modelPost.assets = [post.modelPost.assets[0]];
-  }
-  return post;
-});
+  const trimmedPosts = allPosts.map((post) => {
+    if (post.modelPost?.assets?.length) {
+      post.modelPost.assets = [post.modelPost.assets[0]];
+    }
+    return post;
+  });
   // ── Normalise to a common shape ───────────────────────────────────────────
   const normalisedAllPosts = trimmedPosts.map((p) => ({
     ...p,
@@ -144,15 +144,25 @@ const trimmedPosts = allPosts.map((post) => {
       .map((p) => p._id);
 
     if (allPostIds.length) {
-      const userLikes = await Like.find({
-        user: userId,
-        post: { $in: allPostIds },
-      }).select("post").lean();
+      const [userLikes, userWishlists] = await Promise.all([
+        Like.find({
+          user: userId,
+          post: { $in: allPostIds },
+        }).select("post").lean(),
+
+        Wishlist.find({
+          user: userId,
+          post: { $in: allPostIds },
+        }).select("post").lean(),
+      ]);
 
       const likedSet = new Set(userLikes.map((l) => l.post.toString()));
+      const wishlistSet = new Set(userWishlists.map((w) => w.post.toString()));
+
       merged.forEach((p) => {
         if (p.type !== "pocket_update") {
           p.isLiked = likedSet.has(p._id.toString());
+          p.isWishlisted = wishlistSet.has(p._id.toString()); // ✅ ADD THIS
         }
       });
     }

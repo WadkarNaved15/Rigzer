@@ -16,6 +16,7 @@ const DevlogPost: React.FC<DevlogPostProps> = ({
   createdAt,
   likesCount,
   isLiked,
+  isWishlisted,
   onOpenDetails,
   disableInteractions,
   commentsCount,
@@ -26,7 +27,10 @@ const DevlogPost: React.FC<DevlogPostProps> = ({
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL,likesCount ?? 0,isLiked ?? false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
+   const {
+    isWishlisted: localIsWishlisted,
+    handleWishlist
+  } = useWishlist(_id, BACKEND_URL, isWishlisted ?? false);
   const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || "http://localhost:5173";
   /* -------------------- TIME FORMAT -------------------- */
   const getRelativeTime = (date: string | Date) => {
@@ -177,7 +181,7 @@ const DevlogPost: React.FC<DevlogPostProps> = ({
                 likes={localLikesCount}
                 comments={commentsCount?? 0}
                 isLiked={localIsLiked}
-                isWishlisted={isWishlisted}
+                isWishlisted={localIsWishlisted}
                 onLike={handleLike}
                 onWishlist={handleWishlist}
                 onCommentToggle={() => onOpenDetails?.()}

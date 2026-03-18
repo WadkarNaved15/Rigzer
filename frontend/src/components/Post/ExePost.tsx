@@ -13,6 +13,7 @@ const ExePost: React.FC<ExePostProps> = ({
   description,
   likesCount,
   isLiked,
+  isWishlisted,
   // gameUrl,
   onOpenDetails,
   createdAt,
@@ -30,7 +31,10 @@ const ExePost: React.FC<ExePostProps> = ({
   const [localCommentsCount, setLocalCommentsCount] = useState<number>(commentsCount ?? 0);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL,likesCount ?? 0,isLiked ?? false);
-  const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
+   const {
+    isWishlisted: localIsWishlisted,
+    handleWishlist
+  } = useWishlist(_id, BACKEND_URL, isWishlisted ?? false);
   const navigate = useNavigate();
   const location = useLocation();
   let viewStartTime = useRef<number | null>(null);
@@ -241,7 +245,7 @@ const modelUrl =
             comments={commentsCount ?? 0}
             isLiked={localIsLiked}
             onLike={handleLike}
-            isWishlisted={isWishlisted}
+            isWishlisted={localIsWishlisted}
             onWishlist={handleWishlist}
             onCommentToggle={() => onOpenDetails?.()} // ✅ toggle
           />

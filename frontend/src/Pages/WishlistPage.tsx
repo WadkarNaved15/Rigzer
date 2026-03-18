@@ -9,31 +9,67 @@ import type { PostProps } from "../types/Post";
 const WishlistPage = () => {
   const BACKEND_URL =
     import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-
-  const navigate = useNavigate();
-  const scrollPositionRef = useRef<number>(0);
-
   const [posts, setPosts] = useState<PostProps[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cursor, setCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const loaderRef = useRef<HTMLDivElement | null>(null);
+  const navigate = useNavigate();
+  const [isFetching, setIsFetching] = useState(false);
+  const scrollPositionRef = useRef<number>(0);
 
+  const fetchWishlist = async () => {
+    if (!hasMore || isFetching) return; // ✅ guard
+
+    setIsFetching(true);
+
+    try {
+      const res = await axios.get(`${BACKEND_URL}/api/wishlist/mine`, {
+        params: { cursor, limit: 10 },
+        withCredentials: true,
+      });
+
+      setPosts((prev) => {
+        const newPosts = res.data.posts;
+        const existingIds = new Set(prev.map((p) => p._id));
+
+        const filtered = newPosts.filter((p: PostProps) => !existingIds.has(p._id));
+
+        return [...prev, ...filtered];
+      });
+      setCursor(res.data.nextCursor);
+
+      if (!res.data.nextCursor) setHasMore(false);
+    } catch (err) {
+      console.error("Failed to load wishlist posts:", err);
+    } finally {
+      setLoading(false);
+      setIsFetching(false);
+    }
+  };
   useEffect(() => {
-    const loadWishlist = async () => {
-      try {
-        const res = await axios.get(`${BACKEND_URL}/api/wishlist/mine`, {
-          withCredentials: true,
-        });
-
-        setPosts(res.data);
-      } catch (err) {
-        console.error("Failed to load wishlist posts:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadWishlist();
+    fetchWishlist();
   }, []);
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          fetchWishlist();
+        }
+      },
+      {
+        rootMargin: "300px",
+        threshold: 0,
+      }
+    );
 
+    const current = loaderRef.current;
+    if (current) observer.observe(current);
+
+    return () => {
+      if (current) observer.unobserve(current);
+    };
+  }, [fetchWishlist]); // ✅ stable dependency
   return (
     <div className="w-full mt-4 flex flex-col">
       {/* Back Button */}
@@ -43,12 +79,6 @@ const WishlistPage = () => {
       >
         <ArrowLeft size={20} /> Back to Feed
       </button>
-
-      {loading && (
-        <div className="w-full flex justify-center mt-4">
-          <CircleLoader />
-        </div>
-      )}
 
       {!loading && posts.length === 0 && (
         <div className="text-gray-400 dark:text-gray-500 mt-4">
@@ -67,6 +97,9 @@ const WishlistPage = () => {
             }}
           />
         ))}
+      <div ref={loaderRef} className="h-10 flex justify-center items-center">
+        {hasMore && <CircleLoader />}
+      </div>
     </div>
   );
 };

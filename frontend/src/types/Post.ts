@@ -128,6 +128,7 @@ interface CommonPostFields {
   disableInteractions?: boolean;
   likes?: number;
   likesCount?: number;
+  isWishlisted?: boolean;
   commentsCount?: number;
   isLiked?: boolean;
   detailed?: boolean;

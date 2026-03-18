@@ -15,6 +15,7 @@ const NormalPost: React.FC<NormalPostProps> = ({
   description,
   likesCount,
   isLiked,
+  isWishlisted,
   onOpenDetails,
   commentsCount,
   disableInteractions,
@@ -30,7 +31,10 @@ const NormalPost: React.FC<NormalPostProps> = ({
   const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL,likesCount ?? 0,isLiked ?? false);
-  const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
+  const {
+  isWishlisted: localIsWishlisted,
+  handleWishlist
+} = useWishlist(_id, BACKEND_URL, isWishlisted ?? false);
 
   const assets = normalPost?.assets || [];
   const primaryVideoIndex = useMemo(() => {
@@ -269,7 +273,7 @@ const NormalPost: React.FC<NormalPostProps> = ({
                 likes={localLikesCount}
                 comments={commentsCount ?? 0}
                 isLiked={localIsLiked}
-                isWishlisted={isWishlisted}
+                isWishlisted={localIsWishlisted}
                 onLike={handleLike}
                 onWishlist={handleWishlist}
                 onCommentToggle={() => onOpenDetails?.()}

@@ -16,6 +16,7 @@ const GamePost: React.FC<GamePostProps> = ({
   commentsCount,
   likesCount,
   isLiked,
+  isWishlisted,
   onOpenDetails,
   disableInteractions,
   _id,
@@ -25,7 +26,10 @@ const GamePost: React.FC<GamePostProps> = ({
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
   const [isExpanded, setIsExpanded] = useState(false);
   const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL,likesCount ?? 0,isLiked ?? false);
-  const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
+   const {
+    isWishlisted: localIsWishlisted,
+    handleWishlist
+  } = useWishlist(_id, BACKEND_URL, isWishlisted ?? false);
   let viewStartTime = useRef<number | null>(null);
   
   // Session state management
@@ -280,7 +284,7 @@ const handleStartGame = async () => {
                   likes={localLikesCount}
                   comments={commentsCount ?? 0}
                   isLiked={localIsLiked}
-                  isWishlisted={isWishlisted}
+                  isWishlisted={localIsWishlisted}
                   onLike={handleLike}
                   onWishlist={handleWishlist}
                   onCommentToggle={() => onOpenDetails?.()}
