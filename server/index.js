@@ -9,6 +9,11 @@ import "./passportConfig.js"
 
 import http from "http";
 import { Server } from "socket.io";
+import GameSession from "./models/GameSession.js";
+import fetch from "node-fetch";
+import { releaseInstance } from "./services/instanceAllocator.js";
+import { sessionStreams } from "./services/sessionStream.js";
+import { initializeSessionPubSub } from "./services/sessionPubSub.js";
 
 // ROUTES
 import modelUploadRouter from "./routes/compression.js";
@@ -45,8 +50,6 @@ import canvasRoutes from "./routes/canvasRoutes.js";
 import sessionRoutes from "./routes/sessions.js";
 import internalRoutes from "./routes/internal.js";
 import pocketRoutes from "./routes/pocket.js";
-import { initializeInstancePool } from "./services/instanceAllocator.js";
-import { initializeSessionPubSub } from "./services/sessionPubSub.js";
 import streamProxyRouter from "./routes/streamProxy.js";
 
 import adminRouter from "./routes/admin.js"
@@ -292,23 +295,59 @@ io.on("connection", (socket) => {
 });
 
 
-// MONGO
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB Connected"))
-  .catch((err) => console.log("MongoDB Connection Error:", err));
-
-// START SERVER
-// START SERVER
+// ✅ Replace with
 (async () => {
   try {
-    await initializeInstancePool();
+    // 1️⃣ Connect Mongo FIRST
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("MongoDB Connected");
+
+    // 2️⃣ Initialize pubsub
     await initializeSessionPubSub();
+
+    // 3️⃣ Start HTTP server
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
+
+    // 4️⃣ Stale session cleanup
+    setInterval(async () => {
+      try {
+        const staleThreshold = new Date(Date.now() - 90_000);
+
+        const staleSessions = await GameSession.find({
+          status: { $in: ["waiting", "starting", "running"] },
+          lastHeartbeat: { $lt: staleThreshold },
+        }).lean();
+
+        for (const session of staleSessions) {
+          console.log(`[Cleanup] Stale session: ${session._id}`);
+
+          if (session.instanceIp) {
+            fetch(`http://${session.instanceIp}:4443/stop-session`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ session_id: session._id.toString() }),
+            }).catch(() => {});
+          }
+
+          await GameSession.findByIdAndUpdate(session._id, {
+            status: "ended",
+            endedAt: new Date(),
+            exitReason: "stale_abandoned",
+          });
+
+          if (session.instanceId && session.leaseToken) {
+            releaseInstance(session.instanceId, session.leaseToken).catch(() => {});
+          }
+        }
+      } catch (err) {
+        console.error("[Cleanup] Error:", err);
+      }
+    }, 60_000);
+
   } catch (err) {
-    console.error("❌ Failed to initialize instance pool", err);
+    console.error("Startup failed:", err);
     process.exit(1);
   }
 })();

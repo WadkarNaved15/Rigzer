@@ -17,7 +17,6 @@ import { sessionStreams } from "../services/sessionStream.js";
 const router = express.Router();
 const metrics = new SessionMetrics();
 
-// Configuration
 const CONFIG = {
   DEFAULT_DURATION: 600,
   FREE_GAME_DURATION: 1800,
@@ -37,6 +36,7 @@ router.post(
   [body("gamePostId").isMongoId().withMessage("Invalid gamePostId format")],
   async (req, res) => {
     try {
+      // ✅ Validate request
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return res.status(400).json({
@@ -48,10 +48,10 @@ router.post(
       const userId = req.user.id;
       const { gamePostId } = req.body;
 
-      // Check concurrent session limit
+      // ✅ Concurrent session check
       const activeSessions = await GameSession.countDocuments({
         user: userId,
-        status: { $in: ["starting", "running"] },
+        status: { $in: ["waiting", "starting", "running"] },
       });
 
       if (activeSessions >= CONFIG.MAX_CONCURRENT_SESSIONS) {
@@ -62,11 +62,13 @@ router.post(
         });
       }
 
-      // Get game post
+      // ✅ Get game post with cache + validation
       let post = await cacheService.getGamePost(gamePostId);
 
       if (!post) {
-        post = await AllPost.findById(gamePostId).select("type gamePost").lean();
+        post = await AllPost.findById(gamePostId)
+          .select("type gamePost")
+          .lean();
 
         if (!post || post.type !== "game_post" || !post.gamePost) {
           return res.status(404).json({ error: "Game not found" });
@@ -82,18 +84,14 @@ router.post(
       }
 
       const game = post.gamePost;
-
-      // Determine session duration
       const maxDurationSeconds = calculateSessionDuration(game);
-
-      // Determine cleanup policy
       const cleanupPolicy = determineCleanupPolicy(game);
 
-      // Create session
+      // ✅ Create session with metadata
       const session = await GameSession.create({
         user: userId,
         gamePost: gamePostId,
-        status: "starting",
+        status: "waiting",
         phase: null,
         maxDurationSeconds,
         metadata: {
@@ -103,136 +101,99 @@ router.post(
         },
       });
 
-      // Assign instance with retry
-      let instance;
-      for (let attempt = 0; attempt < CONFIG.RETRY_ATTEMPTS; attempt++) {
-        try {
-          instance = await assignOrStartInstance({
-            gpuRequired: game.systemRequirements?.gpuRequired,
-            ramGB: game.systemRequirements?.ramGB,
-            cpuCores: game.systemRequirements?.cpuCores,
-            timeout: CONFIG.INSTANCE_TIMEOUT,
-          });
-          break;
-        } catch (err) {
-          if (attempt < CONFIG.RETRY_ATTEMPTS - 1) {
-            await new Promise((resolve) =>
-              setTimeout(resolve, 1000 * (attempt + 1))
-            );
-          }
-        }
-      }
-
-      if (!instance) {
-        await session.updateOne({
-          status: "failed",
-          error: "No instances available",
-        });
-        metrics.recordFailure("instance_allocation", userId);
-
-        return res.status(503).json({
-          error: "No instances available",
-          message: "Please try again in a few moments",
-          retryAfter: 30,
-        });
-      }
-
-      // Generate viewer token
-      const viewerToken = jwt.sign(
-        {
-          sessionId: session._id.toString(),
-          userId,
-          gamePostId,
-          iat: Math.floor(Date.now() / 1000),
-        },
-        process.env.STREAM_SECRET,
-        { expiresIn: maxDurationSeconds }
-      );
-
-      const s3Url = `${process.env.GAME_S3_URL}/${game.file.url.replace(
-        /^\/+/,
-        ""
-      )}`;
-
-      console.log("s3_url", s3Url);
-
-      // Build controller payload with cleanup policy
-      const controllerPayload = {
-        session_id: session._id.toString(),
-        game_id: game.gameName,
-        build_id: game.file.name,
-        s3_url: s3Url,
-        format: game.file.format,
-        start_path: game.startPath,
-        max_duration_seconds: maxDurationSeconds,
-        backend_api_url: process.env.BACKEND_PUBLIC_URL,
-        backend_api_key: process.env.INSTANCE_BACKEND_KEY,
-
-        // ✅ Cleanup policy from backend
-        cleanup_on_normal_exit: cleanupPolicy.on_normal_exit,
-        cleanup_on_violation: cleanupPolicy.on_violation,
-        cleanup_on_timeout: cleanupPolicy.on_timeout,
-        delete_game_files: cleanupPolicy.delete_game_files,
-        shared_build: cleanupPolicy.shared_build,
-      };
-
-      // Fire-and-forget controller start
-      fetch(`http://${instance.ip}:4443/start-session`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Session-Id": session._id.toString(),
-        },
-        body: JSON.stringify(controllerPayload),
-      })
-        .then(() => {
-          console.log(
-            "[Session] Controller start triggered:",
-            session._id.toString()
-          );
-        })
-        .catch((err) => {
-          console.error("[Session] Controller start failed:", err);
-
-          GameSession.findByIdAndUpdate(session._id, {
-            status: "failed",
-            error: "Controller start failed",
-          }).catch(() => {});
-        });
-
-      // Update session with instance info and expiration
-      const now = new Date();
-      const expiresAt = new Date(now.getTime() + maxDurationSeconds * 1000);
-
-      await session.updateOne({
-        instanceId: instance.id,
-        instanceIp: instance.ip,
-        expiresAt,
-      });
-
-      // Cache active session
-      await cacheService.setActiveSession(session._id.toString(), {
-        userId,
-        instanceId: instance.id,
-        expiresAt,
-      });
-
-      // Record metrics
-      metrics.recordSessionStart(userId, gamePostId, instance.id);
-
-      // Return response
-      return res.status(201).json({
+      // ✅ Respond immediately
+      res.status(202).json({
         sessionId: session._id,
-        status: "starting",
-        phase: null,
-        viewerToken,
-        maxDurationSeconds,
-        instanceRegion: instance.region,
+        status: "waiting",
       });
+
+      // ✅ Allocate after response
+      setImmediate(async () => {
+        try {
+          const lease = await assignOrStartInstance({});
+
+          if (!lease?.id) {
+            // ASG scaling — worker will call /api/internal/instance-ready
+            console.log(`[Session] ASG scaling for session ${session._id}`);
+            return;
+          }
+
+          const s3Url = `${process.env.GAME_S3_URL}/${game.file.url.replace(/^\/+/, "")}`;
+
+          console.log("s3_url", s3Url);
+
+          await GameSession.findByIdAndUpdate(session._id, {
+            instanceId: lease.id,
+            instanceIp: lease.ip,
+            leaseToken: lease.leaseToken,
+            status: "starting",
+            leasing: false,
+            expiresAt: new Date(Date.now() + maxDurationSeconds * 1000),
+          });
+
+          // ✅ Cache active session
+          await cacheService.setActiveSession(session._id.toString(), {
+            userId,
+            instanceId: lease.id,
+            expiresAt: new Date(Date.now() + maxDurationSeconds * 1000),
+          });
+
+          const send = sessionStreams.get(session._id.toString());
+          if (send) send({ status: "starting" });
+
+          // ✅ Record metrics
+          metrics.recordSessionStart(userId, gamePostId, lease.id);
+
+          // ✅ Send full payload to controller
+          fetch(`http://${lease.ip}:4443/start-session`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "X-Session-Id": session._id.toString(),
+            },
+            body: JSON.stringify({
+              session_id: session._id.toString(),
+              game_id: game.gameName,
+              build_id: game.file.name,
+              s3_url: s3Url,
+              format: game.file.format,
+              start_path: game.startPath,
+              max_duration_seconds: maxDurationSeconds,
+              backend_api_url: process.env.BACKEND_PUBLIC_URL,
+              backend_api_key: process.env.INSTANCE_BACKEND_KEY,
+              cleanup_on_normal_exit: cleanupPolicy.on_normal_exit,
+              cleanup_on_violation: cleanupPolicy.on_violation,
+              cleanup_on_timeout: cleanupPolicy.on_timeout,
+              delete_game_files: cleanupPolicy.delete_game_files,
+              shared_build: cleanupPolicy.shared_build,
+            }),
+          })
+            .then(() => {
+              console.log("[Session] Controller start triggered:", session._id.toString());
+            })
+            .catch((err) => {
+              console.error("[Session] Controller start failed:", err);
+              GameSession.findByIdAndUpdate(session._id, {
+                status: "failed",
+                exitReason: "error",
+              }).catch(() => {});
+            });
+
+        } catch (err) {
+          console.error(`[Session] Allocation error for ${session._id}:`, err);
+          metrics.recordFailure("instance_allocation", userId);
+          await GameSession.findByIdAndUpdate(session._id, {
+            status: "failed",
+            exitReason: "error",
+          });
+          const send = sessionStreams.get(session._id.toString());
+          if (send) send({ status: "failed" });
+        }
+      });
+
     } catch (err) {
       console.error("Session start error:", err);
       metrics.recordFailure("unknown", req.user?.id);
-
       return res.status(500).json({
         error: "Internal server error",
         message: "An unexpected error occurred",
@@ -243,7 +204,6 @@ router.post(
 
 /**
  * GET /api/sessions/status/:sessionId
- * Get current session status
  */
 router.get("/status/:sessionId", verifyToken, async (req, res) => {
   try {
@@ -289,7 +249,6 @@ router.get("/status/:sessionId", verifyToken, async (req, res) => {
 
 /**
  * POST /api/sessions/end/:sessionId
- * Manually end a session
  */
 router.post("/end/:sessionId", verifyToken, async (req, res) => {
   try {
@@ -310,24 +269,16 @@ router.post("/end/:sessionId", verifyToken, async (req, res) => {
       return res.status(400).json({ error: "Session already ended" });
     }
 
-    // Request controller to stop (it will handle cleanup)
     if (session.instanceIp) {
-      try {
-        await fetch(`http://${session.instanceIp}:4443/stop-session`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ session_id: sessionId }),
-          timeout: 5000,
-        }).catch(() => {});
-      } catch (err) {
-        console.warn("Failed to notify controller:", err);
-      }
+      fetch(`http://${session.instanceIp}:4443/stop-session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: sessionId }),
+      }).catch(() => {});
     }
 
-    // Mark as ending (controller will notify us when done)
     session.status = "ending";
     await session.save();
-
 
     return res.json({
       message: "Session stop requested",
@@ -342,7 +293,7 @@ router.post("/end/:sessionId", verifyToken, async (req, res) => {
 
 /**
  * GET /api/sessions/:sessionId/events
- * SSE stream for session status updates
+ * SSE stream
  */
 router.get("/:sessionId/events", verifyToken, async (req, res) => {
   const { sessionId } = req.params;
@@ -365,11 +316,7 @@ router.get("/:sessionId/events", verifyToken, async (req, res) => {
     res.write(`data: ${JSON.stringify(data)}\n\n`);
   };
 
-  // Send initial state
-  send({
-    status: session.status,
-    phase: session.phase,
-  });
+  send({ status: session.status, phase: session.phase });
 
   sessionStreams.set(sessionId, send);
 
@@ -385,26 +332,101 @@ router.get("/:sessionId/stream-token", verifyToken, async (req, res) => {
   const { sessionId } = req.params;
   const userId = req.user.id;
 
-  const session = await GameSession.findById(sessionId)
-    .select("user status instanceIp")
-    .lean();
+  const session = await GameSession.findById(sessionId).lean();
 
-  if (!session || session.user.toString() !== userId) {
-    return res.sendStatus(403);
-  }
-
+  if (!session) return res.sendStatus(404);
+  if (session.user.toString() !== userId) return res.sendStatus(403);
   if (session.status !== "running") {
     return res.status(400).json({ error: "Session not ready" });
   }
 
+  // ✅ JWT token — not hardcoded URL
+  const token = jwt.sign(
+    { sessionId, userId },
+    process.env.STREAM_SECRET,
+    { expiresIn: "2m" }
+  );
+
   res.json({
-    streamUrl: "https://stream.rigzer.com",
+    streamUrl: `https://stream.rigzer.com/api/stream/${token}`,
   });
 });
 
 /**
+ * POST /api/sessions/:sessionId/heartbeat
+ */
+router.post("/:sessionId/heartbeat", verifyToken, async (req, res) => {
+  await GameSession.findOneAndUpdate(
+    { _id: req.params.sessionId, user: req.user.id },
+    { lastHeartbeat: new Date() }
+  );
+  res.sendStatus(200);
+});
+
+/**
+ * POST /api/sessions/:sessionId/abandon/:secret
+ */
+router.post("/:sessionId/abandon/:secret", async (req, res) => {
+  if (req.params.secret !== process.env.ABANDON_SECRET) {
+    return res.sendStatus(401);
+  }
+
+  const { sessionId } = req.params;
+  const session = await GameSession.findById(sessionId);
+
+  if (!session || session.status === "ended") return res.sendStatus(200);
+
+  if (session.instanceIp) {
+    fetch(`http://${session.instanceIp}:4443/stop-session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId }),
+    }).catch(() => {});
+  }
+
+  session.status = "ended";
+  session.endedAt = new Date();
+  session.exitReason = "user_abandoned";
+  await session.save();
+
+  await releaseInstance(session.instanceId, session.leaseToken).catch(() => {});
+
+  res.sendStatus(200);
+});
+
+/**
+ * POST /api/sessions/running
+ * Called by internal when session becomes running
+ */
+router.post("/running", async (req, res) => {
+  const { session_id } = req.body;
+
+  const session = await GameSession.findById(session_id);
+  if (!session) return res.sendStatus(404);
+
+  session.status = "running";
+  session.startedAt = new Date();
+  await session.save();
+
+  // ✅ Set stream cache so streamProxy can resolve instanceIp
+  await cacheService.set(
+    `stream:${session_id}`,
+    {
+      instanceIp: session.instanceIp,
+      userId: session.user.toString(),
+    },
+    3600
+  );
+
+  const send = sessionStreams.get(session_id);
+  if (send) send({ status: "running" });
+
+  res.json({ success: true });
+});
+
+/**
  * POST /api/sessions/complete
- * FINAL authoritative session completion (from supervisor)
+ * Called by supervisor when session ends
  */
 router.post("/complete", async (req, res) => {
   const {
@@ -420,51 +442,32 @@ router.post("/complete", async (req, res) => {
     return res.status(404).json({ error: "Session not found" });
   }
 
-  // 🔑 THIS is the only place session becomes ended
+  // 🔑 Only place session becomes ended
   session.status = "ended";
   session.endedAt = new Date();
   session.exitReason = exit_reason;
   session.exitCode = exit_code;
-
   await session.save();
 
-  // Notify SSE listeners
-  const send = sessionStreams.get(session_id);
-  if (send) {
-    send({
-      status: "ended",
-      reason: exit_reason,
-    });
-  }
+  // ✅ Release instance
+  await releaseInstance(session.instanceId, session.leaseToken);
 
-  // Metrics here (ONLY HERE)
+  const send = sessionStreams.get(session_id);
+  if (send) send({ status: "ended", reason: exit_reason });
+
   metrics.recordSessionEnd(session.user.toString(), session_id);
 
   res.json({ success: true });
 });
 
-
-/**
- * Calculate session duration based on game pricing
- */
 function calculateSessionDuration(game) {
-  if (game.price === 0) {
-    return CONFIG.FREE_GAME_DURATION;
-  }
-
-  if (game.price > 0) {
-    return CONFIG.PAID_GAME_DURATION;
-  }
-
+  if (game.price === 0) return CONFIG.FREE_GAME_DURATION;
+  if (game.price > 0) return CONFIG.PAID_GAME_DURATION;
   return CONFIG.DEFAULT_DURATION;
 }
 
-/**
- * Determine cleanup policy based on game characteristics
- */
 function determineCleanupPolicy(game) {
-  const isLargeGame = game.file?.size > 1024 * 1024 * 1024; // > 1GB
-
+  const isLargeGame = game.file?.size > 1024 * 1024 * 1024;
   return {
     on_normal_exit: true,
     on_violation: true,

@@ -1,12 +1,11 @@
-import React, { memo, useMemo, useEffect, useRef, useState } from 'react';
+import React, { useMemo, useEffect, useRef, useState } from 'react';
 import PostHeader from './PostHeader';
-import { useLikes } from '../../hooks/useLikes';
-import { useWishlist } from '../../hooks/useWishlist';
-import { Link } from 'react-router-dom';
 import PostInteractions from './PostInteractions';
 import { Play, Gamepad2, Sparkles } from 'lucide-react';
 import type { GamePostProps } from '../../types/Post';
 import { useUI } from '../../context/UIContext';
+import { useLikes } from '../../hooks/useLikes';
+import { useWishlist } from '../../hooks/useWishlist';
 import AdWithStatus from '../Home/PlayGame';
 
 const GamePost: React.FC<GamePostProps> = ({
@@ -25,13 +24,10 @@ const GamePost: React.FC<GamePostProps> = ({
   const postRef = useRef(null);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
   const [isExpanded, setIsExpanded] = useState(false);
-  const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL);
-   const {
-    isWishlisted: localIsWishlisted,
-    handleWishlist
-  } = useWishlist(_id, BACKEND_URL);
+  const { likesCount: localLikesCount, isLiked: localIsLiked, handleLike } = useLikes(_id, BACKEND_URL, likesCount ?? 0, isLiked ?? false);
+  const { isWishlisted, handleWishlist } = useWishlist(_id, BACKEND_URL);
   let viewStartTime = useRef<number | null>(null);
-  
+
   // Session state management
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showAdOverlay, setShowAdOverlay] = useState(false);
@@ -95,39 +91,47 @@ const GamePost: React.FC<GamePostProps> = ({
     [createdAt]
   );
 
-const handleStartGame = async () => {
-  if (isStarting) return; // 🔒 hard stop
-  setIsStarting(true);
+  const handleStartGame = async () => {
+    if (isStarting) return; // 🔒 hard stop
+    setIsStarting(true);
 
-  try {
-    setSessionError(null);
+    try {
+      setSessionError(null);
 
-    const res = await fetch(`${BACKEND_URL}/api/sessions/start`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ gamePostId: _id }),
-    });
+      const res = await fetch(`${BACKEND_URL}/api/sessions/start`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gamePostId: _id }),
+      });
 
-    if (!res.ok) {
-      const errorData = await res.json();
-      throw new Error(errorData.error || "Failed to start session");
+      const data = await res.json();
+
+      // ✅ ASG: 202 means waiting/scaling — still show overlay
+      if (res.status === 202) {
+        setSessionId(data.sessionId);
+        setShowAdOverlay(true);
+        setIsAdPlaying(true);
+        return;
+      }
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to start session");
+      }
+
+      // Normal assigned case
+      setSessionId(data.sessionId);
+      setShowAdOverlay(true);
+      setIsAdPlaying(true);
+
+    } catch (err: any) {
+      console.error("Failed to start game:", err);
+      setSessionError(err.message || "Failed to start game. Please try again.");
+      setIsStarting(false); // 🔓 allow retry on failure
     }
-
-    const data = await res.json();
-    setSessionId(data.sessionId);
-    setShowAdOverlay(true);
-    setIsAdPlaying(true);
-  } catch (err: any) {
-    console.error("Failed to start game:", err);
-    setSessionError(err.message || "Failed to start game. Please try again.");
-    setIsStarting(false); // 🔓 allow retry on failure
-  }
-};
-
+  };
 
   const handleStreamReady = (sessionId: string) => {
-    // Navigate to the stream page
     window.location.href = `/stream/${sessionId}`;
   };
 
@@ -171,21 +175,23 @@ const handleStartGame = async () => {
           }
           onOpenDetails?.();
         }}
+
         className="
-          relative w-full 
-          border border-gray-200 dark:border-gray-700
-          bg-[#F9FAFB] dark:bg-[#191919]
-          hover:bg-[#F7F9F9] dark:hover:bg-[#16181C]
-          transition-colors duration-200
-          cursor-pointer
-        "
+            relative w-full
+            border border-gray-200 dark:border-gray-700
+            border-l-0 border-r-0
+            sm:border-l sm:border-r
+            bg-white dark:bg-[#191919]
+            hover:bg-[#F7F9F9] dark:hover:bg-[#16181C]
+            cursor-pointer
+          "
       >
         <div className="flex gap-3 p-4">
           {/* User Avatar */}
-          <img 
-            src={user.avatar || "/default_avatar.png"} 
-            alt={user.username} 
-            className="h-10 w-10 rounded-full object-cover mt-1" 
+          <img
+            src={user.avatar || "/default_avatar.png"}
+            alt={user.username}
+            className="h-10 w-10 rounded-full object-cover mt-1"
           />
 
           <div className="flex flex-col flex-1 min-w-0">
@@ -268,7 +274,6 @@ const handleStartGame = async () => {
                     <Play size={18} fill="currentColor" />
                     {isStarting ? "STARTING..." : "PLAY NOW"}
                   </button>
-
 
                   <p className="text-[10px] text-gray-500 dark:text-zinc-500 mt-4 font-medium italic">
                     No download required • Powered by Cloud Instances
