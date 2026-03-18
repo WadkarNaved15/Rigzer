@@ -140,13 +140,14 @@ const NormalPost: React.FC<NormalPostProps> = ({
         onOpenDetails?.();
       }}
       className="
-    relative w-full 
-    border border-gray-200 dark:border-gray-700
-    bg-[#F9FAFB] dark:bg-[#191919]
-    hover:bg-[#F7F9F9] dark:hover:bg-[#16181C]
-    transition-colors duration-200
-    cursor-pointer
-  "
+  relative w-full
+  border border-gray-200 dark:border-gray-700
+  border-l-0 border-r-0
+  sm:border-l sm:border-r
+  bg-white dark:bg-[#191919]
+  hover:bg-[#F7F9F9] dark:hover:bg-[#16181C]
+  cursor-pointer
+"
     >
 
       <div className="flex gap-3 px-4 py-3">
