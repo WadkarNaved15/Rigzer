@@ -16,7 +16,7 @@ const router = express.Router();
 const url = process.env.FRONTEND_URL
 const isProduction = process.env.NODE_ENV === "production";
 const authLimiter = createRateLimiter("sessionStart");
-const verifyLimiter = ipRateLimiter(10, 60); 
+const verifyLimiter = ipRateLimiter(10, 60);
 const cookieOptions = {
   httpOnly: true,
   secure: isProduction,        // true only on HTTPS
@@ -128,7 +128,7 @@ router.post("/register", authLimiter, async (req, res) => {
   }
 });
 // Verify email
-router.post("/verify-email",verifyLimiter, async (req, res) => {
+router.post("/verify-email", verifyLimiter, async (req, res) => {
   try {
     const { email, otp } = req.body;
 
@@ -184,13 +184,16 @@ router.post("/verify-email",verifyLimiter, async (req, res) => {
 });
 
 // Login Route
-router.post("/login", authLimiter,async (req, res) => {
+router.post("/login", authLimiter, async (req, res) => {
   try {
     const { emailOrUsername, password } = req.body;
 
     const user = await User.findOne({
       $or: [{ email: emailOrUsername }, { username: emailOrUsername }],
     }).select("+password"); // ✅ include password field explicitly
+    if (!user) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
     if (!user.isVerified) {
       return res.status(403).json({
         error: "Please verify your email before logging in",
@@ -244,7 +247,7 @@ router.post("/logout", verifyToken, async (req, res) => {
   res.json({ message: "Logged out successfully" });
 });
 
-router.post("/forgot-password",authLimiter, async (req, res) => {
+router.post("/forgot-password", authLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -280,7 +283,7 @@ router.post("/forgot-password",authLimiter, async (req, res) => {
   }
 });
 
-router.post("/reset-password",authLimiter, async (req, res) => {
+router.post("/reset-password", authLimiter, async (req, res) => {
   try {
     const { token, newPassword } = req.body;
 

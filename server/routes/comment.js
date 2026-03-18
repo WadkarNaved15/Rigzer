@@ -25,79 +25,67 @@ const commentLimiter = rateLimit({
 ============================== */
 
 router.post("/", authMiddleware, commentLimiter, async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
     const { postId, text } = req.body;
     const userId = req.user.id;
 
     // ✅ Validate postId
     if (!mongoose.Types.ObjectId.isValid(postId)) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({ message: "Invalid post ID" });
     }
 
     // ✅ Validate text
     if (!text?.trim()) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({ message: "Comment cannot be empty" });
     }
 
     if (text.length > 2000) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({ message: "Comment too long" });
     }
 
-    // ✅ Create comment
-    const [comment] = await Comment.create(
-      [{ post: postId, user: userId, text: text.trim() }],
-      { session }
-    );
+    // ✅ Create comment (NO TRANSACTION)
+    const comment = await Comment.create({
+      post: postId,
+      user: userId,
+      text: text.trim(),
+    });
 
-    // ✅ Increment comment counter
+    // ✅ Increment comment count (ATOMIC)
     const post = await AllPost.findByIdAndUpdate(
       postId,
       { $inc: { commentsCount: 1 } },
-      { session, new: true }
+      { new: true }
     ).select("user commentsCount");
 
     if (!post) {
-      await session.abortTransaction();
-      session.endSession();
+      // rollback manually (rare case)
+      await Comment.deleteOne({ _id: comment._id });
       return res.status(404).json({ message: "Post not found" });
     }
 
-    await session.commitTransaction();
-    session.endSession();
-
-    // ✅ Send notification AFTER commit
+    // ✅ Async event (no need to block response, optional optimization)
     if (post.user.toString() !== userId) {
-      await sendEventToQueue({
+      sendEventToQueue({
         type: "COMMENT",
         actorId: userId,
         recipientId: post.user,
         postId,
         commentId: comment._id,
         createdAt: new Date(),
-      });
+      }).catch(console.error);
     }
 
+    // ✅ Populate
     const populatedComment = await Comment.findById(comment._id)
       .populate("user", "username avatar")
       .lean();
 
     res.status(201).json({
       comment: populatedComment,
-      commentsCount: post.commentsCount, // 🔥 return updated count
+      commentsCount: post.commentsCount,
     });
 
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
     console.error("Error adding comment:", error);
     res.status(500).json({ message: "Server error" });
   }
@@ -147,49 +135,36 @@ router.get("/", async (req, res) => {
 ============================== */
 
 router.delete("/:id", authMiddleware, async (req, res) => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
     const userId = req.user.id;
     const commentId = req.params.id;
 
     if (!mongoose.Types.ObjectId.isValid(commentId)) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(400).json({ message: "Invalid comment ID" });
     }
 
-    const comment = await Comment.findById(commentId).session(session);
+    const comment = await Comment.findById(commentId);
 
     if (!comment) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(404).json({ message: "Comment not found" });
     }
 
     if (comment.user.toString() !== userId) {
-      await session.abortTransaction();
-      session.endSession();
       return res.status(403).json({ message: "Not authorized" });
     }
 
-    await Comment.deleteOne({ _id: comment._id }, { session });
+    // ✅ Delete comment
+    await Comment.deleteOne({ _id: comment._id });
 
+    // ✅ Atomic decrement
     await AllPost.findByIdAndUpdate(
       comment.post,
-      { $inc: { commentsCount: -1 } },
-      { session }
+      { $inc: { commentsCount: -1 } }
     );
-
-    await session.commitTransaction();
-    session.endSession();
 
     res.json({ message: "Comment deleted" });
 
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
     console.error("Error deleting comment:", error);
     res.status(500).json({ message: "Server error" });
   }
