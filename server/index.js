@@ -67,6 +67,7 @@ const corsWhitelist = [
   "https://xn--tlay-0ra.com",
   "https://www.rigzer.com",
   "https://rigzer.com",
+  "https://gamesocial-git-feature-asg-wadkar-naveds-projects-6bc20af1.vercel.app",
   process.env.FRONTEND_URL
 ];
 
