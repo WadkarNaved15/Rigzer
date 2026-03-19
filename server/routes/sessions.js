@@ -344,7 +344,7 @@ router.get("/:sessionId/stream-token", verifyToken, async (req, res) => {
   const token = jwt.sign(
     { sessionId, userId },
     process.env.STREAM_SECRET,
-    { expiresIn: "2m" }
+    { expiresIn: session.maxDurationSeconds }  
   );
 
   res.json({
