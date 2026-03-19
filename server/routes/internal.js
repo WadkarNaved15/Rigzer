@@ -80,7 +80,7 @@ router.post("/instance-ready", verifyInternalKey, async (req, res) => {
     const game = post.gamePost;
 
     // ✅ Strip extension from build_id
-    const buildId = game.file.name.replace(/\.[^/.]+$/, "");
+    const buildId = game.file.name;
 
     // ✅ Fix start_path — forward slashes to backslashes
     const startPath = game.startPath.replace(/\//g, "\\");
