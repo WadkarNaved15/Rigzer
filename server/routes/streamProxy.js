@@ -18,7 +18,7 @@ router.use((req, res, next) => {
   next();
 });
 
-router.all("/:token/*", async (req, res) => {
+router.all("/:token*", async (req, res) => {
   try {
     const payload = jwt.verify(
       req.params.token,
