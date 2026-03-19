@@ -21,53 +21,16 @@ router.use((req, res, next) => {
   next();
 });
 
-// ✅ 1-to-1 flow
-router.get("/start/:token", (req, res) => {
-  let payload;
+router.all("/:token*", async (req, res) => {
   try {
-    payload = jwt.verify(req.params.token, process.env.STREAM_SECRET);
-  } catch {
-    return res.sendStatus(401);
-  }
-  const streamId = crypto.randomUUID();
-  activeStreams.set(streamId, payload.instanceIp);
-  res.redirect(`/api/stream/${streamId}/`);
-});
+    const payload = jwt.verify(
+      req.params.token,
+      process.env.STREAM_SECRET
+    );
 
-router.all("/:id*", async (req, res) => {
-  const { id } = req.params;
-  const rest = req.params[0] || "";
-
-  console.log(`[StreamProxy] ${req.method} id=${id} rest="${rest}"`);
-
-  // ✅ Redirect to add trailing slash for initial page load
-  // so browser resolves relative assets correctly
-  if (rest === "" && !req.url.endsWith("/")) {
-    if (activeStreams.has(id)) {
-      return res.redirect(301, `/api/stream/${id}/`);
-    }
-    try {
-      jwt.verify(id, process.env.STREAM_SECRET);
-      return res.redirect(301, `/api/stream/${id}/`);
-    } catch {
-      return res.sendStatus(401);
-    }
-  }
-
-  // ✅ 1-to-1 flow
-  const instanceIpFromMap = activeStreams.get(id);
-  if (instanceIpFromMap) {
-    req.url = rest || "/";
-    console.log(`[StreamProxy] 1-to-1 → http://${instanceIpFromMap}:8080${req.url}`);
-    return proxy.web(req, res, {
-      target: `http://${instanceIpFromMap}:8080`,
-    });
-  }
-
-  // ✅ ASG flow
-  try {
-    const payload = jwt.verify(id, process.env.STREAM_SECRET);
-    const cached = await cacheService.get(`stream:${payload.sessionId}`);
+    const cached = await cacheService.get(
+      `stream:${payload.sessionId}`
+    );
 
     if (!cached) {
       console.log(`[StreamProxy] Cache miss for stream:${payload.sessionId}`);
