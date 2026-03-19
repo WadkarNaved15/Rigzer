@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef} from "react";
+import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { useUser } from "../../context/user";
 import FollowButton from "../FollowButton";
@@ -16,7 +16,7 @@ const FollowFace = ({ translateZ }: { translateZ: number }) => {
       try {
         const res = await axios.get(`${BACKEND_URL}/api/follow/${user._id}/suggested`, { withCredentials: true });
         setUsers(res.data.users || []);
-        fetchedRef.current
+        fetchedRef.current=true;
       } catch (err) {
         console.error(err);
       } finally {
@@ -48,7 +48,7 @@ const FollowFace = ({ translateZ }: { translateZ: number }) => {
         <h3 className="text-[10px] 2xl:text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-1">
           Suggested
         </h3>
-        
+
         {users.length === 0 ? (
           <p className="text-gray-500 text-xs">No users to follow</p>
         ) : (
@@ -58,16 +58,16 @@ const FollowFace = ({ translateZ }: { translateZ: number }) => {
                 {/* Capped Avatar size: 
                   Maxes out at w-12 (48px) instead of w-16 
                 */}
-                <img 
-                  src={u.avatar || "/default_avatar.png"} 
+                <img
+                  src={u.avatar || "/default_avatar.png"}
                   className="
                     w-9 h-9 
                     lg:w-10 lg:h-10 
                     2xl:w-12 2xl:h-12 
                     rounded-full border border-gray-200 dark:border-white/10 object-cover
-                  " 
+                  "
                 />
-                
+
                 <div className="min-w-0">
                   {/* Capped Text: 
                     Maxes out at text-base (16px) 
@@ -91,7 +91,10 @@ const FollowFace = ({ translateZ }: { translateZ: number }) => {
 
               {/* Subtle Button Scaling: 110% max */}
               <div className="flex-shrink-0 2xl:scale-105 origin-right">
-                <FollowButton userId={user!._id} targetId={u._id} />
+                <FollowButton
+                  targetId={u._id}
+                  initialFollowing={u.isFollowing}
+                />
               </div>
             </div>
           ))

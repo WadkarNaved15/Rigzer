@@ -10,97 +10,51 @@ class FollowService {
 
     if (followerId === followingId) throw new Error("Cannot follow yourself");
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
-
-    let follow;
     try {
-      const opts = { session };
-      // We just try to create it.
-      const followDocs = await Follow.create([{ follower: followerId, following: followingId }], opts);
-      follow = followDocs[0];
+      // ✅ Atomic via unique index
+      const follow = await Follow.create({
+        follower: followerId,
+        following: followingId,
+      });
 
-      await Promise.all([
-        User.findByIdAndUpdate(followerId, { $inc: { followingCount: 1 } }, opts),
-        User.findByIdAndUpdate(followingId, { $inc: { followersCount: 1 } }, opts),
-      ]);
+      // ✅ Non-blocking counter updates
+      User.updateOne({ _id: followerId }, { $inc: { followingCount: 1 } }).exec();
+      User.updateOne({ _id: followingId }, { $inc: { followersCount: 1 } }).exec();
 
-      await session.commitTransaction();
+      // ✅ Cache updates async
+      redis.sAdd(`user:${followerId}:following`, followingId);
+      redis.sAdd(`user:${followingId}:followers`, followerId);
+      redis.del(`followersCount:${followingId}`);
+      redis.del(`followingCount:${followerId}`);
+      redis.del(`suggested:${followerId}`);
+
+      return follow;
 
     } catch (error) {
-      await session.abortTransaction();
-
       if (error.code === 11000) {
         throw new Error("Already following");
       }
-
-      // Throw any other errors
       throw error;
-    } finally {
-      session.endSession();
     }
-
-    // --- Cache Invalidation (remains the same) ---
-    try {
-      await Promise.all([
-        redis.sAdd(`user:${followerId}:following`, followingId),
-        redis.sAdd(`user:${followingId}:followers`, followerId),
-        redis.del(`followersCount:${followingId}`),
-        redis.del(`followingCount:${followerId}`),
-        redis.del(`suggested:${followerId}`)
-      ]);
-    } catch (cacheError) {
-      console.error("Cache invalidation failed after follow:", cacheError);
-    }
-
-    return follow;
   }
-
   static async unfollowUser(followerId, followingId) {
-    if (!mongoose.Types.ObjectId.isValid(followerId) || !mongoose.Types.ObjectId.isValid(followingId))
-      throw new Error("Invalid user ID");
+    const deleted = await Follow.findOneAndDelete({
+      follower: followerId,
+      following: followingId,
+    });
 
-    // Start a session for the transaction
-    const session = await mongoose.startSession();
-    session.startTransaction();
+    if (!deleted) throw new Error("Not following");
 
-    try {
-      const opts = { session };
+    // ✅ async counters
+    User.updateOne({ _id: followerId }, { $inc: { followingCount: -1 } }).exec();
+    User.updateOne({ _id: followingId }, { $inc: { followersCount: -1 } }).exec();
 
-      const unfollow = await Follow.findOneAndDelete({ follower: followerId, following: followingId }, opts);
-      if (!unfollow) throw new Error("Not following");
-
-      // Perform all database updates within the transaction
-      await Promise.all([
-        User.findByIdAndUpdate(followerId, { $inc: { followingCount: -1 } }, opts),
-        User.findByIdAndUpdate(followingId, { $inc: { followersCount: -1 } }, opts),
-      ]);
-
-      // If all DB operations succeed, commit the transaction
-      await session.commitTransaction();
-
-    } catch (error) {
-      // If any operation fails, abort the entire transaction
-      await session.abortTransaction();
-      throw error; // Rethrow the error
-    } finally {
-      // Always end the session
-      session.endSession();
-    }
-
-    // --- Cache Invalidation (Runs *after* successful transaction) ---
-    try {
-      await Promise.all([
-        redis.sRem(`user:${followerId}:following`, followingId),
-        redis.sRem(`user:${followingId}:followers`, followerId),
-        redis.del(`followersCount:${followingId}`),
-        redis.del(`followingCount:${followerId}`),
-        // CRITICAL: Invalidate suggested users cache for the follower
-        redis.del(`suggested:${followerId}`)
-      ]);
-    } catch (cacheError) {
-      console.error("Cache invalidation failed after unfollow:", cacheError);
-    }
+    // ✅ async cache
+    redis.sRem(`user:${followerId}:following`, followingId);
+    redis.sRem(`user:${followingId}:followers`, followerId);
+    redis.del(`followersCount:${followingId}`);
+    redis.del(`followingCount:${followerId}`);
+    redis.del(`suggested:${followerId}`);
 
     return true;
   }
@@ -180,22 +134,26 @@ class FollowService {
     const cached = await redis.get(cacheKey);
     if (cached) return JSON.parse(cached);
 
-    // Get IDs of users the current user is already following
+    // ✅ get following set
     const following = await Follow.find({ follower: userId }).select("following");
-    const followingIds = following.map(f => f.following.toString());
+    const followingSet = new Set(following.map(f => f.following.toString()));
 
-    // Exclude current user and already following users
     const suggested = await User.find({
-      _id: { $nin: [...followingIds, userId] },
+      _id: { $nin: [...followingSet, userId] },
     })
       .select("_id username avatar name")
       .limit(5)
       .lean();
 
-    // Cache for 10 minutes
-    await redis.set(cacheKey, JSON.stringify(suggested), "EX", 600);
+    // ✅ inject isFollowing
+    const enriched = suggested.map(user => ({
+      ...user,
+      isFollowing: followingSet.has(user._id.toString()),
+    }));
 
-    return suggested;
+    await redis.set(cacheKey, JSON.stringify(enriched), "EX", 600);
+
+    return enriched;
   }
 }
 
