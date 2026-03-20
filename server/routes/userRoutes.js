@@ -1,7 +1,7 @@
 import express from "express";
 import User from "../models/User.js";  // adjust path if needed
 import {getProfileByUsername} from "../controllers/user.controller.js";
-
+import verifyToken from "../middlewares/authMiddleware.js";
 const router = express.Router();
 
 // GET all users
@@ -15,6 +15,6 @@ router.get("/", async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 });
-router.get("/username/:username", getProfileByUsername);
+router.get("/username/:username",verifyToken, getProfileByUsername);
 
 export default router;

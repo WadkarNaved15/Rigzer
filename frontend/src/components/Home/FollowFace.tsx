@@ -7,11 +7,15 @@ const FollowFace = ({ translateZ }: { translateZ: number }) => {
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const { user } = useUser();
   const [users, setUsers] = useState<any[]>([]);
+  const prevUserIdRef = useRef<string | null>(null);
   const fetchedRef = useRef(false);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (!user?._id || fetchedRef.current) return;
+    if (fetchedRef.current && prevUserIdRef.current === user._id) return;
+     prevUserIdRef.current = user._id;
+     fetchedRef.current=true;
     const fetchUsers = async () => {
       try {
         const res = await axios.get(`${BACKEND_URL}/api/follow/${user._id}/suggested`, { withCredentials: true });

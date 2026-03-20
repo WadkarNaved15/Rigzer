@@ -35,7 +35,9 @@ const FollowButton: React.FC<FollowButtonProps> = ({targetId ,initialFollowing})
       setLoading(false);
     }
   };
-
+  useEffect(() => {
+  setIsFollowing(initialFollowing);
+}, [initialFollowing]);
   return (
     <button
       onClick={toggleFollow}
