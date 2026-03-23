@@ -34,32 +34,54 @@ router.get("/start/:token", (req, res) => {
   res.redirect(`/api/stream/${streamId}/`);
 });
 
-// ✅ Single route handles everything — no redirects
 router.all("/:id*", async (req, res) => {
   const { id } = req.params;
-  const rest = req.params[0] || "/";
+  const rest = req.params[0] || "";
 
-  console.log(`[StreamProxy] ${req.method} id=${id} rest=${rest}`);
+  console.log(`[StreamProxy] ${req.method} id=${id} rest="${rest}"`);
 
-  // 1-to-1 flow
+  // ✅ Redirect to add trailing slash for initial page load
+  // so browser resolves relative assets correctly
+  if (rest === "" && !req.url.endsWith("/")) {
+    if (activeStreams.has(id)) {
+      return res.redirect(301, `/api/stream/${id}/`);
+    }
+    try {
+      jwt.verify(id, process.env.STREAM_SECRET);
+      return res.redirect(301, `/api/stream/${id}/`);
+    } catch {
+      return res.sendStatus(401);
+    }
+  }
+
+  // ✅ 1-to-1 flow
   const instanceIpFromMap = activeStreams.get(id);
   if (instanceIpFromMap) {
     req.url = rest || "/";
+    console.log(`[StreamProxy] 1-to-1 → http://${instanceIpFromMap}:8080${req.url}`);
     return proxy.web(req, res, {
       target: `http://${instanceIpFromMap}:8080`,
     });
   }
 
-  // ASG flow
+  // ✅ ASG flow
   try {
     const payload = jwt.verify(id, process.env.STREAM_SECRET);
     const cached = await cacheService.get(`stream:${payload.sessionId}`);
 
-    if (!cached) return res.sendStatus(404);
-    if (cached.userId !== payload.userId) return res.sendStatus(403);
+    if (!cached) {
+      console.log(`[StreamProxy] Cache miss for stream:${payload.sessionId}`);
+      return res.sendStatus(404);
+    }
 
+    if (cached.userId !== payload.userId) {
+      console.log(`[StreamProxy] User mismatch`);
+      return res.sendStatus(403);
+    }
+
+    // ✅ Strip JWT from URL — instance serves assets from root
     req.url = rest || "/";
-    console.log(`[StreamProxy] → http://${cached.instanceIp}:8080${req.url}`);
+    console.log(`[StreamProxy] ASG → http://${cached.instanceIp}:8080${req.url}`);
 
     proxy.web(req, res, {
       target: `http://${cached.instanceIp}:8080`,
