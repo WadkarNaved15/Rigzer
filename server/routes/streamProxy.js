@@ -9,6 +9,8 @@ const router = express.Router();
 const proxy = httpProxy.createProxyServer({
   ws: true,
   changeOrigin: true,
+  autoRewrite: true,      // ✅ rewrites Location headers
+  protocolRewrite: "https",
 });
 
 const activeStreams = new Map();
@@ -72,6 +74,10 @@ router.all("/:id*", async (req, res) => {
     console.log(`[StreamProxy] ASG flow, proxying to http://${cached.instanceIp}:8080`);
     proxy.web(req, res, {
       target: `http://${cached.instanceIp}:8080`,
+      headers: {
+    "X-Forwarded-Proto": "https",
+    "X-Forwarded-Host": req.headers.host,
+  }
     });
 
   } catch (err) {
