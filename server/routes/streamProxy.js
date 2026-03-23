@@ -55,6 +55,12 @@ router.all("/:id*", async (req, res) => {
 
   // ✅ ASG flow — verify JWT and check Redis cache
   try {
+
+    // Ensure trailing slash so assets resolve under /api/stream/<JWT>/
+if (!req.originalUrl.endsWith("/") && !req.originalUrl.includes(".")) {
+  return res.redirect(req.originalUrl + "/");
+}
+
     const payload = jwt.verify(id, process.env.STREAM_SECRET);
     console.log(`[StreamProxy] JWT verified for session: ${payload.sessionId} user: ${payload.userId}`);
 
