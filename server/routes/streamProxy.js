@@ -36,6 +36,14 @@ router.get("/start/:token", (req, res) => {
   res.redirect(`/api/stream/${streamId}/`);
 });
 
+
+router.all("/:id*", (req, res, next) => {
+  if (!req.originalUrl.endsWith("/") && !req.originalUrl.includes(".")) {
+    return res.redirect(req.originalUrl.replace(/\/?$/, "/"));
+  }
+  next();
+});
+
 // ✅ Handles both 1-to-1 (UUID) and ASG (JWT token)
 router.all("/:id*", async (req, res) => {
   const { id } = req.params;
@@ -55,10 +63,6 @@ router.all("/:id*", async (req, res) => {
 
   // ✅ ASG flow — verify JWT and check Redis cache
   try {
-
- if (!req.originalUrl.endsWith("/") && !req.originalUrl.includes(".")) {
-    return res.redirect(req.originalUrl.replace(/\/?$/, "/"));
-  }
 
     const payload = jwt.verify(id, process.env.STREAM_SECRET);
     console.log(`[StreamProxy] JWT verified for session: ${payload.sessionId} user: ${payload.userId}`);
