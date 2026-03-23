@@ -56,7 +56,6 @@ router.all("/:id*", async (req, res) => {
   // ✅ ASG flow — verify JWT and check Redis cache
   try {
 
-    // Ensure trailing slash so assets resolve under /api/stream/<JWT>/
 if (!req.originalUrl.endsWith("/") && !req.originalUrl.includes(".")) {
   return res.redirect(req.originalUrl + "/");
 }
@@ -79,7 +78,11 @@ if (!req.originalUrl.endsWith("/") && !req.originalUrl.includes(".")) {
 
     console.log(`[StreamProxy] ASG flow, proxying to http://${cached.instanceIp}:8080`);
 
-req.url = req.url.replace(`/${id}`, "") || "/";
+const prefix = `/${id}`;
+
+if (req.url.startsWith(prefix)) {
+  req.url = req.url.slice(prefix.length) || "/";
+}
 
 proxy.web(req, res, {
   target: `http://${cached.instanceIp}:8080`,
