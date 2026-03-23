@@ -30,11 +30,11 @@ const ExePost: React.FC<ExePostProps> = ({
   const [isExpanded, setIsExpanded] = useState(false);
   const [localCommentsCount, setLocalCommentsCount] = useState<number>(commentsCount ?? 0);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-  const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL,likesCount ?? 0,isLiked ?? false);
+  const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL);
    const {
     isWishlisted: localIsWishlisted,
     handleWishlist
-  } = useWishlist(_id, BACKEND_URL, isWishlisted ?? false);
+  } = useWishlist(_id, BACKEND_URL);
   const navigate = useNavigate();
   const location = useLocation();
   let viewStartTime = useRef<number | null>(null);

@@ -25,12 +25,12 @@ const DevlogPost: React.FC<DevlogPostProps> = ({
   const postRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-  const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL,likesCount ?? 0,isLiked ?? false);
+  const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL);
   const [isExpanded, setIsExpanded] = useState(false);
    const {
     isWishlisted: localIsWishlisted,
     handleWishlist
-  } = useWishlist(_id, BACKEND_URL, isWishlisted ?? false);
+  } = useWishlist(_id, BACKEND_URL);
   const FRONTEND_URL = import.meta.env.VITE_FRONTEND_URL || "http://localhost:5173";
   /* -------------------- TIME FORMAT -------------------- */
   const getRelativeTime = (date: string | Date) => {

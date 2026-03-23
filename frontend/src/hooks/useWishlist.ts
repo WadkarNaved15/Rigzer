@@ -1,19 +1,31 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import axios from "axios";
+import { useFeed } from "../context/FeedContext";
 
-export function useWishlist(
-  postId: string,
-  BACKEND_URL: string,
-  initialWishlisted: boolean // ✅ new param
-) {
-  const [isWishlisted, setIsWishlisted] = useState(initialWishlisted);
+export function useWishlist(postId: string, BACKEND_URL: string) {
+  const { posts, setPosts } = useFeed();
+  const [loading, setLoading] = useState(false);
+
+  const currentPost = posts.find(p => p._id === postId);
 
   const handleWishlist = async () => {
-    try {
-      // 🔥 Optimistic update (instant UI)
-      setIsWishlisted((prev) => !prev);
+    if (!currentPost || loading) return;
 
-      if (!isWishlisted) {
+    setLoading(true);
+
+    const previous = currentPost.isWishlisted;
+
+    // 🔥 OPTIMISTIC GLOBAL UPDATE
+    setPosts(prev =>
+      prev.map(post =>
+        post._id === postId
+          ? { ...post, isWishlisted: !previous }
+          : post
+      )
+    );
+
+    try {
+      if (!previous) {
         await axios.post(
           `${BACKEND_URL}/api/wishlist`,
           { postId },
@@ -26,11 +38,23 @@ export function useWishlist(
         );
       }
     } catch (err) {
-      // rollback if failed
-      setIsWishlisted((prev) => !prev);
-      console.error("Error wishlisting post:", err);
+      console.error("Wishlist error:", err);
+
+      // 🔥 REVERT GLOBAL STATE
+      setPosts(prev =>
+        prev.map(post =>
+          post._id === postId
+            ? { ...post, isWishlisted: previous }
+            : post
+        )
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
-  return { isWishlisted, handleWishlist };
+  return {
+    isWishlisted: currentPost?.isWishlisted || false,
+    handleWishlist,
+  };
 }
