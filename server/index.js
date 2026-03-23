@@ -64,6 +64,7 @@ const corsWhitelist = [
   "https://xn--tlay-0ra.com",
   "https://www.rigzer.com",
   "https://rigzer.com",
+  "https://stream.rigzer.com",
   process.env.FRONTEND_URL
 ];
 
