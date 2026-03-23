@@ -25,11 +25,11 @@ const GamePost: React.FC<GamePostProps> = ({
   const postRef = useRef(null);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
   const [isExpanded, setIsExpanded] = useState(false);
-  const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL,likesCount ?? 0,isLiked ?? false);
+  const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL);
    const {
     isWishlisted: localIsWishlisted,
     handleWishlist
-  } = useWishlist(_id, BACKEND_URL, isWishlisted ?? false);
+  } = useWishlist(_id, BACKEND_URL);
   let viewStartTime = useRef<number | null>(null);
   
   // Session state management

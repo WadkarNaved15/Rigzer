@@ -30,11 +30,11 @@ const NormalPost: React.FC<NormalPostProps> = ({
   const [viewerIndex, setViewerIndex] = useState(0);
   const BACKEND_URL =
   import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
-  const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL,likesCount ?? 0,isLiked ?? false);
+  const {likesCount: localLikesCount,isLiked: localIsLiked,handleLike} = useLikes(_id,BACKEND_URL);
   const {
   isWishlisted: localIsWishlisted,
   handleWishlist
-} = useWishlist(_id, BACKEND_URL, isWishlisted ?? false);
+} = useWishlist(_id, BACKEND_URL);
 
   const assets = normalPost?.assets || [];
   const primaryVideoIndex = useMemo(() => {

@@ -1,25 +1,33 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import axios from "axios";
+import { useFeed } from "../context/FeedContext";
 
-export function useLikes(postId: string, BACKEND_URL: string, initialLikes: number, initialIsLiked: boolean) {
-  const [likesCount, setLikesCount] = useState(initialLikes);
+export function useLikes(postId: string, BACKEND_URL: string) {
+  const { posts, setPosts } = useFeed();
   const [loading, setLoading] = useState(false);
-  const [isLiked, setIsLiked] = useState(initialIsLiked);
-  useEffect(() => {
-    setLikesCount(initialLikes);
-    setIsLiked(initialIsLiked);
-  }, [initialLikes, initialIsLiked]);
+
+  const currentPost = posts.find(p => p._id === postId);
 
   const handleLike = async () => {
-    if (loading) return;
+    if (!currentPost || loading) return;
+
     setLoading(true);
 
-    const previousLiked = isLiked;
+    const previousLiked = currentPost.isLiked;
 
-    // Optimistic update (instant UI change)
-    setIsLiked(!previousLiked);
-    setLikesCount(prev =>
-      previousLiked ? prev - 1 : prev + 1
+    // 🔥 UPDATE GLOBAL STATE (not local)
+    setPosts(prev =>
+      prev.map(post =>
+        post._id === postId
+          ? {
+              ...post,
+              isLiked: !previousLiked,
+              likesCount: previousLiked
+                ? (post.likesCount ?? 0) - 1
+                : (post.likesCount ?? 0) + 1,
+            }
+          : post
+      )
     );
 
     try {
@@ -36,17 +44,30 @@ export function useLikes(postId: string, BACKEND_URL: string, initialLikes: numb
         );
       }
     } catch (err) {
-      console.error("Error liking post:", err);
+      console.error(err);
 
-      // 🔥 Revert if failed
-      setIsLiked(previousLiked);
-      setLikesCount(prev =>
-        previousLiked ? prev + 1 : prev - 1
+      // 🔥 REVERT GLOBAL STATE
+      setPosts(prev =>
+        prev.map(post =>
+          post._id === postId
+            ? {
+                ...post,
+                isLiked: previousLiked,
+                likesCount: previousLiked
+                  ? (post.likesCount ?? 0) + 1
+                  : (post.likesCount ?? 0) - 1,
+              }
+            : post
+        )
       );
     } finally {
       setLoading(false);
     }
   };
 
-  return { likesCount, isLiked, handleLike };
+  return {
+    likesCount: currentPost?.likesCount || 0,
+    isLiked: currentPost?.isLiked || false,
+    handleLike,
+  };
 }
