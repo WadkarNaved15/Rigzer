@@ -14,6 +14,7 @@ export interface ProfileUser {
     steam?: string;
     discord?: string;
   };
+  isFollowing?: boolean;
 }
 
 interface CachedProfileState {

@@ -79,7 +79,10 @@ const ProfilePage: React.FC = () => {
     const fetchProfile = async () => {
       if (!username) return;
       try {
-        const res = await axios.get(`${BACKEND_URL}/api/users/username/${username}`);
+        const res = await axios.get(
+          `${BACKEND_URL}/api/users/username/${username}`, 
+          { withCredentials: true } // Added here
+        );
         if (usernameRef.current !== username) return; // stale guard
         setProfileUser(res.data);
       } catch (err) {
@@ -149,7 +152,6 @@ const ProfilePage: React.FC = () => {
 
     fetchArticles();
   }, [profileUser?._id, BACKEND_URL]);
-
   // ── Infinite scroll ──────────────────────────────────────────────────────
   useEffect(() => {
     if (!loadMoreRef.current || !profileUser?._id) return;
@@ -209,7 +211,10 @@ const ProfilePage: React.FC = () => {
                   </button>
                 ) : (
                   <div className="flex gap-2">
-                    <FollowButton userId={user?._id ?? ''} targetId={profileUser?._id ?? ''} />
+                    <FollowButton
+                      targetId={profileUser ? profileUser._id : ""}
+                      initialFollowing={profileUser?.isFollowing ?? false}
+                    />
                     <button
                       onClick={() => openChatWith(profileUser!._id)}
                       className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all active:scale-95"
