@@ -9,8 +9,43 @@ const router = express.Router();
 const proxy = httpProxy.createProxyServer({
   ws: true,
   changeOrigin: true,
-  autoRewrite: true,      // ✅ rewrites Location headers
-  protocolRewrite: "https",
+  selfHandleResponse: true
+});
+
+proxy.on("proxyRes", (proxyRes, req, res) => {
+
+  const contentType = proxyRes.headers["content-type"] || "";
+
+  // Only rewrite HTML
+  if (contentType.includes("text/html")) {
+
+    let body = [];
+
+    proxyRes.on("data", chunk => body.push(chunk));
+
+    proxyRes.on("end", () => {
+      body = Buffer.concat(body).toString();
+
+      const id = req.params?.id;
+
+      if (id) {
+        body = body
+          .replace(/href="\//g, `href="/api/stream/${id}/`)
+          .replace(/src="\//g, `src="/api/stream/${id}/`);
+      }
+
+      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      res.end(body);
+    });
+
+  } else {
+
+    // stream everything else normally
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    proxyRes.pipe(res);
+
+  }
+
 });
 
 const activeStreams = new Map();
@@ -57,7 +92,7 @@ router.all("/:id*", async (req, res) => {
   try {
 
 if (!req.originalUrl.endsWith("/") && !req.originalUrl.includes(".")) {
-  return res.redirect(req.originalUrl + "/");
+  return res.redirect(req.originalUrl.replace(/\/?$/, "/"));
 }
 
     const payload = jwt.verify(id, process.env.STREAM_SECRET);
