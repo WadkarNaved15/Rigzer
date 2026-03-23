@@ -9,9 +9,8 @@ const router = express.Router();
 const proxy = httpProxy.createProxyServer({
   ws: true,
   changeOrigin: true,
-  xfwd: true
+  xfwd: true,
 });
-
 
 const activeStreams = new Map();
 
@@ -23,7 +22,7 @@ router.use((req, res, next) => {
   next();
 });
 
-// ✅ 1-to-1 flow — generate streamId from JWT
+// ✅ 1-to-1 flow
 router.get("/start/:token", (req, res) => {
   let payload;
   try {
@@ -36,66 +35,72 @@ router.get("/start/:token", (req, res) => {
   res.redirect(`/api/stream/${streamId}/`);
 });
 
+// ✅ JWT token — redirect to add trailing slash so browser resolves assets correctly
+router.get("/:token", async (req, res) => {
+  const { token } = req.params;
 
-router.all("/:id*", (req, res, next) => {
-  if (!req.originalUrl.endsWith("/") && !req.originalUrl.includes(".")) {
-    return res.redirect(req.originalUrl.replace(/\/?$/, "/"));
+  // 1-to-1 UUID — redirect with trailing slash
+  if (activeStreams.has(token)) {
+    return res.redirect(`/api/stream/${token}/`);
   }
-  next();
+
+  // ASG JWT — validate then redirect with trailing slash
+  try {
+    jwt.verify(token, process.env.STREAM_SECRET);
+    return res.redirect(`/api/stream/${token}/`);
+  } catch {
+    return res.sendStatus(401);
+  }
 });
 
-// ✅ Handles both 1-to-1 (UUID) and ASG (JWT token)
-router.all("/:id*", async (req, res) => {
+// ✅ All requests with trailing slash — proxy to instance
+router.all("/:id/*", async (req, res) => {
   const { id } = req.params;
 
   console.log(`[StreamProxy] Request: ${req.method} ${req.url}`);
 
-  // ✅ 1-to-1 flow — check activeStreams Map first
+  // ✅ 1-to-1 flow
   const instanceIpFromMap = activeStreams.get(id);
   if (instanceIpFromMap) {
-    console.log(`[StreamProxy] 1-to-1 flow, proxying to http://${instanceIpFromMap}:8080`);
+    console.log(`[StreamProxy] 1-to-1 flow → http://${instanceIpFromMap}:8080`);
+    const strippedUrl = req.url.replace(`/${id}`, "") || "/";
+    req.url = strippedUrl;
     return proxy.web(req, res, {
       target: `http://${instanceIpFromMap}:8080`,
-      ignorePath: false,
-      prependPath: false,
     });
   }
 
-  // ✅ ASG flow — verify JWT and check Redis cache
+  // ✅ ASG flow
   try {
-
     const payload = jwt.verify(id, process.env.STREAM_SECRET);
-    console.log(`[StreamProxy] JWT verified for session: ${payload.sessionId} user: ${payload.userId}`);
+    console.log(`[StreamProxy] JWT verified: session=${payload.sessionId}`);
 
     const cached = await cacheService.get(`stream:${payload.sessionId}`);
-    console.log(`[StreamProxy] Cache result:`, cached);
+    console.log(`[StreamProxy] Cache:`, cached);
 
     if (!cached) {
-      console.log(`[StreamProxy] No cache found for stream:${payload.sessionId}`);
+      console.log(`[StreamProxy] Cache miss for stream:${payload.sessionId}`);
       return res.sendStatus(404);
     }
 
     if (cached.userId !== payload.userId) {
-      console.log(`[StreamProxy] User mismatch: ${cached.userId} !== ${payload.userId}`);
+      console.log(`[StreamProxy] User mismatch`);
       return res.sendStatus(403);
     }
 
-    console.log(`[StreamProxy] ASG flow, proxying to http://${cached.instanceIp}:8080`);
+    // Strip the JWT from the URL so instance gets clean paths
+    const strippedUrl = req.url.replace(`/${id}`, "") || "/";
+    req.url = strippedUrl;
 
-const prefix = `/${id}`;
+    console.log(`[StreamProxy] ASG flow → http://${cached.instanceIp}:8080${req.url}`);
 
-if (req.url.startsWith(prefix)) {
-  req.url = req.url.slice(prefix.length) || "/";
-}
-
-proxy.web(req, res, {
-  target: `http://${cached.instanceIp}:8080`,
-  changeOrigin: true,
-  headers: {
-    "X-Forwarded-Proto": "https",
-    "X-Forwarded-Host": req.headers.host,
-  }
-});
+    proxy.web(req, res, {
+      target: `http://${cached.instanceIp}:8080`,
+      headers: {
+        "X-Forwarded-Proto": "https",
+        "X-Forwarded-Host": req.headers.host,
+      },
+    });
 
   } catch (err) {
     console.error(`[StreamProxy] Error: ${err.message}`);
@@ -103,7 +108,6 @@ proxy.web(req, res, {
   }
 });
 
-// Proxy error handling
 proxy.on("error", (err, req, res) => {
   console.error(`[StreamProxy] Proxy error:`, err.message);
   res.sendStatus(502);
