@@ -72,13 +72,17 @@ router.all("/:id*", async (req, res) => {
     }
 
     console.log(`[StreamProxy] ASG flow, proxying to http://${cached.instanceIp}:8080`);
-    proxy.web(req, res, {
-      target: `http://${cached.instanceIp}:8080`,
-      headers: {
+
+req.url = req.url.replace(`/${id}`, "") || "/";
+
+proxy.web(req, res, {
+  target: `http://${cached.instanceIp}:8080`,
+  changeOrigin: true,
+  headers: {
     "X-Forwarded-Proto": "https",
     "X-Forwarded-Host": req.headers.host,
   }
-    });
+});
 
   } catch (err) {
     console.error(`[StreamProxy] Error: ${err.message}`);
