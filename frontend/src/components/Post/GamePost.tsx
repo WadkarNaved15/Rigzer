@@ -131,9 +131,6 @@ const GamePost: React.FC<GamePostProps> = ({
     }
   };
 
-  const handleStreamReady = (sessionId: string) => {
-    window.location.href = `/stream/${sessionId}`;
-  };
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -159,7 +156,6 @@ const GamePost: React.FC<GamePostProps> = ({
       {showAdOverlay && sessionId && (
         <AdWithStatus
           sessionId={sessionId}
-          onStreamReady={handleStreamReady}
         />
       )}
 
