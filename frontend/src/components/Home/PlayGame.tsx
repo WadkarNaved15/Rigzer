@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { Loader2, ChevronRight } from "lucide-react";
 
 type AdWithStatusProps = {
   sessionId: string;
-  onStreamReady?: (sessionId: string) => void;
 };
 
 interface Ad {
@@ -37,13 +36,35 @@ const orderedSteps = [
   "running",
 ];
 
-export default function AdWithStatus({ sessionId, onStreamReady }: AdWithStatusProps) {
+export default function AdWithStatus({ sessionId }: AdWithStatusProps) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [sessionStatus, setSessionStatus] = useState<string>("waiting");
   const [ad, setAd] = useState<Ad | null>(null);
   const [canSkip, setCanSkip] = useState(false);
+  const [streamUrl, setStreamUrl] = useState<string | null>(null);
+  const [streamUrlError, setStreamUrlError] = useState(false);
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+
+  // ✅ Separate async function to fetch stream URL
+  const fetchStreamUrl = useCallback(async () => {
+    try {
+      const res = await fetch(
+        `${BACKEND_URL}/api/sessions/${sessionId}/stream-token`,
+        { credentials: "include" }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setStreamUrl(data.streamUrl);
+      } else {
+        // Retry once after 2s if not ready yet
+        setTimeout(fetchStreamUrl, 2000);
+      }
+    } catch (err) {
+      console.error("Failed to fetch stream URL:", err);
+      setStreamUrlError(true);
+    }
+  }, [sessionId, BACKEND_URL]);
 
   // Fetch ad
   useEffect(() => {
@@ -58,7 +79,7 @@ export default function AdWithStatus({ sessionId, onStreamReady }: AdWithStatusP
     loadAd();
   }, []);
 
-  // SSE for session updates
+  // ✅ SSE — no async, no await inside handler
   useEffect(() => {
     if (!sessionId) return;
 
@@ -71,9 +92,7 @@ export default function AdWithStatus({ sessionId, onStreamReady }: AdWithStatusP
       const { status, phase } = JSON.parse(e.data);
 
       const effectiveStatus =
-        status === "running" ||
-        status === "ended" ||
-        status === "failed"
+        status === "running" || status === "ended" || status === "failed"
           ? status
           : phase ?? status;
 
@@ -84,8 +103,10 @@ export default function AdWithStatus({ sessionId, onStreamReady }: AdWithStatusP
         setCurrentStepIndex(stepIndex);
       }
 
+      // ✅ Trigger async fetch separately — don't await in handler
       if (effectiveStatus === "running") {
         setCanSkip(true);
+        fetchStreamUrl();  // fire and forget — state update happens inside
       }
 
       if (effectiveStatus === "failed") {
@@ -104,7 +125,7 @@ export default function AdWithStatus({ sessionId, onStreamReady }: AdWithStatusP
     };
 
     return () => es.close();
-  }, [sessionId]);
+  }, [sessionId, fetchStreamUrl]);
 
   // Heartbeat + abandon beacon
   useEffect(() => {
@@ -139,6 +160,12 @@ export default function AdWithStatus({ sessionId, onStreamReady }: AdWithStatusP
         console.error("Failed to track ad click:", err);
       }
       window.open(ad.redirectUrl, "_blank");
+    }
+  };
+
+  const handleLaunch = () => {
+    if (streamUrl) {
+      window.location.href = streamUrl;
     }
   };
 
@@ -182,10 +209,7 @@ export default function AdWithStatus({ sessionId, onStreamReady }: AdWithStatusP
       <div className="relative flex-grow flex items-center justify-center bg-gray-50 dark:bg-black">
         {ad.mediaType === "video" ? (
           <video
-            autoPlay
-            muted
-            loop
-            playsInline
+            autoPlay muted loop playsInline
             className="w-full h-full object-contain cursor-pointer"
             src={ad.mediaUrl}
             onClick={handleAdClick}
@@ -204,10 +228,8 @@ export default function AdWithStatus({ sessionId, onStreamReady }: AdWithStatusP
       <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-white dark:from-black to-transparent">
         <div className="max-w-7xl mx-auto flex items-end justify-between">
 
-          {/* PROGRESS — current step label + segment bar */}
+          {/* PROGRESS */}
           <div className="flex flex-col space-y-2 w-56 bg-white/50 dark:bg-black/20 backdrop-blur-sm p-4 rounded-xl border border-gray-200/50 dark:border-gray-800/50">
-            
-            {/* Current step label */}
             <div className="flex items-center space-x-2">
               {sessionStatus !== "running" && (
                 <div className="w-2.5 h-2.5 border-2 border-gray-400 dark:border-gray-500 border-t-gray-700 dark:border-t-gray-200 rounded-full animate-spin flex-shrink-0" />
@@ -216,8 +238,6 @@ export default function AdWithStatus({ sessionId, onStreamReady }: AdWithStatusP
                 {stepsMap[sessionStatus] || sessionStatus}
               </span>
             </div>
-
-            {/* Step progress bar */}
             <div className="flex space-x-1 h-[3px] w-full">
               {orderedSteps.map((_, idx) => (
                 <div
@@ -235,15 +255,45 @@ export default function AdWithStatus({ sessionId, onStreamReady }: AdWithStatusP
           </div>
 
           {/* ACTION BUTTON */}
-          <div className="flex flex-col items-end">
+          <div className="flex flex-col items-end gap-2">
             {canSkip ? (
-              <button
-                onClick={() => onStreamReady?.(sessionId)}
-                className="group flex items-center space-x-3 bg-gray-800 dark:bg-gray-200 text-white dark:text-black px-8 py-3 rounded-xl text-sm font-bold transition-all shadow-lg hover:scale-[1.02] active:scale-95 border border-transparent dark:hover:bg-white"
-              >
-                <span>LAUNCH SESSION</span>
-                <ChevronRight size={18} className="transition-transform group-hover:translate-x-1" />
-              </button>
+              <>
+                <button
+                  onClick={handleLaunch}
+                  disabled={!streamUrl}
+                  className="group flex items-center space-x-3 bg-gray-800 dark:bg-gray-200
+                    text-white dark:text-black px-8 py-3 rounded-xl text-sm font-bold
+                    transition-all shadow-lg hover:scale-[1.02] active:scale-95
+                    disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {/* ✅ Clear loading state while URL is being fetched */}
+                  {streamUrl ? (
+                    <>
+                      <span>LAUNCH SESSION</span>
+                      <ChevronRight size={18} className="transition-transform group-hover:translate-x-1" />
+                    </>
+                  ) : streamUrlError ? (
+                    <span>RETRY</span>
+                  ) : (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>CONNECTING...</span>
+                    </>
+                  )}
+                </button>
+                {/* ✅ Retry button if URL fetch failed */}
+                {streamUrlError && (
+                  <button
+                    onClick={() => {
+                      setStreamUrlError(false);
+                      fetchStreamUrl();
+                    }}
+                    className="text-xs text-gray-500 underline"
+                  >
+                    Retry connection
+                  </button>
+                )}
+              </>
             ) : (
               <div className="flex items-center space-x-3 bg-white/80 dark:bg-black/40 backdrop-blur-md px-6 py-3 rounded-xl border border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-500 text-[10px] font-bold tracking-widest uppercase shadow-sm">
                 <div className="w-3 h-3 border-2 border-gray-300 dark:border-gray-700 border-t-gray-600 dark:border-t-gray-300 rounded-full animate-spin" />

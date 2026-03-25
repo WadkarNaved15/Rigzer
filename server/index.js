@@ -50,7 +50,7 @@ import canvasRoutes from "./routes/canvasRoutes.js";
 import sessionRoutes from "./routes/sessions.js";
 import internalRoutes from "./routes/internal.js";
 import pocketRoutes from "./routes/pocket.js";
-import streamProxyRouter from "./routes/streamProxy.js";
+import streamProxyRouter, { handleWsUpgrade } from "./routes/streamProxy.js";
 
 import adminRouter from "./routes/admin.js"
 
@@ -69,6 +69,7 @@ const corsWhitelist = [
   "https://rigzer.com",
   "https://gamesocial-git-feature-asg-wadkar-naveds-projects-6bc20af1.vercel.app",
   "https://stream.rigzer.com",
+  /^https:\/\/[a-f0-9]{64}\.stream\.rigzer\.com$/,
   process.env.FRONTEND_URL
 ];
 
@@ -76,10 +77,12 @@ app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      if (
-        corsWhitelist.includes(origin) ||
-        origin.endsWith(".devtunnels.ms")
-      ) {
+      const allowed = corsWhitelist.some(entry =>
+        typeof entry === "string"
+          ? entry === origin
+          : entry.test(origin)
+      );
+      if (allowed || origin.endsWith(".devtunnels.ms")) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
@@ -105,6 +108,20 @@ app.use(
 
 app.use(passport.initialize());
 app.use(passport.session());
+
+app.use((req, res, next) => {
+  if (req.hostname?.endsWith(".stream.rigzer.com")) {
+    return streamProxyRouter(req, res, next);
+  }
+  next();
+});
+
+// ✅ Add this AFTER server is created (after http.createServer)
+server.on("upgrade", (req, socket, head) => {
+  if (req.headers.host?.endsWith(".stream.rigzer.com")) {
+    handleWsUpgrade(req, socket, head);
+  }
+});
 
 // ROUTES
 app.use("/api/auth", authRoutes);
@@ -138,7 +155,6 @@ app.use("/api/search", searchRoutes);
 app.use("/api/canvas", canvasRoutes);
 app.use("/api/sessions", sessionRoutes);
 app.use("/api/internal", internalRoutes);
-app.use("/api/stream", streamProxyRouter);
 app.use("/api/pockets", pocketRoutes);
 
 // Admin routes (protected by your isAdmin middleware)

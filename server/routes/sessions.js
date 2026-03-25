@@ -1,6 +1,7 @@
 import express from "express";
 import jwt from "jsonwebtoken";
 import fetch from "node-fetch";
+import crypto from "crypto";
 import { body, validationResult } from "express-validator";
 
 import AllPost from "../models/Allposts.js";
@@ -333,25 +334,22 @@ router.get("/:sessionId/stream-token", verifyToken, async (req, res) => {
   const userId = req.user.id;
 
   const session = await GameSession.findById(sessionId).lean();
-
   if (!session) return res.sendStatus(404);
   if (session.user.toString() !== userId) return res.sendStatus(403);
   if (session.status !== "running") {
     return res.status(400).json({ error: "Session not ready" });
   }
 
-  // ✅ JWT token — not hardcoded URL
-  const token = jwt.sign(
-    { sessionId, userId },
-    process.env.STREAM_SECRET,
-    { expiresIn: session.maxDurationSeconds }  
-  );
+  // ✅ Look up the secure token generated when session became running
+  const streamToken = await cacheService.get(`streamtoken:${sessionId}`);
+  if (!streamToken) {
+    return res.status(400).json({ error: "Stream token not available yet" });
+  }
 
   res.json({
-    streamUrl: `https://stream.rigzer.com/api/stream/${token}`,
+    streamUrl: `https://${streamToken}.stream.rigzer.com`,
   });
 });
-
 /**
  * POST /api/sessions/:sessionId/heartbeat
  */
@@ -408,14 +406,25 @@ router.post("/running", async (req, res) => {
   session.startedAt = new Date();
   await session.save();
 
-  // ✅ Set stream cache so streamProxy can resolve instanceIp
+  // ✅ Generate secure random stream token (not session ID)
+  const streamToken = crypto.randomBytes(32).toString("hex");
+
+  // ✅ Store token → instance mapping with userId for auth
   await cacheService.set(
-    `stream:${session_id}`,
+    `stream:${streamToken}`,
     {
       instanceIp: session.instanceIp,
       userId: session.user.toString(),
+      sessionId: session_id,
     },
-    3600
+    { ttl: session.maxDurationSeconds ?? 3600 }
+  );
+
+  // ✅ Also store sessionId → streamToken so stream-token endpoint can look it up
+  await cacheService.set(
+    `streamtoken:${session_id}`,
+    streamToken,
+    { ttl: session.maxDurationSeconds ?? 3600 }
   );
 
   const send = sessionStreams.get(session_id);
@@ -423,7 +432,6 @@ router.post("/running", async (req, res) => {
 
   res.json({ success: true });
 });
-
 /**
  * POST /api/sessions/complete
  * Called by supervisor when session ends
