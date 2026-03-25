@@ -116,12 +116,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// ✅ Add this AFTER server is created (after http.createServer)
-server.on("upgrade", (req, socket, head) => {
-  if (req.headers.host?.endsWith(".stream.rigzer.com")) {
-    handleWsUpgrade(req, socket, head);
-  }
-});
 
 // ROUTES
 app.use("/api/auth", authRoutes);
@@ -163,6 +157,11 @@ app.use("/api/admin", adminRouter);
 // HTTP SERVER
 const server = http.createServer(app);
 
+server.on("upgrade", (req, socket, head) => {
+  if (req.headers.host?.endsWith(".stream.rigzer.com")) {
+    handleWsUpgrade(req, socket, head);
+  }
+});
 
 // SOCKET.IO (Real-Time Chat)
 const io = new Server(server, {
