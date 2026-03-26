@@ -6,6 +6,7 @@ import fetch from "node-fetch";
 import { sessionStreams } from "../services/sessionStream.js";
 import AllPost from "../models/Allposts.js";
 import cacheService from "../services/cacheService.js";
+import crypto from "crypto";
 
 const router = express.Router();
 
@@ -164,24 +165,31 @@ router.post("/sessions/update", async (req, res) => {
         updates.phase = "downloading";
         break;
 
-      case "launching":
-        updates.phase = "launching";
-        updates.status = "starting";
-        break;
-
       case "running":
         updates.status = "running";
         updates.phase = null;
         if (!session.startedAt) updates.startedAt = new Date();
 
+        // ✅ Generate secure random stream token
+        const streamToken = crypto.randomBytes(32).toString("hex");
+
         await cacheService.set(
-          `stream:${sessionId}`,
+          `stream:${streamToken}`,
           {
             instanceIp: session.instanceIp,
             userId: session.user.toString(),
+            sessionId: sessionId,
           },
-          3600
+          session.maxDurationSeconds ?? 3600
         );
+
+        await cacheService.set(
+          `streamtoken:${sessionId}`,
+          streamToken,
+          session.maxDurationSeconds ?? 3600
+        );
+
+        console.log(`[StreamToken] Generated for session ${sessionId}: ${streamToken.slice(0, 8)}...`);
         break;
 
       case "failed":
