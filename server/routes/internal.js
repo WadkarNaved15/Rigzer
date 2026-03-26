@@ -197,6 +197,9 @@ router.post("/sessions/update", async (req, res) => {
         }
         break;
 
+      case "launching":
+        updates.phase = "launching";
+        break;
 
       case "failed":
         updates.status = "failed";

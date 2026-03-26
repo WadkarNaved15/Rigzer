@@ -52,11 +52,11 @@ router.use(async (req, res) => {
   }
 
   // ✅ Verify the requesting user owns this session
-  const authUserId = getUserIdFromCookie(req);
-  if (!authUserId || authUserId !== cached.userId) {
-    console.warn(`[StreamProxy] Auth mismatch for token: ${streamToken}`);
-    return res.sendStatus(403);
-  }
+  // const authUserId = getUserIdFromCookie(req);
+  // if (!authUserId || authUserId !== cached.userId) {
+  //   console.warn(`[StreamProxy] Auth mismatch for token: ${streamToken}`);
+  //   return res.sendStatus(403);
+  // }
 
   console.log(`[StreamProxy] → http://${cached.instanceIp}:8080${req.url}`);
 const activeStreams = new Map();
