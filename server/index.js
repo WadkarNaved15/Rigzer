@@ -60,6 +60,16 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+app.use((req, res, next) => {
+  const host = req.headers.host?.split(":")[0];
+
+  if (host?.endsWith(".stream.rigzer.com")) {
+    return streamProxyRouter(req, res, next);
+  }
+
+  next();
+});
+
 // EXPRESS CORS
 const corsWhitelist = [
   "http://localhost:5173",
@@ -109,13 +119,6 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.use((req, res, next) => {
-  if (req.hostname?.endsWith(".stream.rigzer.com")) {
-    return streamProxyRouter(req, res, next);
-  }
-  next();
-});
-
 
 // ROUTES
 app.use("/api/auth", authRoutes);
@@ -158,7 +161,9 @@ app.use("/api/admin", adminRouter);
 const server = http.createServer(app);
 
 server.on("upgrade", (req, socket, head) => {
-  if (req.headers.host?.endsWith(".stream.rigzer.com")) {
+  const host = req.headers.host?.split(":")[0];
+
+if (host?.endsWith(".stream.rigzer.com")) {
     handleWsUpgrade(req, socket, head);
   }
 });
