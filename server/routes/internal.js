@@ -170,27 +170,33 @@ router.post("/sessions/update", async (req, res) => {
         updates.phase = null;
         if (!session.startedAt) updates.startedAt = new Date();
 
-        // ✅ Generate secure random stream token
-        const streamToken = crypto.randomBytes(32).toString("hex");
+        // ✅ Only generate token once — check if already exists
+        const existingToken = await cacheService.get(`streamtoken:${sessionId}`);
+        if (!existingToken) {
+          const streamToken = crypto.randomBytes(31).toString("hex");
 
-        await cacheService.set(
-          `stream:${streamToken}`,
-          {
-            instanceIp: session.instanceIp,
-            userId: session.user.toString(),
-            sessionId: sessionId,
-          },
-          session.maxDurationSeconds ?? 3600
-        );
+          await cacheService.set(
+            `stream:${streamToken}`,
+            {
+              instanceIp: session.instanceIp,
+              userId: session.user.toString(),
+              sessionId: sessionId,
+            },
+            session.maxDurationSeconds ?? 3600
+          );
 
-        await cacheService.set(
-          `streamtoken:${sessionId}`,
-          streamToken,
-          session.maxDurationSeconds ?? 3600
-        );
+          await cacheService.set(
+            `streamtoken:${sessionId}`,
+            streamToken,
+            session.maxDurationSeconds ?? 3600
+          );
 
-        console.log(`[StreamToken] Generated for session ${sessionId}: ${streamToken.slice(0, 8)}...`);
+          console.log(`[StreamToken] Generated for session ${sessionId}: ${streamToken.slice(0, 8)}...`);
+        } else {
+          console.log(`[StreamToken] Already exists for session ${sessionId}, skipping`);
+        }
         break;
+
 
       case "failed":
         updates.status = "failed";
