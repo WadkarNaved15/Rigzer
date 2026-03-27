@@ -51,6 +51,14 @@ router.use(async (req, res) => {
     return res.sendStatus(404);
   }
 
+  //Auth User
+ const userId = getUserIdFromCookie(req);
+  if (!userId || userId !== cached.userId) {
+    console.warn(`[StreamProxy] User ID mismatch for token: ${streamToken}
+      Expected: ${cached.userId}, Got: ${userId}`);
+    return res.sendStatus(403);
+  }
+
   console.log(`[StreamProxy] → http://${cached.instanceIp}:8080${req.url}`);
 
   proxy.web(req, res, {
