@@ -59,8 +59,6 @@ router.use(async (req, res) => {
     return res.sendStatus(403);
   }
 
-  console.log(`[StreamProxy] → http://${cached.instanceIp}:8080${req.url}`);
-
   proxy.web(req, res, {
     target: `http://${cached.instanceIp}:8080`,
   });
@@ -69,42 +67,42 @@ router.use(async (req, res) => {
 /* ===============================
    Token-based streaming route
 ================================ */
-router.all("/:token*", async (req, res) => {
-  try {
-    const payload = jwt.verify(
-      req.params.token,
-      process.env.STREAM_SECRET
-    );
+// router.all("/:token*", async (req, res) => {
+//   try {
+//     const payload = jwt.verify(
+//       req.params.token,
+//       process.env.STREAM_SECRET
+//     );
 
-    const cached = await cacheService.get(
-      `stream:${payload.sessionId}`
-    );
+//     const cached = await cacheService.get(
+//       `stream:${payload.sessionId}`
+//     );
 
-    if (!cached) {
-      console.log(`[StreamProxy] Cache miss for stream:${payload.sessionId}`);
-      return res.sendStatus(404);
-    }
+//     if (!cached) {
+//       console.log(`[StreamProxy] Cache miss for stream:${payload.sessionId}`);
+//       return res.sendStatus(404);
+//     }
 
-    if (cached.userId !== payload.userId) {
-      console.log(`[StreamProxy] User mismatch`);
-      return res.sendStatus(403);
-    }
+//     if (cached.userId !== payload.userId) {
+//       console.log(`[StreamProxy] User mismatch`);
+//       return res.sendStatus(403);
+//     }
 
-    // Remove token from URL
-    const rest = req.params[0] || "/";
-    req.url = rest;
+//     // Remove token from URL
+//     const rest = req.params[0] || "/";
+//     req.url = rest;
 
-    console.log(`[StreamProxy] ASG → http://${cached.instanceIp}:8080${req.url}`);
+//     console.log(`[StreamProxy] ASG → http://${cached.instanceIp}:8080${req.url}`);
 
-    proxy.web(req, res, {
-      target: `http://${cached.instanceIp}:8080`,
-    });
+//     proxy.web(req, res, {
+//       target: `http://${cached.instanceIp}:8080`,
+//     });
 
-  } catch (err) {
-    console.error("[StreamProxy] Token verify error:", err);
-    res.sendStatus(403);
-  }
-});
+//   } catch (err) {
+//     console.error("[StreamProxy] Token verify error:", err);
+//     res.sendStatus(403);
+//   }
+// });
 
 /* ===============================
    WebSocket Upgrade Handler
