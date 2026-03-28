@@ -22,14 +22,30 @@ class CacheService {
   // Generic Cache Methods (Existing)
   // ============================================
 
-  async get(key) {
-    const value = await this.redis.get(key);
-    return value ? JSON.parse(value) : null;
+async get(key) {
+  const value = await this.redis.get(key);
+  if (value === null) return null;
+
+  if (value.startsWith("{") || value.startsWith("[")) {
+    try {
+      return JSON.parse(value);
+    } catch {}
   }
 
+  return value;
+}
+
   async set(key, data, ttl = 300) {
-    await this.redis.set(key, JSON.stringify(data), "EX", ttl);
+  try {
+    console.log("Setting cache key:", key, "with TTL:", ttl);
+    const value =
+      typeof data === "string" ? data : JSON.stringify(data);
+
+    await this.redis.set(key, value, { EX: ttl });
+  } catch (err) {
+    console.error("Redis SET error:", err);
   }
+}
 
   async del(...keys) {
     if (keys.length) await this.redis.del(keys);
@@ -323,13 +339,16 @@ class CacheService {
   /**
    * Set with custom expiry
    */
-  async setEx(key, data, seconds) {
-    try {
-      await this.redis.setex(key, seconds, JSON.stringify(data));
-    } catch (err) {
-      console.error("SetEx error:", err);
-    }
+async setEx(key, data, seconds) {
+  try {
+    const value =
+      typeof data === "string" ? data : JSON.stringify(data);
+
+    await this.redis.set(key, value, { EX: seconds });
+  } catch (err) {
+    console.error("SetEx error:", err);
   }
+}
 
   /**
    * Multi-key get (pipeline)
