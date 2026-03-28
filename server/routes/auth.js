@@ -21,7 +21,7 @@ const cookieOptions = {
   httpOnly: true,
   secure: isProduction,        // true only on HTTPS
   sameSite: isProduction ? "none" : "lax",
-  domain: ".rigzer.com",
+  // domain: ".rigzer.com",
   path: "/",
   maxAge: 30 * 24 * 60 * 60 * 1000,
 };
@@ -29,7 +29,7 @@ const clearCookieOptions = {
   httpOnly: true,
   secure: isProduction,
   sameSite: isProduction ? "none" : "lax",
-  domain: ".rigzer.com",
+  // domain: ".rigzer.com",
   path: "/",
 };
 

@@ -52,12 +52,12 @@ router.use(async (req, res) => {
   }
 
   //Auth User
- const userId = getUserIdFromCookie(req);
-  if (!userId || userId !== cached.userId) {
-    console.warn(`[StreamProxy] User ID mismatch for token: ${streamToken}
-      Expected: ${cached.userId}, Got: ${userId}`);
-    return res.sendStatus(403);
-  }
+//  const userId = getUserIdFromCookie(req);
+//   if (!userId || userId !== cached.userId) {
+//     console.warn(`[StreamProxy] User ID mismatch for token: ${streamToken}
+//       Expected: ${cached.userId}, Got: ${userId}`);
+//     return res.sendStatus(403);
+//   }
 
   proxy.web(req, res, {
     target: `http://${cached.instanceIp}:8080`,
