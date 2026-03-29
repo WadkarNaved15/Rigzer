@@ -127,7 +127,9 @@ export async function getRecommendations({ userId, limit = 20, offset = 0 }) {
     );
     // Gorse returns [{ Id, Score }] or just string[]
     if (!Array.isArray(data)) return [];
-    return data.map((d) => (typeof d === "string" ? d : d.Id));
+    return data
+      .map((d) => (typeof d === "string" ? d : d.Id))
+      .filter((id) => typeof id === "string" && id.trim() !== "");
   } catch (err) {
     console.error("[Gorse] getRecommendations error:", err.message);
     return [];

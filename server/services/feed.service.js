@@ -111,8 +111,10 @@ export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
       if (gorseIds.length > 0) {
         // Fetch full post docs for the Gorse-ordered IDs
         const postMap = new Map();
+        const safeIds = gorseIds.filter((id) => id && id.length === 24);
+
         const docs = await getChronologicalPosts(
-          { _id: { $in: gorseIds } },
+          { _id: { $in: safeIds } },
           fetchLimit
         );
         docs.forEach((p) => postMap.set(p._id.toString(), p));
