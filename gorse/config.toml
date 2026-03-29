@@ -1,0 +1,132 @@
+# ============================================================
+#  Gorse config.toml — Production Grade
+#  Social media app recommendation system
+# ============================================================
+
+# ── DATABASE ─────────────────────────────────────────────────
+# Set via environment variables in .env — do not hardcode here
+# GORSE_DATA_STORE  = MongoDB connection string
+# GORSE_CACHE_STORE = Redis connection string
+# ─────────────────────────────────────────────────────────────
+
+[database]
+table_prefix = "gorse_"   # Keeps Gorse collections separate from your app collections
+
+# ── MASTER ───────────────────────────────────────────────────
+[master]
+port       = 8086
+http_port  = 8088
+n_jobs     = 4    # Match GORSE_MASTER_JOBS in docker-compose
+
+# ── SERVER ───────────────────────────────────────────────────
+[server]
+default_n        = 20    # Items returned per recommendation request
+auto_insert_user = true  # Creates user record on first feedback (good for prod)
+auto_insert_item = true  # Creates item record on first feedback
+
+# ── DATA SOURCE ──────────────────────────────────────────────
+[recommend.data_source]
+
+# What counts as "this user likes this post"
+positive_feedback_types = ["like", "save", "share", "comment"]
+
+# What counts as "this user saw this post" (used to avoid re-showing)
+read_feedback_types = ["read","served"]
+
+# How long to keep feedback for training (days)
+# 90 days gives the model enough signal without being too stale
+positive_feedback_ttl = 90
+
+# How long to keep items active in recommendations (days)
+# Posts older than 365 days won't appear in feeds
+item_ttl = 365
+
+# ── RECOMMENDATION CACHE ─────────────────────────────────────
+[recommend]
+cache_size   = 2000    # Pre-computed recs per user — increase as user base grows
+cache_expire = "72h"   # Refresh recommendations every 3 days
+
+# ── EXPLORE vs EXPLOIT ───────────────────────────────────────
+# Critical for a social app — balances showing relevant content
+# vs. surfacing new/undiscovered posts
+[recommend.explore_recommend]
+explore_proportion = 0.1          # 10% of feed = exploration (new content discovery)
+item_age_fallback  = "latest"     # Fallback for new items with no engagement yet
+
+# ── NON-PERSONALIZED RECOMMENDERS ────────────────────────────
+# Used for: new users (cold start), fallback, and as ranker signals
+
+[[recommend.non-personalized]]
+name  = "most_popular"
+# Total engagement count — good for "what's hot overall"
+score = "count(feedback, true)"
+
+[[recommend.non-personalized]]
+name  = "trending"
+# Wilson score variant — recent engagement weighted, avoids old viral posts dominating
+score = "(count(feedback, true) - 1) / ((now() - item.Timestamp).Hours() + 2) ^ 1.5"
+
+# ── ITEM-TO-ITEM ─────────────────────────────────────────────
+# "Users who engaged with X also engaged with Y"
+
+[[recommend.item-to-item]]
+name = "co_engaged"
+type = "auto"   # Gorse picks the best algorithm based on your data
+
+# ── USER-TO-USER ─────────────────────────────────────────────
+# "Users similar to you also liked..."
+
+[[recommend.user-to-user]]
+name = "similar_users"
+type = "auto"
+
+# ── COLLABORATIVE FILTERING ──────────────────────────────────
+# Matrix factorization — the core personalization model
+# Needs ~50+ users with feedback before it produces good results
+
+[recommend.collaborative]
+type            = "mf"       # Matrix Factorization
+fit_period      = "5m"     # Retrain every 2 hours (reduce to 60m once you have real traffic)
+optimize_period = "720m"     # Hyperparameter tuning every 12 hours
+
+# ── RANKER ───────────────────────────────────────────────────
+# Re-ranks candidates from all sources above using a learning-to-rank model
+# This is what makes the feed feel "smart" — it learns what each user responds to
+
+[recommend.ranker]
+type       = "fm"     # Factorization Machine — best balance of accuracy vs speed
+fit_period = "120m"   # Retrain every 2 hours
+
+# All signal sources fed into the ranker
+# Order matters — put your strongest signals first
+recommenders = [
+  "collaborative",                   # Strongest signal — personalized MF
+  "user-to-user/similar_users",      # Social similarity
+  "item-to-item/co_engaged",         # Content similarity via engagement
+  "non-personalized/trending",       # Recency-weighted popularity
+  "non-personalized/most_popular",   # All-time popularity
+  "latest",                          # Newest posts (freshness)
+]
+
+# ── FALLBACK ─────────────────────────────────────────────────
+# What to show new users before personalization kicks in
+# Also used when the ranker has insufficient data
+
+[recommend.fallback]
+recommenders = ["non-personalized/trending", "non-personalized/most_popular", "latest"]
+
+# ── REPLACEMENT ──────────────────────────────────────────────
+# Controls whether already-seen content can re-appear in feeds
+# Enable this to avoid users seeing the same posts repeatedly
+
+[recommend.replacement]
+enable_replacement         = true
+positive_replacement_decay = 0.6   # Liked posts reappear at 60% probability (saves, shares worth re-surfacing)
+read_replacement_decay     = 0.1   # Seen posts reappear at 10% probability (nearly hidden)
+
+# ── NOTES FOR SCALING ────────────────────────────────────────
+# < 1,000 users:    Current config is fine. MF may underperform — fallback carries the load.
+# 1k–10k users:     Reduce fit_period to 60m. Consider adding a second worker.
+# 10k–100k users:   Add workers (--scale gorse-worker=3). Increase cache_size to 5000.
+# 100k+ users:      Move to dedicated MongoDB Atlas M30+ cluster. Redis 1GB+ plan.
+#                   Consider sharding gorse data. Add gorse-server replica behind load balancer.

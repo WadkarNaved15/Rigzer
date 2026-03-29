@@ -46,7 +46,9 @@ export default function SharePostModal({
         receiverId,
         postId,
       });
-
+      await axios.post(`${BACKEND_URL}/api/feedback/share`, {
+        postId,
+      }, { withCredentials: true });
       toast.success("Sent", {
         position: "bottom-center",
         autoClose: 1500,
@@ -60,7 +62,7 @@ export default function SharePostModal({
       toast.error("Failed to share");
     }
   };
- const shareLink = `${window.location.origin}/?post=${postId}`;
+  const shareLink = `${window.location.origin}/?post=${postId}`;
 
 
   const handleCopyLink = async () => {

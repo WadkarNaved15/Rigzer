@@ -66,26 +66,6 @@ const NormalPost: React.FC<NormalPostProps> = ({
     [createdAt]
   );
 
-  /* -------------------- VIEW TRACKING -------------------- */
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      async (entries) => {
-        if (entries[0].isIntersecting) {
-          await fetch(`${BACKEND_URL}/api/interactions/view`, {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ postId: _id }),
-          });
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.5 }
-    );
-
-    if (postRef.current) observer.observe(postRef.current);
-    return () => observer.disconnect();
-  }, [_id]);
 
   useEffect(() => {
     if (primaryVideoIndex === -1) return;

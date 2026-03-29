@@ -30,48 +30,13 @@ const GamePost: React.FC<GamePostProps> = ({
     isWishlisted: localIsWishlisted,
     handleWishlist
   } = useWishlist(_id, BACKEND_URL);
-  let viewStartTime = useRef<number | null>(null);
-  
   // Session state management
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showAdOverlay, setShowAdOverlay] = useState(false);
   const [sessionError, setSessionError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const { setIsAdPlaying } = useUI();
-
-  /* ---------------- Analytics Logic ---------------- */
-  const startViewing = async () => {
-    viewStartTime.current = Date.now();
-    fetch(`${BACKEND_URL}/api/interactions/playtime-start`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ postId: _id })
-    }).catch(() => {});
-  };
-
-  const stopViewing = async () => {
-    if (!viewStartTime.current) return;
-    const duration = Math.floor((Date.now() - viewStartTime.current) / 1000);
-    viewStartTime.current = null;
-    fetch(`${BACKEND_URL}/api/interactions/playtime-end`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ postId: _id, duration })
-    }).catch(() => {});
-  };
-
-  const markViewed = async () => {
-    fetch(`${BACKEND_URL}/api/interactions/view`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ postId: _id })
-    }).catch(() => {});
-  };
-
-  const getRelativeTime = (date: string | Date) => {
+    const getRelativeTime = (date: string | Date) => {
     const now = new Date();
     const created = new Date(date);
     const diffMs = now.getTime() - created.getTime();
@@ -130,22 +95,6 @@ const handleStartGame = async () => {
     // Navigate to the stream page
     window.location.href = `/stream/${sessionId}`;
   };
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          startViewing();
-          markViewed();
-        } else {
-          stopViewing();
-        }
-      },
-      { threshold: 0.5 }
-    );
-    if (postRef.current) observer.observe(postRef.current);
-    return () => observer.disconnect();
-  }, []);
 
   return (
     <>

@@ -1,6 +1,6 @@
 import AllPost from "../models/Allposts.js";
 import { extractMetadataFromUrl } from "../services/modelMetaData.service.js";
-
+import { onPostCreated } from "../services/gorse.hooks.js";
 function deriveBuildType(fileFormat) {
   if (fileFormat === "exe") return "executable";
   return "archive";
@@ -45,6 +45,9 @@ export const createPost = async (req, res) => {
           })),
         },
       });
+      
+      // ✅ GORSE: sync new post (fire-and-forget)
+      onPostCreated(post);
 
       return res.status(201).json({
         message: "Media post created successfully",
@@ -121,7 +124,8 @@ export const createPost = async (req, res) => {
           assets: processedAssets,
         },
       });
-
+      // ✅ GORSE: sync new post (fire-and-forget)
+      onPostCreated(post);
       return res.status(201).json({
         message: "Model post created successfully",
         post,
@@ -220,6 +224,8 @@ export const createPost = async (req, res) => {
         post,
       });
     }
+    // ✅ GORSE: sync new post (fire-and-forget)
+    onPostCreated(post);
 
     /* ======================================================
        AD MODEL POST  ⭐ NEW
@@ -317,7 +323,9 @@ export const createPost = async (req, res) => {
           asset: processedAsset,
         },
       });
-
+      // ✅ GORSE: sync new post (fire-and-forget)
+      onPostCreated(post);
+      
       return res.status(201).json({
         message: "Ad model post created successfully",
         post,

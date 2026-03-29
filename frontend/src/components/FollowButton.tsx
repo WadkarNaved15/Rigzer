@@ -7,37 +7,31 @@ interface FollowButtonProps {
   initialFollowing: boolean;
 }
 
-const FollowButton: React.FC<FollowButtonProps> = ({targetId ,initialFollowing}) => {
+const FollowButton: React.FC<FollowButtonProps> = ({ targetId, initialFollowing }) => {
   const [isFollowing, setIsFollowing] = useState(initialFollowing);
   const [loading, setLoading] = useState(false);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
   const toggleFollow = async () => {
+    const prev = isFollowing;
+    setIsFollowing(!prev); // optimistic
     try {
       setLoading(true);
-      if (isFollowing) {
+      if (prev) {
         await axios.post(`${BACKEND_URL}/api/follow/${targetId}/unfollow`, {}, { withCredentials: true });
       } else {
         await axios.post(`${BACKEND_URL}/api/follow/${targetId}/follow`, {}, { withCredentials: true });
       }
-      setIsFollowing(!isFollowing);
-    }
-    catch (err: unknown) {
-      if (axios.isAxiosError(err)) {
-        console.error(err.response?.data?.error || err.message);
-      } else if (err instanceof Error) {
-        console.error(err.message);
-      } else {
-        console.error("An unknown error occurred");
-      }
-    }
-    finally {
+    } catch (err) {
+      setIsFollowing(prev); // rollback on failure
+      // show toast here
+    } finally {
       setLoading(false);
     }
   };
   useEffect(() => {
-  setIsFollowing(initialFollowing);
-}, [initialFollowing]);
+    setIsFollowing(initialFollowing);
+  }, [initialFollowing]);
   return (
     <button
       onClick={toggleFollow}

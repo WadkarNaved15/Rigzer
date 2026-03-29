@@ -8,6 +8,7 @@ import dotenv from "dotenv";
 import User from "../models/User.js"; // Correct import after fixing export
 import passport from "passport";
 import { sendResetEmail } from "../services/sendResetEmail.js";
+import { onUserCreated } from "../services/gorse.hooks.js";
 import { sendVerificationEmail } from "../services/sendVerificationEmail.js";
 import verifyToken from "../middlewares/authMiddleware.js";
 
@@ -170,7 +171,7 @@ router.post("/verify-email", verifyLimiter, async (req, res) => {
       userAgent: req.headers["user-agent"],
       ip: req.ip
     });
-
+    onUserCreated(user._id.toString());
     res.cookie("token", token, cookieOptions);
 
     res.json({
