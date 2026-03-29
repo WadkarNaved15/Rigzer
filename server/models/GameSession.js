@@ -18,8 +18,16 @@ const GameSessionSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["starting", "running", "ending", "ended", "failed"],
-      default: "starting",
+      enum: [
+        "waiting",
+        "assigning",
+        "starting",
+        "running",
+        "ending",
+        "ended",
+        "failed",
+      ],
+      default: "waiting",
       index: true,
     },
 
@@ -61,6 +69,58 @@ const GameSessionSchema = new mongoose.Schema(
       type: String,
     },
 
+    leasing: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    lastAllocationAttempt: {
+      type: Date,
+      default: null,
+    },
+
+    leaseToken: {
+      type: String,
+      index: true,
+    },
+
+    leaseExpiresAt: {
+      type: Date,
+      index: true,
+    },
+
+    instanceRegion: {
+      type: String,
+    },
+
+    // ✅ renamed from endedReason → exitReason to match sessions.js usage
+    exitReason: {
+      type: String,
+      enum: [
+        "user_exit",
+        "timeout",
+        "disconnect",
+        "spot_interrupt",
+        "crash",
+        "error",
+        "user_abandoned",  // ✅ added for abandon endpoint
+        "stale_abandoned", // ✅ added for cleanup job
+      ],
+    },
+
+    // ✅ added — used in /complete endpoint
+    exitCode: {
+      type: Number,
+    },
+
+    // ✅ added — heartbeat from frontend to detect abandoned sessions
+    lastHeartbeat: {
+      type: Date,
+      default: Date.now,
+      index: true,
+    },
+
     metadata: {
       gameVersion: String,
       platform: String,
@@ -80,6 +140,7 @@ const GameSessionSchema = new mongoose.Schema(
 // Compound indexes for efficient queries
 GameSessionSchema.index({ user: 1, status: 1 });
 GameSessionSchema.index({ status: 1, expiresAt: 1 });
+GameSessionSchema.index({ status: 1, lastHeartbeat: 1 }); // ✅ added for stale cleanup query
 
 GameSessionSchema.statics.findExpiredSessions = function () {
   return this.find({

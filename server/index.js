@@ -9,6 +9,11 @@ import "./passportConfig.js"
 
 import http from "http";
 import { Server } from "socket.io";
+import GameSession from "./models/GameSession.js";
+import fetch from "node-fetch";
+import { releaseInstance } from "./services/instanceAllocator.js";
+import { sessionStreams } from "./services/sessionStream.js";
+import { initializeSessionPubSub } from "./services/sessionPubSub.js";
 
 // ROUTES
 import modelUploadRouter from "./routes/compression.js";
@@ -45,9 +50,7 @@ import canvasRoutes from "./routes/canvasRoutes.js";
 import sessionRoutes from "./routes/sessions.js";
 import internalRoutes from "./routes/internal.js";
 import pocketRoutes from "./routes/pocket.js";
-import { initializeInstancePool } from "./services/instanceAllocator.js";
-import { initializeSessionPubSub } from "./services/sessionPubSub.js";
-import streamProxyRouter from "./routes/streamProxy.js";
+import streamProxyRouter, { handleWsUpgrade } from "./routes/streamProxy.js";
 
 import adminRouter from "./routes/admin.js"
 
@@ -57,6 +60,16 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+app.use((req, res, next) => {
+  const host = req.headers.host?.split(":")[0];
+
+  if (host?.endsWith(".stream.rigzer.com")) {
+    return streamProxyRouter(req, res, next);
+  }
+
+  next();
+});
+
 // EXPRESS CORS
 const corsWhitelist = [
   "http://localhost:5173",
@@ -64,6 +77,9 @@ const corsWhitelist = [
   "https://xn--tlay-0ra.com",
   "https://www.rigzer.com",
   "https://rigzer.com",
+  "https://gamesocial-git-feature-asg-wadkar-naveds-projects-6bc20af1.vercel.app",
+  "https://stream.rigzer.com",
+  /^https:\/\/[a-f0-9]{64}\.stream\.rigzer\.com$/,
   process.env.FRONTEND_URL
 ];
 
@@ -71,10 +87,12 @@ app.use(
   cors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
-      if (
-        corsWhitelist.includes(origin) ||
-        origin.endsWith(".devtunnels.ms")
-      ) {
+      const allowed = corsWhitelist.some(entry =>
+        typeof entry === "string"
+          ? entry === origin
+          : entry.test(origin)
+      );
+      if (allowed || origin.endsWith(".devtunnels.ms")) {
         callback(null, true);
       } else {
         callback(new Error("Not allowed by CORS"));
@@ -100,6 +118,7 @@ app.use(
 
 app.use(passport.initialize());
 app.use(passport.session());
+
 
 // ROUTES
 app.use("/api/auth", authRoutes);
@@ -133,7 +152,6 @@ app.use("/api/search", searchRoutes);
 app.use("/api/canvas", canvasRoutes);
 app.use("/api/sessions", sessionRoutes);
 app.use("/api/internal", internalRoutes);
-app.use("/api/stream", streamProxyRouter);
 app.use("/api/pockets", pocketRoutes);
 
 // Admin routes (protected by your isAdmin middleware)
@@ -142,6 +160,13 @@ app.use("/api/admin", adminRouter);
 // HTTP SERVER
 const server = http.createServer(app);
 
+server.on("upgrade", (req, socket, head) => {
+  const host = req.headers.host?.split(":")[0];
+
+if (host?.endsWith(".stream.rigzer.com")) {
+    handleWsUpgrade(req, socket, head);
+  }
+});
 
 // SOCKET.IO (Real-Time Chat)
 const io = new Server(server, {
@@ -291,23 +316,59 @@ io.on("connection", (socket) => {
 });
 
 
-// MONGO
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB Connected"))
-  .catch((err) => console.log("MongoDB Connection Error:", err));
-
-// START SERVER
-// START SERVER
+// ✅ Replace with
 (async () => {
   try {
-    await initializeInstancePool();
+    // 1️⃣ Connect Mongo FIRST
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("MongoDB Connected");
+
+    // 2️⃣ Initialize pubsub
     await initializeSessionPubSub();
+
+    // 3️⃣ Start HTTP server
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
+
+    // 4️⃣ Stale session cleanup
+    setInterval(async () => {
+      try {
+        const staleThreshold = new Date(Date.now() - 90_000);
+
+        const staleSessions = await GameSession.find({
+          status: { $in: ["waiting", "starting", "running"] },
+          lastHeartbeat: { $lt: staleThreshold },
+        }).lean();
+
+        for (const session of staleSessions) {
+          console.log(`[Cleanup] Stale session: ${session._id}`);
+
+          if (session.instanceIp) {
+            fetch(`http://${session.instanceIp}:4443/stop-session`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ session_id: session._id.toString() }),
+            }).catch(() => {});
+          }
+
+          await GameSession.findByIdAndUpdate(session._id, {
+            status: "ended",
+            endedAt: new Date(),
+            exitReason: "stale_abandoned",
+          });
+
+          if (session.instanceId && session.leaseToken) {
+            releaseInstance(session.instanceId, session.leaseToken).catch(() => {});
+          }
+        }
+      } catch (err) {
+        console.error("[Cleanup] Error:", err);
+      }
+    }, 60_000);
+
   } catch (err) {
-    console.error("❌ Failed to initialize instance pool", err);
+    console.error("Startup failed:", err);
     process.exit(1);
   }
 })();

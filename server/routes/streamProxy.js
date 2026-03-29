@@ -1,112 +1,140 @@
 import express from "express";
-import jwt from "jsonwebtoken";
 import httpProxy from "http-proxy";
-import crypto from "crypto";
+import jwt from "jsonwebtoken";
+import cookieParser from "cookie-parser";
 import cacheService from "../services/cacheService.js";
 
 const router = express.Router();
+router.use(cookieParser());
 
 const proxy = httpProxy.createProxyServer({
   ws: true,
   changeOrigin: true,
-  xfwd: true
+  xfwd: true,
 });
 
-
-const activeStreams = new Map();
-
-// WebSocket support
-router.use((req, res, next) => {
-  if (req.headers.upgrade) {
-    proxy.ws(req, req.socket, Buffer.alloc(0));
-  }
-  next();
-});
-
-// ✅ 1-to-1 flow — generate streamId from JWT
-router.get("/start/:token", (req, res) => {
-  let payload;
-  try {
-    payload = jwt.verify(req.params.token, process.env.STREAM_SECRET);
-  } catch {
-    return res.sendStatus(401);
-  }
-  const streamId = crypto.randomUUID();
-  activeStreams.set(streamId, payload.instanceIp);
-  res.redirect(`/api/stream/${streamId}/`);
-});
-
-
-router.all("/:id*", (req, res, next) => {
-  if (!req.originalUrl.endsWith("/") && !req.originalUrl.includes(".")) {
-    return res.redirect(req.originalUrl.replace(/\/?$/, "/"));
-  }
-  next();
-});
-
-// ✅ Handles both 1-to-1 (UUID) and ASG (JWT token)
-router.all("/:id*", async (req, res) => {
-  const { id } = req.params;
-
-  console.log(`[StreamProxy] Request: ${req.method} ${req.url}`);
-
-  // ✅ 1-to-1 flow — check activeStreams Map first
-  const instanceIpFromMap = activeStreams.get(id);
-  if (instanceIpFromMap) {
-    console.log(`[StreamProxy] 1-to-1 flow, proxying to http://${instanceIpFromMap}:8080`);
-    return proxy.web(req, res, {
-      target: `http://${instanceIpFromMap}:8080`,
-      ignorePath: false,
-      prependPath: false,
-    });
-  }
-
-  // ✅ ASG flow — verify JWT and check Redis cache
-  try {
-
-    const payload = jwt.verify(id, process.env.STREAM_SECRET);
-    console.log(`[StreamProxy] JWT verified for session: ${payload.sessionId} user: ${payload.userId}`);
-
-    const cached = await cacheService.get(`stream:${payload.sessionId}`);
-    console.log(`[StreamProxy] Cache result:`, cached);
-
-    if (!cached) {
-      console.log(`[StreamProxy] No cache found for stream:${payload.sessionId}`);
-      return res.sendStatus(404);
-    }
-
-    if (cached.userId !== payload.userId) {
-      console.log(`[StreamProxy] User mismatch: ${cached.userId} !== ${payload.userId}`);
-      return res.sendStatus(403);
-    }
-
-    console.log(`[StreamProxy] ASG flow, proxying to http://${cached.instanceIp}:8080`);
-
-const prefix = `/${id}`;
-
-if (req.url.startsWith(prefix)) {
-  req.url = req.url.slice(prefix.length) || "/";
+// Extract stream token from subdomain
+function getStreamToken(hostname = "") {
+  return hostname.split(".")[0];
 }
 
-proxy.web(req, res, {
-  target: `http://${cached.instanceIp}:8080`,
-  changeOrigin: true,
-  headers: {
-    "X-Forwarded-Proto": "https",
-    "X-Forwarded-Host": req.headers.host,
+// Verify auth cookie
+function getUserIdFromCookie(req) {
+  try {
+    const token = req.cookies?.token;
+    if (!token) return null;
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    return payload.id ?? payload.userId ?? null;
+  } catch {
+    return null;
   }
-});
+}
 
+/* ===============================
+   HTTP Proxy for stream subdomain
+================================ */
+router.use(async (req, res) => {
+  const streamToken = getStreamToken(req.hostname);
+
+  if (!streamToken) return res.sendStatus(400);
+
+  let cached;
+  try {
+    cached = await cacheService.get(`stream:${streamToken}`);
   } catch (err) {
-    console.error(`[StreamProxy] Error: ${err.message}`);
-    return res.sendStatus(401);
+    console.error("[StreamProxy] Cache error:", err);
+    return res.sendStatus(500);
   }
+
+  if (!cached) {
+    console.warn(`[StreamProxy] No session for token: ${streamToken}`);
+    return res.sendStatus(404);
+  }
+
+  //Auth User
+//  const userId = getUserIdFromCookie(req);
+//   if (!userId || userId !== cached.userId) {
+//     console.warn(`[StreamProxy] User ID mismatch for token: ${streamToken}
+//       Expected: ${cached.userId}, Got: ${userId}`);
+//     return res.sendStatus(403);
+//   }
+
+  proxy.web(req, res, {
+    target: `http://${cached.instanceIp}:8080`,
+  });
 });
 
-// Proxy error handling
+/* ===============================
+   Token-based streaming route
+================================ */
+// router.all("/:token*", async (req, res) => {
+//   try {
+//     const payload = jwt.verify(
+//       req.params.token,
+//       process.env.STREAM_SECRET
+//     );
+
+//     const cached = await cacheService.get(
+//       `stream:${payload.sessionId}`
+//     );
+
+//     if (!cached) {
+//       console.log(`[StreamProxy] Cache miss for stream:${payload.sessionId}`);
+//       return res.sendStatus(404);
+//     }
+
+//     if (cached.userId !== payload.userId) {
+//       console.log(`[StreamProxy] User mismatch`);
+//       return res.sendStatus(403);
+//     }
+
+//     // Remove token from URL
+//     const rest = req.params[0] || "/";
+//     req.url = rest;
+
+//     console.log(`[StreamProxy] ASG → http://${cached.instanceIp}:8080${req.url}`);
+
+//     proxy.web(req, res, {
+//       target: `http://${cached.instanceIp}:8080`,
+//     });
+
+//   } catch (err) {
+//     console.error("[StreamProxy] Token verify error:", err);
+//     res.sendStatus(403);
+//   }
+// });
+
+/* ===============================
+   WebSocket Upgrade Handler
+================================ */
+export function handleWsUpgrade(req, socket, head) {
+  const streamToken = getStreamToken(req.headers.host ?? "");
+
+  cacheService.get(`stream:${streamToken}`)
+    .then(cached => {
+      if (!cached) {
+        console.warn(`[StreamProxy] WS: No session for ${streamToken}`);
+        return socket.destroy();
+      }
+
+      proxy.ws(req, socket, head, {
+        target: `http://${cached.instanceIp}:8080`,
+      });
+    })
+    .catch(err => {
+      console.error("[StreamProxy] WS cache error:", err);
+      socket.destroy();
+    });
+}
+
+/* ===============================
+   Proxy error handler
+================================ */
 proxy.on("error", (err, req, res) => {
-  console.error(`[StreamProxy] Proxy error:`, err.message);
-  res.sendStatus(502);
+  console.error("[StreamProxy] Proxy error:", err.message);
+  if (res && !res.headersSent) {
+    res.sendStatus(502);
+  }
 });
 
 export default router;
