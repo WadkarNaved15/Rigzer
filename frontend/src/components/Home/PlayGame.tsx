@@ -181,7 +181,7 @@ export default function AdWithStatus({ sessionId }: AdWithStatusProps) {
   }
 
   return (
-    <div className="fixed inset-0 bg-white dark:bg-black z-50 flex flex-col font-sans overflow-hidden select-none transition-colors duration-300">
+    <div className="fixed inset-0 bg-white dark:bg-black z-50 flex flex-col font-sans overflow-hidden select-none">
 
       {/* TOP BAR: SPONSOR INFO */}
       <div className="absolute top-0 left-0 right-0 p-6 z-20">
