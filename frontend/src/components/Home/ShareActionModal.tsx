@@ -1,6 +1,7 @@
 import { X, Link2, Send, Share, Mail } from "lucide-react";
 import { useState } from "react";
 import SharePostModal from "./SharePostModal";
+import axios from "axios";
 import { toast } from "react-toastify";
 
 interface Props {
@@ -11,12 +12,15 @@ interface Props {
 
 export default function ShareActionModal({ postId, currentUserId, onClose }: Props) {
   const [openChatShare, setOpenChatShare] = useState(false);
-
+  const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const shareLink = `${window.location.origin}/?post=${postId}`;
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(shareLink);
+      await axios.post(`${BACKEND_URL}/api/feedback/share`, {
+        postId,
+      }, { withCredentials: true });
       toast.success("Copied to clipboard", { position: "bottom-center", autoClose: 2000 });
       onClose();
     } catch (err) {
@@ -28,6 +32,9 @@ export default function ShareActionModal({ postId, currentUserId, onClose }: Pro
     if (navigator.share) {
       try {
         await navigator.share({ title: "Check out this post", url: shareLink });
+        await axios.post(`${BACKEND_URL}/api/feedback/share`, {
+          postId,
+        }, { withCredentials: true });
         onClose();
       } catch (err) {
         // User cancelled or error
@@ -56,7 +63,7 @@ export default function ShareActionModal({ postId, currentUserId, onClose }: Pro
       <div className="absolute inset-0" onClick={onClose} />
 
       <div className="relative bg-white dark:bg-[#191919] w-full max-w-[400px] rounded-t-[24px] sm:rounded-[20px] shadow-2xl overflow-hidden border-t sm:border border-gray-100 dark:border-zinc-800 animate-in slide-in-from-bottom-4 duration-200">
-        
+
         {/* Mobile Grabber Handle */}
         <div className="flex justify-center py-2 sm:hidden">
           <div className="w-10 h-1 bg-gray-300 dark:bg-zinc-700 rounded-full" />
@@ -65,8 +72,8 @@ export default function ShareActionModal({ postId, currentUserId, onClose }: Pro
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 sm:py-4 border-b border-gray-100 dark:border-zinc-800">
           <h2 className="font-bold text-xl text-gray-900 dark:text-white">Share</h2>
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-zinc-800 transition-colors"
           >
             <X size={20} className="text-gray-600 dark:text-zinc-400" />
@@ -75,23 +82,23 @@ export default function ShareActionModal({ postId, currentUserId, onClose }: Pro
 
         {/* Options List */}
         <div className="py-2 pb-6 sm:pb-2">
-          
-          <ShareOption 
-            icon={<Send size={22} />} 
-            label="Send via Direct Message" 
-            onClick={() => setOpenChatShare(true)} 
-          />
-          
-          <ShareOption 
-            icon={<Link2 size={22} />} 
-            label="Copy link" 
-            onClick={handleCopy} 
+
+          <ShareOption
+            icon={<Send size={22} />}
+            label="Send via Direct Message"
+            onClick={() => setOpenChatShare(true)}
           />
 
-          <ShareOption 
-            icon={<Share size={22} />} 
-            label="Share via..." 
-            onClick={handleSystemShare} 
+          <ShareOption
+            icon={<Link2 size={22} />}
+            label="Copy link"
+            onClick={handleCopy}
+          />
+
+          <ShareOption
+            icon={<Share size={22} />}
+            label="Share via..."
+            onClick={handleSystemShare}
           />
 
 

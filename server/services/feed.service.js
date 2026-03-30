@@ -1,112 +1,168 @@
 // services/feed.service.js
-// Cursor-based feed merge — AllPost rows + PocketFeedEntry rows.
+// Cursor-based feed — now Gorse-powered for logged-in users.
 //
-// Ordering:
-//   AllPost        — sorted by _id desc (ObjectId ≡ createdAt, existing behaviour)
-//   PocketFeedEntry — sorted by publishedAt desc (reset on every approval so
-//                     re-approved pockets surface as fresh content)
+// Strategy:
+//   Logged-in user  → ask Gorse for personalised post IDs, fetch from MongoDB,
+//                      record impressions back to Gorse, merge with pockets.
+//   Logged-out user → fall back to the original chronological MongoDB query
+//                      (unchanged behaviour).
+//   Gorse timeout   → graceful fallback to chronological if Gorse is slow/down.
 //
-// The two collections use different sort keys so we normalise both to a
-// plain `sortKey` (millisecond timestamp) for the merge step, then derive
-// the nextCursor from whichever collection's natural key applies.
+// Cursor format (unchanged):
+//   "a:<objectId>"  — allpost cursor
+//   "p:<isoDate>"   — pocket cursor
 
 import AllPost from "../models/Allposts.js";
 import PocketFeedEntry from "../models/PocketFeedEntry.js";
 import Like from "../models/Like.js";
 import Wishlist from "../models/Wishlist.js";
+import {
+  getRecommendations,
+  getPopular,
+  recordServed,
+  fireAndForget,
+} from "./gorse.client.js";
+
+// How long to wait for Gorse before falling back to chronological (ms)
+const GORSE_TIMEOUT_MS = 2000;
+
+// ── Gorse-powered post fetch ──────────────────────────────────────────────────
+
+async function getGorsePostIds(userId, limit, offset) {
+  // Race Gorse against a timeout so a slow Gorse never stalls your feed
+  const timeoutPromise = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error("Gorse timeout")), GORSE_TIMEOUT_MS)
+  );
+  return Promise.race([
+    getRecommendations({ userId, limit, offset }),
+    timeoutPromise,
+  ]);
+}
+
+// ── Chronological fallback (your original logic) ──────────────────────────────
+
+async function getChronologicalPosts(filter, limit) {
+  return AllPost.find({ ...filter, type: { $ne: "canvas_article" } })
+    .select({
+      _id: 1, user: 1, description: 1, type: 1,
+      likesCount: 1, commentsCount: 1, createdAt: 1,
+      "modelPost.price": 1,
+      "modelPost.assets.originalUrl": 1,
+      "modelPost.assets.optimizedUrl": 1,
+      "gamePost.gameName": 1,
+      "normalPost.assets": 1,
+      "adModelPost.brandName": 1, "adModelPost.logoUrl": 1,
+      "adModelPost.bgMode": 1, "adModelPost.bgColor": 1,
+      "adModelPost.bgImageUrl": 1, "adModelPost.bgImagePosition": 1,
+      "adModelPost.bgImageSize": 1, "adModelPost.overlayOpacity": 1,
+      "adModelPost.asset.originalUrl": 1,
+      "adModelPost.asset.optimizedUrl": 1,
+      "adModelPost.asset.optimization": 1,
+    })
+    .populate("user", "username avatar")
+    .sort({ _id: -1 })
+    .limit(limit)
+    .lean();
+}
+
+// ── Main export ───────────────────────────────────────────────────────────────
+
 /**
  * @param {{ cursor?: string, limit?: number, userId?: string }} opts
- * cursor format:  "<type>:<value>"
- *   allpost:      "a:<objectId>"   — filters _id < objectId
- *   pocket:       "p:<isoDate>"    — filters publishedAt < date
- *   initial:      undefined / ""
- *
- * We encode the cursor type so the feed can page independently
- * across the two collections without conflating their sort keys.
  */
 export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
   const fetchLimit = limit * 2;
 
-  // ── Parse cursor ──────────────────────────────────────────────────────────
+  // ── Parse cursor ────────────────────────────────────────────────────────────
   let allPostFilter = {};
   let pocketFilter = {};
+  let gorseOffset = 0;
 
   if (cursor) {
-    const [type, value] = cursor.split(/:(.+)/); // split on first colon only
+    const [type, value] = cursor.split(/:(.+)/);
     if (type === "a") {
       allPostFilter = { _id: { $lt: value } };
     } else if (type === "p") {
       pocketFilter = { publishedAt: { $lt: new Date(value) } };
+    } else if (type === "g") {
+      // Gorse cursor: "g:<offset>"
+      gorseOffset = parseInt(value, 10) || 0;
+      allPostFilter = {}; // Gorse handles pagination, not _id
     } else {
-      // Legacy plain-objectId cursor from before this change — treat as allpost
       allPostFilter = { _id: { $lt: cursor } };
     }
   }
 
-  // ── Fetch both collections in parallel ────────────────────────────────────
-  const [allPosts, pocketEntries] = await Promise.all([
-    AllPost.find({
-      ...allPostFilter,
-      type: { $ne: "canvas_article" },
-    })
-      .select({
-        _id: 1,
-        user: 1,
-        description: 1,
-        type: 1,
-        likesCount: 1,
-        commentsCount: 1,
-        createdAt: 1,
+  // ── Fetch pockets (always, same as before) ──────────────────────────────────
+  const pocketPromise = PocketFeedEntry.find(pocketFilter)
+    .populate("owner", "username avatar")
+    .sort({ publishedAt: -1 })
+    .limit(limit)
+    .lean();
 
-        // model post
-        "modelPost.price": 1,
-        "modelPost.assets.originalUrl": 1,
-        "modelPost.assets.optimizedUrl": 1,
+  // ── Fetch posts: Gorse (logged-in) or chronological (fallback/logged-out) ───
+  let allPosts = [];
+  let usedGorse = false;
 
-        // game post
-        "gamePost.gameName": 1,
+  if (userId) {
+    try {
+      const gorseIds = await getGorsePostIds(userId, fetchLimit, gorseOffset);
 
-        // normal post
-        "normalPost.assets": 1,
+      if (gorseIds.length > 0) {
+        // Fetch full post docs for the Gorse-ordered IDs
+        const postMap = new Map();
+        const safeIds = gorseIds.filter((id) => id && id.length === 24);
 
-        // ad model post
-        "adModelPost.brandName": 1,
-        "adModelPost.logoUrl": 1,
-        "adModelPost.bgMode": 1,
-        "adModelPost.bgColor": 1,
-        "adModelPost.bgImageUrl": 1,
-        "adModelPost.bgImagePosition": 1,
-        "adModelPost.bgImageSize": 1,
-        "adModelPost.overlayOpacity": 1,
+        const docs = await getChronologicalPosts(
+          { _id: { $in: safeIds } },
+          fetchLimit
+        );
+        docs.forEach((p) => postMap.set(p._id.toString(), p));
 
-        // asset (only required fields)
-        "adModelPost.asset.originalUrl": 1,
-        "adModelPost.asset.optimizedUrl": 1,
-        "adModelPost.asset.optimization": 1,
-      })
-      .populate("user", "username avatar")
-      .sort({ _id: -1 })
-      .limit(fetchLimit)
-      .lean(),
+        // Preserve Gorse's order (it already ranked them for this user)
+        allPosts = gorseIds
+          .map((id) => postMap.get(id))
+          .filter(Boolean);
 
-    PocketFeedEntry.find(pocketFilter)
-      .populate("owner", "username avatar")
-      .sort({ publishedAt: -1 })
-      .limit(limit)
-      .lean(),
-  ]);
+        usedGorse = true;
+
+        // Record impressions so Gorse knows what was shown (fire-and-forget)
+        fireAndForget(() =>
+          recordServed(userId, gorseIds.slice(0, limit))
+        );
+      }
+    } catch (err) {
+      console.warn("[Feed] Gorse unavailable, falling back to chronological:", err.message);
+    }
+  }
+
+  // Fallback: original chronological query
+  if (!usedGorse) {
+    allPosts = await getChronologicalPosts(allPostFilter, fetchLimit);
+  }
+
+  const [pocketEntries] = await Promise.all([pocketPromise]);
+
+  // ── Trim model assets to first only (unchanged) ────────────────────────────
   const trimmedPosts = allPosts.map((post) => {
     if (post.modelPost?.assets?.length) {
       post.modelPost.assets = [post.modelPost.assets[0]];
     }
     return post;
   });
-  // ── Normalise to a common shape ───────────────────────────────────────────
-  const normalisedAllPosts = trimmedPosts.map((p) => ({
+
+  // ── Normalise to common shape (unchanged) ──────────────────────────────────
+  const normalisedAllPosts = trimmedPosts.map((p, idx) => ({
     ...p,
-    _sortKey: p._id.getTimestamp().getTime(), // ms from ObjectId
-    _cursorType: "a",
-    _cursorVal: p._id.toString(),
+    // When using Gorse, sortKey = rank order (higher = earlier in feed)
+    // When using chronological, sortKey = createdAt timestamp (original behaviour)
+    _sortKey: usedGorse
+      ? Date.now() - idx * 1000   // preserve Gorse rank order
+      : p._id.getTimestamp().getTime(),
+    _cursorType: usedGorse ? "g" : "a",
+    _cursorVal: usedGorse
+      ? String(gorseOffset + limit)   // next page offset for Gorse
+      : p._id.toString(),
   }));
 
   const normalisedPockets = pocketEntries.map((e) => ({
@@ -123,12 +179,12 @@ export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
     tagline: e.tagline,
     compiledBundleUrl: e.compiledBundleUrl,
     _pocketEntryId: e._id,
-    _sortKey: new Date(e.publishedAt).getTime(), // ms from publishedAt
+    _sortKey: new Date(e.publishedAt).getTime(),
     _cursorType: "p",
     _cursorVal: e.publishedAt.toISOString(),
   }));
 
-  // ── Merge by sortKey desc, slice to limit ─────────────────────────────────
+  // ── Merge, sort, slice ─────────────────────────────────────────────────────
   const merged = [...normalisedAllPosts, ...normalisedPockets]
     .sort((a, b) => b._sortKey - a._sortKey)
     .slice(0, limit);
@@ -137,7 +193,7 @@ export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
     return { posts: [], nextCursor: null };
   }
 
-  // ── Enrich isLiked for AllPost items ─────────────────────────────────────
+  // ── Enrich isLiked / isWishlisted ─────────────────────────────────────────
   if (userId) {
     const allPostIds = merged
       .filter((p) => p.type !== "pocket_update")
@@ -145,15 +201,8 @@ export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
 
     if (allPostIds.length) {
       const [userLikes, userWishlists] = await Promise.all([
-        Like.find({
-          user: userId,
-          post: { $in: allPostIds },
-        }).select("post").lean(),
-
-        Wishlist.find({
-          user: userId,
-          post: { $in: allPostIds },
-        }).select("post").lean(),
+        Like.find({ user: userId, post: { $in: allPostIds } }).select("post").lean(),
+        Wishlist.find({ user: userId, post: { $in: allPostIds } }).select("post").lean(),
       ]);
 
       const likedSet = new Set(userLikes.map((l) => l.post.toString()));
@@ -162,17 +211,16 @@ export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
       merged.forEach((p) => {
         if (p.type !== "pocket_update") {
           p.isLiked = likedSet.has(p._id.toString());
-          p.isWishlisted = wishlistSet.has(p._id.toString()); // ✅ ADD THIS
+          p.isWishlisted = wishlistSet.has(p._id.toString());
         }
       });
     }
   }
 
-  // ── Build nextCursor from the last item in the merged page ────────────────
+  // ── Build nextCursor ───────────────────────────────────────────────────────
   const last = merged[merged.length - 1];
   const nextCursor = `${last._cursorType}:${last._cursorVal}`;
 
-  // Strip internal merge fields before sending to client
   const posts = merged.map(({ _sortKey, _cursorType, _cursorVal, ...rest }) => rest);
 
   return { posts, nextCursor };

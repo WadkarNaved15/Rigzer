@@ -3,6 +3,7 @@ import Article from "../models/Canvas.js";
 import AllPost from "../models/Allposts.js";
 import redis from "../config/redis.js";
 import authMiddleware from "../middlewares/authMiddleware.js";
+import { onPostCreated } from "../services/gorse.hooks.js";
 import {
   getPublishedArticleById,
   getPublishedArticles,
@@ -59,6 +60,8 @@ router.post("/publish", authMiddleware, async (req, res) => {
       description: description || title,
       canvasRef: article._id, // ✅ FIXED
     });
+    // ✅ GORSE: sync article post (canvas_article type will be labelled accordingly)
+    onPostCreated(post);
     //clear cache
     await redis.del("billboard_articles");
 

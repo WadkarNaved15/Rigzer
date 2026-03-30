@@ -45,25 +45,6 @@ const modelUrl =
     ? asset.optimizedUrl
     : asset?.originalUrl;
   const price = modelPost?.price;
-  // const handleGameStream = async () => {
-  //   setLoading(true);
-  //   setError(null);
-  //   try {
-  //     const response = await axios.post(`${BACKEND_URL}/api/gameRoutes/start_game`, {
-  //       gameUrl,
-  //     });
-
-  //     if (response.status !== 200) {
-  //       throw new Error(`Server error: ${response.statusText}`);
-  //     }
-
-  //     console.log("Game stream started:", response.data);
-  //   } catch (err: any) {
-  //     setError(err.message || "Unknown error");
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
   const getRelativeTime = (date: string | Date) => {
     const now = new Date();
     const created = new Date(date);
@@ -88,67 +69,12 @@ const modelUrl =
   };
 
   const timestamp = useMemo(() => getRelativeTime(createdAt), [createdAt]);
-  const startViewing = async () => {
-    viewStartTime.current = Date.now();
 
-    await fetch(`${BACKEND_URL}/api/interactions/playtime-start`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ postId: _id })
-    });
-  };
-
-  // API: End view session & send duration
-  const stopViewing = async () => {
-    if (!viewStartTime.current) return;
-
-    const duration = Math.floor((Date.now() - viewStartTime.current) / 1000); // seconds
-    viewStartTime.current = null;
-
-    await fetch(`${BACKEND_URL}/api/interactions/playtime-end`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ postId: _id, duration })
-    });
-  };
-  const markViewed = async () => {
-    try {
-      await fetch(`${BACKEND_URL}/api/interactions/view`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ postId: _id })
-      });
-    } catch (err) {
-      console.error("Failed to update view", err);
-    }
-  };
   // Auto show comments in detail view 
   useEffect(() => {
     if (detailed) setShowComments(true);
   }, [detailed]);
 
-  // Detect when post becomes visible
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting) {
-          startViewing(); // start tracking
-          markViewed();
-        }
-        else {
-          stopViewing(); // stop tracking
-        }
-      },
-      { threshold: 0.5 }
-    );
-
-    if (postRef.current) observer.observe(postRef.current);
-
-    return () => observer.disconnect();
-  }, []);
   return (
     //   
     <article

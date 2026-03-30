@@ -13,6 +13,7 @@ project/node_modules/
 .env.local
 server/.env
 project/.env
+gorse/.env
 
 # Ignore certs folder
 .certs/
