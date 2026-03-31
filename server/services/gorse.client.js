@@ -75,6 +75,7 @@ export async function hideItem(postId) {
  * @param {{ feedbackType: string, userId: string, postId: string, timestamp?: Date }} fb
  */
 export async function insertFeedback({ feedbackType, userId, postId, timestamp }) {
+  console.log("Sending feedback to Gorse:", feedbackType, userId, postId);
   return gorseRequest("POST", "/api/feedback", [{
     FeedbackType: feedbackType,
     UserId: userId,
@@ -88,6 +89,7 @@ export async function insertFeedback({ feedbackType, userId, postId, timestamp }
  * @param {{ feedbackType: string, userId: string, postId: string }} fb
  */
 export async function deleteFeedback({ feedbackType, userId, postId }) {
+  console.log("Deleting feedback from Gorse:", feedbackType, userId, postId);
   return gorseRequest(
     "DELETE",
     `/api/feedback/${feedbackType}/${userId}/${postId}`
@@ -101,6 +103,7 @@ export async function deleteFeedback({ feedbackType, userId, postId }) {
  * @param {string[]} postIds
  */
 export async function recordServed(userId, postIds) {
+  console.log("Recording served to Gorse:", userId, postIds);
   if (!postIds.length) return;
   const payload = postIds.map((postId) => ({
     FeedbackType: "served",
