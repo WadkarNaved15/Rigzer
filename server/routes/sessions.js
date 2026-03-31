@@ -91,38 +91,14 @@ router.post(
       const game = post.gamePost;
       const maxDurationSeconds = calculateSessionDuration(game);
 
-      // ✅ Create session in WAITING state
-      const session = await GameSession.create({
-        user: userId,
-        gamePost: gamePostId,
-        status: "waiting",
-        phase: null,
-        maxDurationSeconds,
-        metadata: {
-          gameVersion: game.version,
-          platform: game.platform,
-          gpuRequired: game.systemRequirements?.gpuRequired || false,
-        },
-      });
-
-      console.log(`[Session Start] Created session ${session._id} for user ${userId}`);
-
-      // ✅ Setup SSE stream immediately
-      const send = sessionStreams.get(session._id.toString());
-      if (send) {
-        send({
-          status: "waiting",
-          phase: null,
-        });
-      }
-
+      let queueType = "direct";
       // ✅ Try to allocate instance
       let response202 = {
-        sessionId: session._id,
         status: "waiting",
       };
 
       try {
+        
         const leaseResult = await assignOrStartInstance({});
 
         // ✅ CASE 1: Got instance immediately
@@ -137,6 +113,7 @@ router.post(
             total: leaseResult.totalQueued,
             wait: leaseResult.estimatedWaitMinutes
           });
+          queueType = "queued";
           
           // Include queue info in response
           response202.queuePosition = leaseResult.queuePosition;
@@ -155,7 +132,33 @@ router.post(
         // Don't fail - allocation will happen via instance-ready callback
       }
 
-      console.log(`[Session Start] Returning 202:`, response202);
+        // ✅ Create session in WAITING state
+      const session = await GameSession.create({
+        user: userId,
+        gamePost: gamePostId,
+        status: "waiting",
+        phase: null,
+        maxDurationSeconds,
+        queueType,
+        metadata: {
+          gameVersion: game.version,
+          platform: game.platform,
+          gpuRequired: game.systemRequirements?.gpuRequired || false,
+        },
+      });
+      response202.sessionId = session._id;
+
+// SSE initial event
+const send = sessionStreams.get(session._id.toString());
+if (send) {
+  send({
+    status: "waiting",
+    phase: null
+  });
+}
+
+console.log(`[Session Start] Returning 202`, response202);
+
 
       res.status(202).json(response202);
       // Note: Allocation continues asynchronously via instance-ready callback

@@ -53,6 +53,7 @@ export const QueueProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [eventSource, setEventSource] = useState<EventSource | null>(null);
   const [countdownInterval, setCountdownInterval] = useState<NodeJS.Timeout | null>(null);
 
+
   // ✅ Load session from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -102,59 +103,103 @@ export const QueueProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [queue]);
 
-  // 🔌 Setup SSE Connection
-  const setupSSE = useCallback((sessionId: string) => {
-    console.log('[Queue SSE] Setting up for session', sessionId);
-    
-    if (eventSource) eventSource.close();
+      // 🧹 Clear Session
+const clearSession = useCallback(() => {
+  console.log("[Queue] Clearing session state");
 
-    const es = new EventSource(
-      `${BACKEND_URL}/api/sessions/${sessionId}/events`,
-      { withCredentials: true }
-    );
+  if (eventSource) eventSource.close();
+  if (countdownInterval) clearInterval(countdownInterval);
 
-    es.onmessage = (e) => {
-      const data = JSON.parse(e.data);
-      console.log('[Queue SSE] Received:', data);
+  setQueue({
+    sessionId: null,
+    status: "ended",
+    phase: null,
+    queuePosition: null,
+    totalQueued: null,
+    estimatedWaitMinutes: null,
+    countdownStartsAt: null,
+    countdownSecondsRemaining: null,
+    isDirectPlay: false,
+    errorMessage: null,
+  });
 
-      setQueue((prev) => {
-        const newState = { ...prev };
+  localStorage.removeItem(STORAGE_KEY);
+}, [eventSource, countdownInterval]);
 
-        // ✅ Update status and phase
-        if (data.status) newState.status = data.status;
-        if (data.phase !== undefined) newState.phase = data.phase;
+// 🔌 Setup SSE Connection
+const setupSSE = useCallback((sessionId: string) => {
+  console.log('[Queue SSE] Setting up for session', sessionId);
 
-        // ✅ Update queue info
-        if (data.queuePosition !== undefined) newState.queuePosition = data.queuePosition;
-        if (data.totalQueued !== undefined) newState.totalQueued = data.totalQueued;
-        if (data.estimatedWaitMinutes !== undefined) newState.estimatedWaitMinutes = data.estimatedWaitMinutes;
+  if (eventSource) eventSource.close();
 
-        // ✅ QUEUED USER: allocation_ready → show countdown modal
-        if (data.status === 'allocation_ready') {
-          console.log('[Queue SSE] Instance allocated, showing countdown modal (QUEUED USER)');
-          newState.isDirectPlay = false;
-          newState.countdownStartsAt = data.countdownStartsAt ? new Date(data.countdownStartsAt) : null;
-          newState.countdownSecondsRemaining = data.countdownSeconds || 30;
-        }
+  const es = new EventSource(
+    `${BACKEND_URL}/api/sessions/${sessionId}/events`,
+    { withCredentials: true }
+  );
 
-        // ✅ DIRECT USER: starting → skip countdown, show ads
-        if (data.status === 'starting' && !newState.countdownStartsAt) {
-          console.log('[Queue SSE] Session starting (DIRECT USER), skip to ads');
-          newState.isDirectPlay = true;
-          newState.phase = data.phase || 'downloading';
-        }
+  es.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+    console.log('[Queue SSE] Received:', data);
 
-        return newState;
-      });
-    };
+    // 🔴 Session finished → clear everything
+    if (data.status === "ended" || data.status === "failed") {
+      console.log("[Queue SSE] Session finished, clearing session");
+      clearSession();
+      return;
+    }
 
-    es.onerror = () => {
-      console.warn('[Queue SSE] Connection lost, retrying...');
-      setTimeout(() => setupSSE(sessionId), 3000);
-    };
+    setQueue((prev) => {
+      const newState = { ...prev };
 
-    setEventSource(es);
-  }, [eventSource]);
+      // Update status + phase
+      if (data.status) newState.status = data.status;
+      if (data.phase !== undefined) newState.phase = data.phase;
+
+      // Update queue info
+      if (data.queuePosition !== undefined)
+        newState.queuePosition = data.queuePosition;
+
+      if (data.totalQueued !== undefined)
+        newState.totalQueued = data.totalQueued;
+
+      if (data.estimatedWaitMinutes !== undefined)
+        newState.estimatedWaitMinutes = data.estimatedWaitMinutes;
+
+      // 🟡 QUEUED USER → show countdown modal
+      if (data.status === "allocation_ready") {
+        console.log("[Queue SSE] allocation_ready → queued user");
+
+        newState.isDirectPlay = false;
+        newState.countdownStartsAt = data.countdownStartsAt
+          ? new Date(data.countdownStartsAt)
+          : null;
+        newState.countdownSecondsRemaining = data.countdownSeconds || 30;
+      }
+
+      // 🟢 DIRECT USER → skip countdown, show ads
+      if (data.status === "starting") {
+        console.log("[Queue SSE] starting → direct session");
+
+        newState.isDirectPlay = true;
+
+        // IMPORTANT: reset countdown state
+        newState.countdownStartsAt = null;
+        newState.countdownSecondsRemaining = null;
+
+        newState.phase = data.phase || "downloading";
+      }
+
+      return newState;
+    });
+  };
+
+  es.onerror = () => {
+    console.warn("[Queue SSE] Connection lost, retrying...");
+    setTimeout(() => setupSSE(sessionId), 3000);
+  };
+
+  setEventSource(es);
+}, [eventSource, clearSession]);
 
   // 🎮 Start Session
   const startSession = useCallback(
@@ -282,26 +327,7 @@ export const QueueProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   }, [queue.sessionId]);
 
-  // 🧹 Clear Session
-  const clearSession = useCallback(() => {
-    if (eventSource) eventSource.close();
-    if (countdownInterval) clearInterval(countdownInterval);
 
-    setQueue({
-      sessionId: null,
-      status: 'ended',
-      phase: null,
-      queuePosition: null,
-      totalQueued: null,
-      estimatedWaitMinutes: null,
-      countdownStartsAt: null,
-      countdownSecondsRemaining: null,
-      isDirectPlay: false,
-      errorMessage: null,
-    });
-
-    localStorage.removeItem(STORAGE_KEY);
-  }, [eventSource, countdownInterval]);
 
   // 📌 Dismiss Error
   const dismissError = useCallback(() => {
