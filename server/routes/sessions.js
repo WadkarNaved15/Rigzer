@@ -250,10 +250,10 @@ router.get("/:sessionId/events", verifyToken, async (req, res) => {
     countdownStartsAt: session.countdownStartsAt,
   });
  
-  sessionStreams.set(sessionId, send);
+  sessionStreams.set(sessionId.toString(), send);
  
   req.on("close", () => {
-    sessionStreams.delete(sessionId);
+    sessionStreams.delete(sessionId.toString());
   });
 });
  
@@ -360,7 +360,7 @@ router.post("/:sessionId/cancel", verifyToken, async (req, res) => {
     await GameSession.findByIdAndUpdate(sessionId, updates);
  
     // ✅ Notify SSE
-    const send = sessionStreams.get(sessionId);
+    const send = sessionStreams.get(sessionId.toString());
     if (send) send({ status: "ended", reason });
  
     return res.json({ message: "Session cancelled", sessionId });
@@ -482,7 +482,7 @@ router.post("/complete", async (req, res) => {
       }
 
       // Notify SSE
-      const send = sessionStreams.get(session_id);
+      const send = sessionStreams.get(session_id.toString());
       if (send) send({ status: "ended", reason: exit_reason });
 
       metrics.recordSessionEnd(session.user.toString(), session_id);
