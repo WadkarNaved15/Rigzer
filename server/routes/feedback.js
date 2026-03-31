@@ -14,7 +14,7 @@ router.post("/share", authMiddleware, async (req, res) => {
     insertFeedback({
       feedbackType: "share",
       userId,
-      itemId: postId,
+      postId,
     })
   );
 
@@ -37,7 +37,7 @@ router.post("/view", authMiddleware, async (req, res) => {
       insertFeedback({
         feedbackType: "read", // 🔥 IMPORTANT for Gorse
         userId,
-        itemId: postId,
+        postId,
       })
     );
 

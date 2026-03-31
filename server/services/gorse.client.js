@@ -75,6 +75,10 @@ export async function hideItem(postId) {
  * @param {{ feedbackType: string, userId: string, postId: string, timestamp?: Date }} fb
  */
 export async function insertFeedback({ feedbackType, userId, postId, timestamp }) {
+   if (!userId || !postId) {
+    console.warn("[Gorse] Skipping invalid feedback:", { feedbackType, userId, postId });
+    return;
+  }
   console.log("Sending feedback to Gorse:", feedbackType, userId, postId);
   return gorseRequest("POST", "/api/feedback", [{
     FeedbackType: feedbackType,
@@ -103,6 +107,10 @@ export async function deleteFeedback({ feedbackType, userId, postId }) {
  * @param {string[]} postIds
  */
 export async function recordServed(userId, postIds) {
+  if (!userId || !postIds.length) {
+    console.warn("[Gorse] Skipping served: missing userId");
+    return;
+  }
   console.log("Recording served to Gorse:", userId, postIds);
   if (!postIds.length) return;
   const payload = postIds.map((postId) => ({
