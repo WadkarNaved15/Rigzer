@@ -223,6 +223,8 @@ router.post("/sessions/update", async (req, res) => {
         if (session.instanceId) {
           try{
             const releaseResult = await releaseInstance(session.instanceId, session.leaseToken);
+            await cacheService.del(`streamtoken:${sessionId}`);
+            await assignOrStartInstance({});
             if (!releaseResult.success) {
               console.error(`[Session Update] Failed to release instance ${session.instanceId} after session failure: ${releaseResult.reason}`);
             } else if (releaseResult.scaled) {
@@ -243,6 +245,8 @@ router.post("/sessions/update", async (req, res) => {
         if (session.instanceId) {
           try{
             const releaseResult = await releaseInstance(session.instanceId, session.leaseToken);
+              await cacheService.del(`streamtoken:${sessionId}`);
+              await assignOrStartInstance({});
             if (!releaseResult.success) {
               console.error(`[Session Update] Failed to release instance ${session.instanceId} after session failure: ${releaseResult.reason}`);
             } else if (releaseResult.scaled) {
