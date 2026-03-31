@@ -110,8 +110,9 @@ export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
 
       if (gorseIds.length > 0) {
         // Fetch full post docs for the Gorse-ordered IDs
+        const uniqueIds = [...new Set(gorseIds)];
         const postMap = new Map();
-        const safeIds = gorseIds.filter((id) => id && id.length === 24);
+        const safeIds = uniqueIds.filter((id) => id && id.length === 24);
 
         const docs = await getChronologicalPosts(
           { _id: { $in: safeIds } },
@@ -120,15 +121,15 @@ export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
         docs.forEach((p) => postMap.set(p._id.toString(), p));
 
         // Preserve Gorse's order (it already ranked them for this user)
-        allPosts = gorseIds
+        allPosts = uniqueIds
           .map((id) => postMap.get(id))
           .filter(Boolean);
 
         usedGorse = true;
-
+        const servedIds = allPosts.map(p => p._id.toString());
         // Record impressions so Gorse knows what was shown (fire-and-forget)
         fireAndForget(() =>
-          recordServed(userId, gorseIds.slice(0, limit))
+          recordServed(userId, servedIds)
         );
       }
     } catch (err) {
@@ -161,7 +162,7 @@ export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
       : p._id.getTimestamp().getTime(),
     _cursorType: usedGorse ? "g" : "a",
     _cursorVal: usedGorse
-      ? String(gorseOffset + limit)   // next page offset for Gorse
+      ? String(gorseOffset + fetchLimit)   // next page offset for Gorse
       : p._id.toString(),
   }));
 
