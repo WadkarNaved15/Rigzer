@@ -1,6 +1,7 @@
 import React, { Suspense, lazy } from "react";
 import type { PostProps } from "../types/Post";
 import { useEffect, useRef } from "react";
+import { hasViewedPost,markPostViewed } from "../utils/viewTracker";
 // Lazy load post components
 const NormalPost = lazy(() => import("./Post/NormalPost"));
 const GamePost = lazy(() => import("./Post/GamePost"));
@@ -21,76 +22,70 @@ const Fallback = () => (
 export const Post: React.FC<PostWrapperProps> = (props) => {
   const { type, _id } = props;
   const postRef = useRef<HTMLDivElement | null>(null);
-  const hasViewed = useRef(false);
-
+  
   useEffect(() => {
-    if (!postRef.current) return;
+  if (!postRef.current) return;
 
-    let timer: NodeJS.Timeout | null = null;
-    let isVisible = false;
+  let timer: NodeJS.Timeout | null = null;
+  let isVisible = false;
 
-    const BACKEND_URL =
-      import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+  const BACKEND_URL =
+    import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
-    // 🔁 retry-safe sender
-    const sendView = async (retry = 0) => {
-      try {
-        await fetch(`${BACKEND_URL}/api/feedback/view`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ postId: _id }),
-        });
-      } catch {
-        if (retry < 2) {
-          setTimeout(() => sendView(retry + 1), 1000);
+  const sendView = async () => {
+    try {
+      await fetch(`${BACKEND_URL}/api/feedback/view`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId: _id }),
+      });
+    } catch {}
+  };
+
+  const observer = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0];
+
+      // 🔥 GLOBAL GUARD (most important)
+      if (hasViewedPost(_id)) return;
+
+      if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
+        isVisible = true;
+
+        if (!timer) {
+          timer = setTimeout(() => {
+            if (!isVisible || hasViewedPost(_id)) return;
+
+            // ✅ mark BEFORE sending (prevents race conditions)
+            markPostViewed(_id);
+
+            sendView();
+            timer = null; // ✅ add this
+          }, 1500); // slightly safer than 1000ms
+        }
+      } else {
+        isVisible = false;
+
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
         }
       }
-    };
+    },
+    {
+      threshold: [0.7],
+    }
+  );
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
+  observer.observe(postRef.current);
 
-        // ✅ qualifies as "visible"
-        if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
-          isVisible = true;
-
-          // prevent duplicate timers
-          if (!timer && !hasViewed.current) {
-            timer = setTimeout(() => {
-              // ❗ double-check still visible after 1s
-              if (!isVisible || hasViewed.current) return;
-
-              hasViewed.current = true;
-              sendView(); // 🔥 send signal
-            }, 1000);
-          }
-        } else {
-          // ❌ user scrolled away → cancel
-          isVisible = false;
-
-          if (timer) {
-            clearTimeout(timer);
-            timer = null;
-          }
-        }
-      },
-      {
-        threshold: [0.6],
-      }
-    );
-
-    observer.observe(postRef.current);
-
-    return () => {
-      observer.disconnect();
-
-      if (timer) {
-        clearTimeout(timer);
-      }
-    };
-  }, [_id]);
+  return () => {
+    observer.disconnect();
+    if (timer) clearTimeout(timer);
+  };
+}, [_id]);
+  
 
   const RenderedPost = (() => {
     switch (type) {
