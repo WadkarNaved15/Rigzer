@@ -45,6 +45,11 @@ const GameSessionSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
+    queueType: {
+    type: String,
+    enum: ["direct", "queued"],
+    default: "direct"
+  },
 
     // ✅ INSTANCE ALLOCATION
     instanceId: {

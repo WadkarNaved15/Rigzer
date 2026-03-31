@@ -60,11 +60,7 @@ router.post("/instance-ready", verifyInternalKey, async (req, res) => {
       }
 
       // ✅ STEP 3: Determine if session was QUEUED or DIRECT
-      // If createdAt is more than 5s ago, it was queued
-      const createdTime = new Date(session.createdAt).getTime();
-      const nowTime = Date.now();
-      const ageSeconds = (nowTime - createdTime) / 1000;
-      const wasQueued = ageSeconds > 5; // Queued sessions have older timestamps
+      const wasQueued = session.queueType === "queued";
 
       // ✅ STEP 4: Update session with instance details
       const updates = {
