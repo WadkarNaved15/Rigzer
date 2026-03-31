@@ -89,6 +89,7 @@ router.post("/register", authLimiter, async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
     // 🔐 Generate 6 digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log("otp",otp)
     // 🔐 Hash the OTP
     const hashedOTP = crypto
       .createHash("sha256")

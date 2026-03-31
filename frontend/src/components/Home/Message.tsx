@@ -54,7 +54,6 @@ const MessagingComponent = () => {
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { isAdPlaying } = useUI();
   const { user } = useUser();
   const { users, loading } = useUsers();
   const currentUser = user?._id;
@@ -246,9 +245,6 @@ const MessagingComponent = () => {
       socket.off("receive-message", handler);
     };
   }, [socket, currentUser, activeChat]);
-  if (isAdPlaying) {
-    return null;
-  }
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!socket || !currentUser) return;
     const file = e.target.files?.[0];
