@@ -14,6 +14,7 @@ import { upsertUser, upsertItem, hideItem, fireAndForget } from "./gorse.client.
  *   onUserCreated(user._id.toString());
  */
 export function onUserCreated(userId) {
+  console.log("Sending user to Gorse:", userId);
   fireAndForget(() => upsertUser({ userId }));
 }
 
@@ -29,6 +30,7 @@ export function onUserCreated(userId) {
  *   onPostCreated(savedPost);
  */
 export function onPostCreated(post) {
+  console.log("Sending post to Gorse:", post._id.toString());
   const labels = buildLabels(post);
   const categories = [post.type];
 
@@ -51,6 +53,7 @@ export function onPostCreated(post) {
  *   onPostDeleted(postId);
  */
 export function onPostDeleted(postId) {
+  console.log("Hiding post from Gorse:", postId);
   fireAndForget(() => hideItem(postId));
 }
 
