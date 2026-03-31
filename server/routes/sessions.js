@@ -238,6 +238,7 @@ router.get("/:sessionId/events", verifyToken, async (req, res) => {
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
+
  
   const send = (data) => {
     res.write(`data: ${JSON.stringify(data)}\n\n`);

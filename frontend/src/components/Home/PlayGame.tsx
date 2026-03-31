@@ -87,12 +87,9 @@ export default function AdWithStatus({ sessionId }: AdWithStatusProps) {
       `${BACKEND_URL}/api/sessions/${sessionId}/events`,
       { withCredentials: true }
     );
-    console.log("SSE client connected:", sessionId);
 
     es.onmessage = (e) => {
       const { status, phase } = JSON.parse(e.data);
-
-      console.log("Sending SSE update:", sessionId, status, phase);
 
       const effectiveStatus =
         status === "running" || status === "ended" || status === "failed"
