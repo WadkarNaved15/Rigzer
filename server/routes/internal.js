@@ -215,6 +215,7 @@ router.post("/sessions/update", async (req, res) => {
         break;
 
       case "failed":
+        console.log("Failed in internal")
         updates.status = "failed";
         updates.error = error || "Session failed";
         updates.endedAt = new Date();
@@ -238,6 +239,7 @@ router.post("/sessions/update", async (req, res) => {
         break;
 
       case "ended":
+        console.log("Ended in internal")
         updates.status = "ended";
         updates.endedAt = new Date();
         updates.phase = null;

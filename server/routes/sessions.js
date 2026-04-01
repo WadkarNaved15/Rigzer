@@ -351,6 +351,8 @@ router.post("/:sessionId/cancel", verifyToken, async (req, res) => {
       session.status === "allocation_ready"
         ? "user_cancelled" // User cancelled from countdown modal
         : "user_abandoned"; // User cancelled from queue
+
+        console.log(`[Session Cancel] User cancelled session ${sessionId} with reason ${reason} in session cancel`);
  
     const updates = {
       status: "ended",
@@ -464,6 +466,7 @@ router.post("/complete", async (req, res) => {
 
     // ✅ Only mark as ended if not already
     if (session.status !== "ended") {
+      console.log(`[Session Complete] Ending session ${session_id} with reason ${exit_reason} and code ${exit_code} in sessions complete`);
       const updates = {
         status: "ended",
         endedAt: new Date(),
