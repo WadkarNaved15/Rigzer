@@ -60,7 +60,7 @@ router.post(
         status: { $in: ["waiting", "allocation_ready", "starting", "running"] },
       });
 
-      if (activeSessions) {
+      if (activeSessions >= 1) {
         return res.status(429).json({
           error: "Maximum concurrent sessions reached",
           active: activeSessions,
@@ -324,13 +324,7 @@ router.post("/:sessionId/cancel", verifyToken, async (req, res) => {
     if (session.user.toString() !== userId) {
       return res.status(403).json({ error: "Unauthorized" });
     }
- 
-    // ✅ Can cancel from waiting or allocation_ready
-    if (!["waiting", "allocation_ready"].includes(session.status)) {
-      return res.status(400).json({
-        error: `Cannot cancel from status ${session.status}`,
-      });
-    }
+
  
     // ✅ Release instance if allocated
     if (session.instanceId && session.leaseToken) {

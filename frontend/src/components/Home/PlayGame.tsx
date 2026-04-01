@@ -163,6 +163,35 @@ export default function AdWithStatus({ sessionId }: AdWithStatusProps) {
     }
   };
 
+  const cancelSession = async () => {
+  if (!sessionId) return;
+
+  const confirmCancel = confirm(
+    "Are you sure you want to cancel this session? Your game session will be terminated."
+  );
+
+  if (!confirmCancel) return;
+
+  try {
+    await axios.post(
+      `${BACKEND_URL}/api/sessions/${sessionId}/cancel`,
+      {},
+      { withCredentials: true }
+    );
+
+    // clear session state like queue cancel
+    localStorage.removeItem("queue");
+    localStorage.removeItem("session");
+
+    // redirect back to homepage
+    window.location.href = "/";
+
+  } catch (err) {
+    console.error("Cancel session error:", err);
+    alert("Failed to cancel the session.");
+  }
+};
+
   const handleLaunch = () => {
     if (streamUrl) {
       window.location.href = streamUrl;
@@ -254,53 +283,61 @@ export default function AdWithStatus({ sessionId }: AdWithStatusProps) {
             </div>
           </div>
 
-          {/* ACTION BUTTON */}
-          <div className="flex flex-col items-end gap-2">
-            {canSkip ? (
-              <>
-                <button
-                  onClick={handleLaunch}
-                  disabled={!streamUrl}
-                  className="group flex items-center space-x-3 bg-gray-800 dark:bg-gray-200
-                    text-white dark:text-black px-8 py-3 rounded-xl text-sm font-bold
-                    transition-all shadow-lg hover:scale-[1.02] active:scale-95
-                    disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {/* ✅ Clear loading state while URL is being fetched */}
-                  {streamUrl ? (
-                    <>
-                      <span>LAUNCH SESSION</span>
-                      <ChevronRight size={18} className="transition-transform group-hover:translate-x-1" />
-                    </>
-                  ) : streamUrlError ? (
-                    <span>RETRY</span>
-                  ) : (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      <span>CONNECTING...</span>
-                    </>
-                  )}
-                </button>
-                {/* ✅ Retry button if URL fetch failed */}
-                {streamUrlError && (
-                  <button
-                    onClick={() => {
-                      setStreamUrlError(false);
-                      fetchStreamUrl();
-                    }}
-                    className="text-xs text-gray-500 underline"
-                  >
-                    Retry connection
-                  </button>
-                )}
-              </>
-            ) : (
-              <div className="flex items-center space-x-3 bg-white/80 dark:bg-black/40 backdrop-blur-md px-6 py-3 rounded-xl border border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-500 text-[10px] font-bold tracking-widest uppercase shadow-sm">
-                <div className="w-3 h-3 border-2 border-gray-300 dark:border-gray-700 border-t-gray-600 dark:border-t-gray-300 rounded-full animate-spin" />
-                <span>Preparing Session</span>
-              </div>
-            )}
-          </div>
+{/* ACTION BUTTON */}
+<div className="flex flex-col items-end gap-3">
+
+  {canSkip ? (
+    <>
+      <button
+        onClick={handleLaunch}
+        disabled={!streamUrl}
+        className="group flex items-center space-x-3 bg-gray-800 dark:bg-gray-200
+        text-white dark:text-black px-8 py-3 rounded-xl text-sm font-bold
+        transition-all shadow-lg hover:scale-[1.02] active:scale-95
+        disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {streamUrl ? (
+          <>
+            <span>LAUNCH SESSION</span>
+            <ChevronRight size={18} />
+          </>
+        ) : (
+          <>
+            <Loader2 size={16} className="animate-spin" />
+            <span>CONNECTING...</span>
+          </>
+        )}
+      </button>
+
+      {streamUrlError && (
+        <button
+          onClick={() => {
+            setStreamUrlError(false);
+            fetchStreamUrl();
+          }}
+          className="text-xs text-gray-500 underline"
+        >
+          Retry connection
+        </button>
+      )}
+    </>
+  ) : (
+    <div className="flex items-center space-x-3 bg-white/80 dark:bg-black/40 backdrop-blur-md px-6 py-3 rounded-xl border border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-500 text-[10px] font-bold tracking-widest uppercase shadow-sm">
+      <div className="w-3 h-3 border-2 border-gray-300 dark:border-gray-700 border-t-gray-600 dark:border-t-gray-300 rounded-full animate-spin" />
+      <span>Preparing Session</span>
+    </div>
+  )}
+
+  {/* CANCEL SESSION BUTTON (Always Visible) */}
+  <button
+    onClick={cancelSession}
+    className="text-xs font-bold text-red-500 border border-red-500/40
+    px-5 py-2 rounded-lg hover:bg-red-500/10 transition"
+  >
+    Cancel Session
+  </button>
+
+</div>
 
         </div>
       </div>
