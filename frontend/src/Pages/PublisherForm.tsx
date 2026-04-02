@@ -150,7 +150,7 @@ export default function ArticleEditor() {
           body: JSON.stringify({
             fileName: file.name,
             fileType: file.type,
-            category: "image",
+            category: "media",
           }),
         });
 

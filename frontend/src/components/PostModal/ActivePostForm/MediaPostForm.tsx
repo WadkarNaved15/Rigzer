@@ -57,7 +57,7 @@ const uploadAssetToS3 = async (asset: Asset, onProgress: (percent: number) => vo
       body: JSON.stringify({
         fileName: asset.file.name,
         fileType: asset.file.type,
-        category: asset.type, // "image" | "video"
+        category: "media", // "image" | "video"
       }),
     });
 
@@ -96,7 +96,9 @@ const uploadAssetToS3 = async (asset: Asset, onProgress: (percent: number) => vo
       const updatedAssets = [...assets];
       await Promise.all(updatedAssets.map(async (asset, index) => {
         updatedAssets[index].status = "uploading";
+        updatedAssets[index].progress = 0;
         setAssets([...updatedAssets]);
+        await new Promise(res => setTimeout(res, 100)); 
         const uploadedUrl = await uploadAssetToS3(asset, (p) => {
           updatedAssets[index].progress = p;
           setAssets([...updatedAssets]);
@@ -241,7 +243,7 @@ const uploadAssetToS3 = async (asset: Asset, onProgress: (percent: number) => vo
               <span className="text-sky-500">{asset.progress}%</span>
             </div>
             <div className="h-1.5 bg-gray-200 dark:bg-zinc-800 rounded-full overflow-hidden">
-              <div className="h-full bg-sky-500 transition-all duration-300" style={{ width: `${asset.progress}%` }} />
+              <div className="h-full bg-sky-500 transition-all duration-300" style={{ width: `${asset.progress ?? 0}%` }}/>
             </div>
           </div>
         ))}
