@@ -60,7 +60,7 @@ router.post(
         status: { $in: ["waiting", "allocation_ready", "starting", "running"] },
       });
 
-      if (activeSessions) {
+      if (activeSessions >= 1) {
         return res.status(429).json({
           error: "Maximum concurrent sessions reached",
           active: activeSessions,
@@ -238,6 +238,7 @@ router.get("/:sessionId/events", verifyToken, async (req, res) => {
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
   res.setHeader("X-Accel-Buffering", "no");
+
  
   const send = (data) => {
     res.write(`data: ${JSON.stringify(data)}\n\n`);
@@ -323,13 +324,7 @@ router.post("/:sessionId/cancel", verifyToken, async (req, res) => {
     if (session.user.toString() !== userId) {
       return res.status(403).json({ error: "Unauthorized" });
     }
- 
-    // ✅ Can cancel from waiting or allocation_ready
-    if (!["waiting", "allocation_ready"].includes(session.status)) {
-      return res.status(400).json({
-        error: `Cannot cancel from status ${session.status}`,
-      });
-    }
+
  
     // ✅ Release instance if allocated
     if (session.instanceId && session.leaseToken) {
@@ -350,6 +345,8 @@ router.post("/:sessionId/cancel", verifyToken, async (req, res) => {
       session.status === "allocation_ready"
         ? "user_cancelled" // User cancelled from countdown modal
         : "user_abandoned"; // User cancelled from queue
+
+        console.log(`[Session Cancel] User cancelled session ${sessionId} with reason ${reason} in session cancel`);
  
     const updates = {
       status: "ended",
@@ -463,6 +460,7 @@ router.post("/complete", async (req, res) => {
 
     // ✅ Only mark as ended if not already
     if (session.status !== "ended") {
+      console.log(`[Session Complete] Ending session ${session_id} with reason ${exit_reason} and code ${exit_code} in sessions complete`);
       const updates = {
         status: "ended",
         endedAt: new Date(),
