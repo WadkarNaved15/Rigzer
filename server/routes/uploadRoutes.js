@@ -1,9 +1,9 @@
 import express from "express";
-import { 
+import {
   PutObjectCommand,
-  CreateMultipartUploadCommand, 
-  UploadPartCommand, 
-  CompleteMultipartUploadCommand ,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
   DeleteObjectCommand
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -34,7 +34,13 @@ router.post("/presigned-url", async (req, res) => {
     }
 
     else if (category === "media") {
-      key = `models/images/${uuidv4()}-${fileName}`;
+      if (fileType?.startsWith("image/")) {
+        key = `media/images/${uuidv4()}-${fileName}`;
+      } else if (fileType?.startsWith("video/")) {
+        key = `media/videos/${uuidv4()}-${fileName}`;
+      } else {
+        return res.status(400).json({ message: "Unsupported file type" });
+      }
     }
 
     else if (category === "background") {
@@ -55,7 +61,6 @@ router.post("/presigned-url", async (req, res) => {
     const uploadUrl = await getSignedUrl(s3, command, {
       expiresIn: 300,
     });
-
     res.json({
       uploadUrl,
       key,
@@ -124,9 +129,9 @@ router.post("/game/complete-multipart", async (req, res) => {
     });
 
     await s3.send(command);
-    res.json({ 
-      success: true, 
-      fileUrl: `/${key}` 
+    res.json({
+      success: true,
+      fileUrl: `/${key}`
     });
   } catch (err) {
     console.error(err);
