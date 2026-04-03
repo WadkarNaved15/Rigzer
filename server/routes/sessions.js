@@ -202,6 +202,8 @@ router.get("/status/:sessionId", verifyToken, async (req, res) => {
 router.get("/:sessionId/events", verifyToken, async (req, res) => {
   const { sessionId } = req.params;
   const userId = req.user.id;
+
+  console.log(`[SSE (Session)] User ${userId} requested events for session ${sessionId}`);
  
   const session = await GameSession.findById(sessionId)
     .select("user status phase countdownStartsAt")
@@ -286,6 +288,8 @@ router.post("/:sessionId/cancel", verifyToken, async (req, res) => {
     const userId = req.user.id;
  
     const session = await GameSession.findById(sessionId);
+
+      console.log(`[Session Cancel] User requested cancel for session ${sessionId}`);
  
     if (!session) {
       return res.status(404).json({ error: "Session not found" });
@@ -347,6 +351,8 @@ router.post("/:sessionId/abandon/:secret", async (req, res) => {
 
   try {
     const session = await GameSession.findById(sessionId);
+
+    console.log(`[Abandon] Processing abandon for session ${sessionId}`);
 
     if (!session || session.status === "ended") {
       return res.sendStatus(200);
@@ -415,6 +421,8 @@ router.post("/complete", async (req, res) => {
     if (!session) {
       return res.status(404).json({ error: "Session not found" });
     }
+
+    console.log(`[Session Complete] Completing session ${session_id} with reason ${exit_reason} and duration ${duration_seconds}s`);
 
     if (session.status !== "ended") {
       console.log(`[Session Complete] Ending session ${session_id} with reason ${exit_reason}`);
