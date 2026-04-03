@@ -193,6 +193,7 @@ router.post("/sessions/update", async (req, res) => {
               instanceIp: session.instanceIp,
               userId: session.user.toString(),
               sessionId: sessionId,
+              status: "running",
             },
             session.maxDurationSeconds ?? 3600
           );
@@ -235,7 +236,13 @@ router.post("/sessions/update", async (req, res) => {
         if (session.instanceId && session.leaseToken) {
           try {
             const releaseResult = await releaseInstance(session.instanceId, session.leaseToken);
-            await cacheService.del(`streamtoken:${sessionId}`);
+            const token = await cacheService.get(`streamtoken:${sessionId}`);
+
+              if (token) {
+                await cacheService.del(`stream:${token}`);
+              }
+
+              await cacheService.del(`streamtoken:${sessionId}`);
             await assignOrStartInstance({});
           } catch (err) {
             console.error(`[Session Update] Error releasing after failure:`, err.message);
@@ -270,6 +277,12 @@ router.post("/sessions/update", async (req, res) => {
         if (session.instanceId && session.leaseToken) {
           try {
             const releaseResult = await releaseInstance(session.instanceId, session.leaseToken);
+            const token = await cacheService.get(`streamtoken:${sessionId}`);
+
+            if (token) {
+              await cacheService.del(`stream:${token}`);
+            }
+
             await cacheService.del(`streamtoken:${sessionId}`);
             await assignOrStartInstance({});
           } catch (err) {

@@ -51,6 +51,14 @@ router.use(async (req, res) => {
     return res.sendStatus(404);
   }
 
+   if (cached.status !== "running") {
+    console.warn(
+      `[StreamProxy] Session not running (${cached.status}) for ${streamToken}`
+    );
+    return res.sendStatus(403);
+  }
+
+
   //Auth User
 //  const userId = getUserIdFromCookie(req);
 //   if (!userId || userId !== cached.userId) {
