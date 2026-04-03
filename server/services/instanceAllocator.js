@@ -28,6 +28,7 @@ export async function assignOrStartInstance(requirements = {}) {
       reason: payload.reason
     });
 
+    console.log("Assigning instance...")
     // ✅ CASE 1: Got instance immediately
     if (payload.status === "ASSIGNED") {
       return {

@@ -21,7 +21,7 @@ const verifyInternalKey = (req, res, next) => {
 /**
  * POST /api/internal/instance-ready
  * Called by ASG when instance becomes available
- * ✅ Updated: Handles both queue and direct allocation
+ * ✅ Handles both queue and direct allocation + prepares for restart
  */
 router.post("/instance-ready", verifyInternalKey, async (req, res) => {
   const { workerId, instanceIp } = req.body;
@@ -74,14 +74,12 @@ router.post("/instance-ready", verifyInternalKey, async (req, res) => {
 
       // ✅ STEP 5: Determine next status based on queue origin
       if (wasQueued) {
-        // Session was in queue → show countdown modal
         updates.status = "allocation_ready";
         updates.phase = "countdown";
-        updates.countdownStartsAt = new Date(Date.now() + 5000); // 5s buffer
+        updates.countdownStartsAt = new Date(Date.now() + 5000);
         updates.countdownSeconds = 30;
         log(`[Instance Ready] Session ${session._id} WAS QUEUED → allocation_ready (show countdown)`);
       } else {
-        // Session was direct (just clicked play) → skip to starting
         updates.status = "starting";
         updates.phase = "downloading";
         log(`[Instance Ready] Session ${session._id} WAS DIRECT → starting (show ads)`);
@@ -97,7 +95,6 @@ router.post("/instance-ready", verifyInternalKey, async (req, res) => {
       const send = sessionStreams.get(session._id.toString());
       if (send) {
         if (wasQueued) {
-          // Queued: send countdown notification
           send({
             status: "allocation_ready",
             phase: "countdown",
@@ -105,7 +102,6 @@ router.post("/instance-ready", verifyInternalKey, async (req, res) => {
             countdownSeconds: 30,
           });
         } else {
-          // Direct: skip to starting
           send({
             status: "starting",
             phase: "downloading",
@@ -114,7 +110,6 @@ router.post("/instance-ready", verifyInternalKey, async (req, res) => {
       }
 
       // ✅ STEP 7: For DIRECT sessions, immediately call controller
-      // For QUEUED sessions, wait for user to click LAUNCH
       if (!wasQueued) {
         await callController(updatedSession, lease);
       }
@@ -154,7 +149,7 @@ router.post("/instance-ready", verifyInternalKey, async (req, res) => {
 /**
  * POST /api/internal/sessions/update
  * Called by instance controller to update session status
- * ✅ Updated: Handles queue system transitions
+ * ✅ Handles all phase transitions including cleanup
  */
 router.post("/sessions/update", async (req, res) => {
   try {
@@ -187,7 +182,7 @@ router.post("/sessions/update", async (req, res) => {
         updates.phase = null;
         if (!session.startedAt) updates.startedAt = new Date();
 
-        // ✅ Only generate token once
+        // ✅ Generate stream token
         const existingToken = await cacheService.get(`streamtoken:${sessionId}`);
         if (!existingToken) {
           const streamToken = crypto.randomBytes(31).toString("hex");
@@ -209,55 +204,77 @@ router.post("/sessions/update", async (req, res) => {
           );
 
           console.log(`[StreamToken] Generated for session ${sessionId}: ${streamToken.slice(0, 8)}...`);
-        } else {
-          console.log(`[StreamToken] Already exists for session ${sessionId}, skipping`);
         }
         break;
 
       case "failed":
-        console.log("Failed in internal")
         updates.status = "failed";
         updates.error = error || "Session failed";
         updates.endedAt = new Date();
         updates.phase = null;
         updates.exitReason = "error";
-        if (session.instanceId) {
-          try{
+        
+        // ✨ NEW: Trigger controller prepare on failure (web server restart)
+        if (session.instanceIp) {
+          try {
+            await fetch(
+              `http://${session.instanceIp}:4443/prepare-for-next-stream`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ session_id: sessionId, force_restart: false }),
+                timeout: 20000,
+              }
+            );
+            console.log(`[Session Update] Instance prepared after failure`);
+          } catch (err) {
+            console.error(`[Session Update] Prepare after failure failed:`, err.message);
+          }
+        }
+
+        if (session.instanceId && session.leaseToken) {
+          try {
             const releaseResult = await releaseInstance(session.instanceId, session.leaseToken);
             await cacheService.del(`streamtoken:${sessionId}`);
             await assignOrStartInstance({});
-            if (!releaseResult.success) {
-              console.error(`[Session Update] Failed to release instance ${session.instanceId} after session failure: ${releaseResult.reason}`);
-            } else if (releaseResult.scaled) {
-              console.log(`[Session Update] Instance ${session.instanceId} scaled down after session failure`);
-            }
-
           } catch (err) {
-            console.error(`[Session Update] Exception while releasing instance ${session.instanceId} after session failure: ${err.message}`);
+            console.error(`[Session Update] Error releasing after failure:`, err.message);
+          }
         }
-      }
         break;
 
       case "ended":
-        console.log("Ended in internal")
         updates.status = "ended";
         updates.endedAt = new Date();
         updates.phase = null;
         updates.exitReason = "user_exit";
-        if (session.instanceId) {
-          try{
-            const releaseResult = await releaseInstance(session.instanceId, session.leaseToken);
-              await cacheService.del(`streamtoken:${sessionId}`);
-              await assignOrStartInstance({});
-            if (!releaseResult.success) {
-              console.error(`[Session Update] Failed to release instance ${session.instanceId} after session failure: ${releaseResult.reason}`);
-            } else if (releaseResult.scaled) {
-              console.log(`[Session Update] Instance ${session.instanceId} scaled down after session failure`);
-            }
-
+        
+        // ✨ NEW: Trigger controller prepare on normal end (web server restart)
+        if (session.instanceIp) {
+          try {
+            await fetch(
+              `http://${session.instanceIp}:4443/prepare-for-next-stream`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ session_id: sessionId, force_restart: false }),
+                timeout: 20000,
+              }
+            );
+            console.log(`[Session Update] Instance prepared after normal end`);
           } catch (err) {
-            console.error(`[Session Update] Exception while releasing instance ${session.instanceId} after session failure: ${err.message}`);
+            console.error(`[Session Update] Prepare after end failed:`, err.message);
+          }
         }
+
+        if (session.instanceId && session.leaseToken) {
+          try {
+            const releaseResult = await releaseInstance(session.instanceId, session.leaseToken);
+            await cacheService.del(`streamtoken:${sessionId}`);
+            await assignOrStartInstance({});
+          } catch (err) {
+            console.error(`[Session Update] Error releasing after end:`, err.message);
+          }
         }
         break;
 
@@ -295,7 +312,7 @@ router.post("/sessions/update", async (req, res) => {
 /**
  * POST /api/internal/session/launch
  * Called by FRONTEND when user clicks LAUNCH in countdown modal
- * ✅ NEW: Handles transition from countdown → starting
+ * ✅ Transition from countdown → starting
  */
 router.post("/session/launch", async (req, res) => {
   try {
@@ -310,14 +327,12 @@ router.post("/session/launch", async (req, res) => {
       return res.status(404).json({ error: "Session not found" });
     }
 
-    // ✅ Only allow launching from allocation_ready state
     if (session.status !== "allocation_ready") {
       return res.status(400).json({
         error: `Cannot launch from status ${session.status}`,
       });
     }
 
-    // ✅ Update to starting
     const updates = {
       status: "starting",
       phase: "downloading",
@@ -329,7 +344,6 @@ router.post("/session/launch", async (req, res) => {
       { new: true }
     );
 
-    // ✅ Notify SSE
     const send = sessionStreams.get(sessionId.toString());
     if (send) {
       send({
@@ -338,7 +352,6 @@ router.post("/session/launch", async (req, res) => {
       });
     }
 
-    // ✅ Call controller
     await callController(updatedSession, {
       id: session.instanceId,
       ip: session.instanceIp,
@@ -373,15 +386,12 @@ router.get("/resolve/:sessionId", async (req, res) => {
  */
 async function callController(session, lease) {
   try {
-    // Fetch full game details
     const post = await AllPost.findById(session.gamePost).select("gamePost").lean();
     if (!post) {
       throw new Error("Game post not found");
     }
 
     const game = post.gamePost;
-
-    // ✅ Prepare payload
     const buildId = game.file.name;
     const startPath = game.startPath.replace(/\//g, "\\");
     const fileUrl = game.file.url.replace(/^\/+/, "");
