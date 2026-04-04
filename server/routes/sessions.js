@@ -390,16 +390,53 @@ router.post("/:sessionId/abandon/:secret", async (req, res) => {
 router.post("/running", async (req, res) => {
   const { session_id } = req.body;
 
+  if (!session_id) {
+    return res.status(400).json({ error: "session_id required" });
+  }
+
   try {
     const session = await GameSession.findById(session_id);
-    if (!session) return res.sendStatus(404);
 
-    console.log(`[Running] Session ${session_id} is now streaming`);
+    if (!session) {
+      console.warn(`[Running] Session not found: ${session_id}`);
+      return res.status(404).json({ error: "Session not found" });
+    }
 
-    res.json({ success: true });
+    // If already running avoid duplicate updates
+    if (session.status !== "running") {
+      await GameSession.findByIdAndUpdate(session_id, {
+        status: "running",
+        phase: "streaming",
+        startedAt: new Date()
+      });
+
+      console.log(`[Running] Session ${session_id} is now streaming`);
+
+      // Notify SSE clients
+      const send = sessionStreams.get(session_id.toString());
+      if (send) {
+        send({
+          status: "running",
+          phase: "streaming"
+        });
+      }
+
+      // Optional: publish event for pubsub
+      try {
+        await publishSessionEvent(session_id, {
+          status: "running",
+          phase: "streaming"
+        });
+      } catch (err) {
+        console.warn("[Running] PubSub publish failed:", err.message);
+      }
+    }
+
+    return res.json({ success: true });
+
   } catch (err) {
     console.error("[Running] Error:", err);
-    res.sendStatus(500);
+    return res.status(500).json({ error: "internal_error" });
   }
 });
 
