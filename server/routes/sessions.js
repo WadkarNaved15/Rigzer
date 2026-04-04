@@ -485,6 +485,84 @@ router.post("/complete", async (req, res) => {
   }
 });
 
+
+/**
+ * POST /api/sessions/violation
+ * ✅ Called by supervisor when a rule violation occurs
+ * (focus loss, unauthorized process, integrity failure, etc.)
+ */
+router.post("/violation", async (req, res) => {
+  try {
+    const {
+      session_id,
+      violation,
+      exit_code,
+      duration_seconds
+    } = req.body;
+
+    if (!session_id) {
+      return res.status(400).json({ error: "session_id required" });
+    }
+
+    const session = await GameSession.findById(session_id);
+    if (!session) {
+      return res.status(404).json({ error: "Session not found" });
+    }
+
+    console.log(
+      `[Session Violation] Session ${session_id} violation: ${violation}`
+    );
+
+    const updates = {
+      status: "ended",
+      endedAt: new Date(),
+      exitReason: violation || "violation",
+      exitCode: exit_code
+    };
+
+    await GameSession.findByIdAndUpdate(session_id, updates);
+
+    // Release instance
+    if (session.instanceId && session.leaseToken) {
+      try {
+        await releaseInstance(session.instanceId, session.leaseToken);
+      } catch (err) {
+        console.error("Violation release error:", err);
+      }
+    }
+
+    // Remove stream token
+    const token = await cacheService.get(`streamtoken:${session_id}`);
+    if (token) {
+      await cacheService.del(`stream:${token}`);
+    }
+    await cacheService.del(`streamtoken:${session_id}`);
+
+    // Notify SSE clients
+    const send = sessionStreams.get(session_id.toString());
+    if (send) {
+      send({
+        status: "ended",
+        reason: violation
+      });
+    }
+
+    await publishSessionEvent(session_id, {
+      status: "ended",
+      phase: null,
+      reason: violation
+    });
+
+    console.log(`[Session Violation] Session ${session_id} terminated`);
+
+    return res.json({ success: true });
+
+  } catch (err) {
+    console.error("[Session Violation] Error:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 /* ================= HELPERS ================= */
 
 function calculateSessionDuration(game) {
