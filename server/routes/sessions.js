@@ -389,6 +389,7 @@ router.post("/:sessionId/abandon/:secret", async (req, res) => {
  */
 router.post("/running", async (req, res) => {
   const { session_id } = req.body;
+  console.log("[Running] Payload:", req.body);
 
   if (!session_id) {
     return res.status(400).json({ error: "session_id required" });
