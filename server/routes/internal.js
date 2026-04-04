@@ -104,7 +104,6 @@ router.post("/instance-ready", verifyInternalKey, async (req, res) => {
         } else {
           send({
             status: "starting",
-            phase: "downloading",
           });
         }
       }
@@ -426,6 +425,7 @@ async function callController(session, lease) {
       cleanup_on_timeout: cleanupPolicy.on_timeout,
       delete_game_files: cleanupPolicy.delete_game_files,
       shared_build: cleanupPolicy.shared_build,
+      lockdown_enabled: true,
     };
 
     console.log(`[Controller] Calling http://${lease.ip}:4443/start-session`);
