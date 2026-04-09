@@ -152,7 +152,8 @@ router.post("/instance-ready", verifyInternalKey, async (req, res) => {
  */
 router.post("/sessions/update", async (req, res) => {
   try {
-    const { sessionId, status, error } = req.body;
+const sessionId = req.body.sessionId || req.body.session_id;
+const { status, error } = req.body;    console.log("[Controller Update] Body:", req.body);
     console.log(`[Session Update] Received update for session ${sessionId}: ${status}`);
 
     if (!sessionId) {
@@ -202,7 +203,7 @@ router.post("/sessions/update", async (req, res) => {
             streamToken,
             session.maxDurationSeconds ?? 3600
           );
-
+          console.log(`[Session Update] Session ${sessionId} marked running`);
           console.log(`[StreamToken] Generated for session ${sessionId}: ${streamToken.slice(0, 8)}...`);
         }
         break;
@@ -314,7 +315,11 @@ router.post("/sessions/update", async (req, res) => {
       phase: updatedSession.phase,
     });
 
-    return res.json({ ok: true });
+   return res.status(200).json({
+  success: true,
+  sessionId,
+  status
+});
   } catch (err) {
     console.error("[Session Update] Error:", err);
     return res.status(500).json({ error: "Internal server error" });
