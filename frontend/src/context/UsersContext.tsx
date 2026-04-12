@@ -16,11 +16,13 @@ export interface User {
 
 interface UsersContextValue {
   users: User[];
+  setUsers: React.Dispatch<React.SetStateAction<User[]>>; // ✅ add this
   loading: boolean;
 }
 
 const UsersContext = createContext<UsersContextValue>({
   users: [],
+  setUsers: () => {},
   loading: true
 });
 
@@ -37,33 +39,35 @@ export function UsersProvider({ children }: { children: React.ReactNode }) {
     }
 
     const fetchUsers = async () => {
-      try {
-        const res = await axios.get(`${BACKEND_URL}/api/users`, {
-          withCredentials: true
-        });
+  try {
+    const res = await axios.get(`${BACKEND_URL}/api/chat/my-chats`, {
+      withCredentials: true
+    });
 
-        const formatted = res.data.filter((u:any) => u._id !== user._id).map((u: any) => ({
-          id: u._id,
-          name: u.username,
-          avatar: u.avatar,
-          status: "online",
-          lastSeen: "Unknown",
-          unreadCount: 0
-        }));
+    const formatted = res.data.map((chat: any) => ({
+      id: chat.user.id,
+      name: chat.user.name,
+      avatar: chat.user.avatar,
+      unreadCount: 0,
+      status: "online",
+      lastSeen: "Unknown",
+      chatId: chat.chatId // 🔥 IMPORTANT
+    }));
 
-        setUsers(formatted);
-      } catch (err) {
-        console.error("Fetch users failed", err);
-      } finally {
-        setLoading(false);
-      }
-    };
+    setUsers(formatted);
+
+  } catch (err) {
+    console.error("Fetch chats failed", err);
+  } finally {
+    setLoading(false);
+  }
+};
 
     fetchUsers();
   }, [user]);
 
   return (
-    <UsersContext.Provider value={{ users, loading }}>
+    <UsersContext.Provider value={{ users, setUsers, loading }}>
       {children}
     </UsersContext.Provider>
   );

@@ -80,7 +80,7 @@ const ProfilePage: React.FC = () => {
       if (!username) return;
       try {
         const res = await axios.get(
-          `${BACKEND_URL}/api/users/username/${username}`, 
+          `${BACKEND_URL}/api/users/username/${username}`,
           { withCredentials: true } // Added here
         );
         if (usernameRef.current !== username) return; // stale guard
@@ -216,7 +216,13 @@ const ProfilePage: React.FC = () => {
                       initialFollowing={profileUser?.isFollowing ?? false}
                     />
                     <button
-                      onClick={() => openChatWith(profileUser!._id)}
+                      onClick={() =>
+                        openChatWith({
+                          id: profileUser!._id,
+                          name: profileUser!.username,
+                          avatar: profileUser!.avatar ?? './default-avatar.png',
+                        })
+                      }
                       className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all active:scale-95"
                     >
                       <MessageSquare size={16} strokeWidth={3} />

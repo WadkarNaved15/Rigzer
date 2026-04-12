@@ -24,28 +24,28 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <UIProvider>
         <SocketProvider userId={user?._id}>
-          <FollowProvider>
-            <ChatProvider>
-              <UsersProvider>
-                <NotificationProvider>
-                  <SearchProvider>
-                    <PublishedArticlesProvider>
-                      <GoogleOAuthProvider clientId="970893892840-8ecshtmle4kip6ps0bl7vbkg3nogl5od.apps.googleusercontent.com">
-                        <FeedProvider>
-                          <FeedbackProvider>
-                            <>
-                              <ToastContainer />
-                              <RouterProvider router={router} />
-                            </>
-                          </FeedbackProvider>
-                        </FeedProvider>
-                      </GoogleOAuthProvider>
-                    </PublishedArticlesProvider>
-                  </SearchProvider>
-                </NotificationProvider>
-              </UsersProvider>
-            </ChatProvider>
-          </FollowProvider>
+            <FollowProvider>
+              <ChatProvider>
+                <UsersProvider>
+                  <NotificationProvider>
+                    <SearchProvider>
+                      <PublishedArticlesProvider>
+                        <GoogleOAuthProvider clientId="970893892840-8ecshtmle4kip6ps0bl7vbkg3nogl5od.apps.googleusercontent.com">
+                          <FeedProvider>
+                            <FeedbackProvider>
+                              <>
+                                <ToastContainer />
+                                <RouterProvider router={router} />
+                              </>
+                            </FeedbackProvider>
+                          </FeedProvider>
+                        </GoogleOAuthProvider>
+                      </PublishedArticlesProvider>
+                    </SearchProvider>
+                  </NotificationProvider>
+                </UsersProvider>
+              </ChatProvider>
+            </FollowProvider>
         </SocketProvider>
       </UIProvider>
     </QueryClientProvider>

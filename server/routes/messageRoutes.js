@@ -9,7 +9,7 @@ const router = express.Router();
 router.post("/", verifyToken,async (req, res) => {
   try {
     const senderId = req.user.id;
-    const { chatId, text } = req.body;
+    const { chatId, text ,receiverId} = req.body;
 
     const message = await Message.create({
       chatId,
@@ -76,10 +76,9 @@ router.put("/seen/:chatId", verifyToken, async (req, res) => {
 router.get("/:chatId", async (req, res) => {
   try {
     const { chatId } = req.params;
-
     const messages = await Message.find({ chatId })
       .sort({ createdAt: 1 });
-
+    console.log(`Messages for chat ${chatId}:`, messages);
     res.json(messages);
   } catch (err) {
     console.error("Fetch messages error:", err);

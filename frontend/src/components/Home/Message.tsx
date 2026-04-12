@@ -54,10 +54,10 @@ const MessagingComponent = () => {
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { user } = useUser();
-  const { users, loading } = useUsers();
+  const { user} = useUser();
+  const { users, loading, setUsers} = useUsers();
   const currentUser = user?._id;
-  const { targetUserId } = useChat();
+  const { targetUser } = useChat();
   const socket = useSocket();
 
   // CSS animation for shine
@@ -99,7 +99,7 @@ const MessagingComponent = () => {
       body: JSON.stringify({
         fileName: asset.file.name,
         fileType: asset.file.type,
-        category: asset.type,
+        category: "media",
       }),
     });
 
@@ -171,12 +171,31 @@ const MessagingComponent = () => {
     fetchUnreadCounts();
   }, [isOpen]);
   useEffect(() => {
-    if (!targetUserId) return;
+  if (!targetUser) return;
 
-    setIsOpen(true);
-    handleUserClick(targetUserId);
+  setIsOpen(true);
 
-  }, [targetUserId]);
+  // 🔥 Add user to users list IF NOT EXISTS
+  setUsers((prev) => {
+    const exists = prev.find((u) => u.id === targetUser.id);
+    if (exists) return prev;
+
+    return [
+      {
+        id: targetUser.id,
+        name: targetUser.name,
+        avatar: targetUser.avatar,
+        unreadCount: 0,
+        lastSeen: "Just now",
+      },
+      ...prev,
+    ];
+  });
+
+  // 🔥 Open chat
+  handleUserClick(targetUser.id);
+
+}, [targetUser]);
   useEffect(() => {
     if (!socket) return;
 
@@ -203,6 +222,8 @@ const MessagingComponent = () => {
     };
   }, [socket]);
 
+
+
   useEffect(() => {
     if (!socket || !currentUser) return;
     console.log("new read message socket got called");
@@ -226,9 +247,12 @@ const MessagingComponent = () => {
     if (!socket || !currentUser) return;
     const handler = (msg: any) => {
       if (!currentUser) return;
-
       if (msg.senderId === currentUser && !msg.tempId) return;
-
+      // 🔥 Assign chatId if first message
+      if (!currentChatId) {
+        setCurrentChatId(msg.chatId);
+        socket.emit("join_chat", msg.chatId);
+      }
       const otherUserId =
         msg.senderId === currentUser ? msg.receiverId : msg.senderId;
 
@@ -244,7 +268,7 @@ const MessagingComponent = () => {
     return () => {
       socket.off("receive-message", handler);
     };
-  }, [socket, currentUser, activeChat]);
+  }, [socket, currentUser, activeChat, currentChatId]);
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!socket || !currentUser) return;
     const file = e.target.files?.[0];
@@ -330,32 +354,40 @@ const MessagingComponent = () => {
         { receiverId },
         { withCredentials: true }
       );
+      // 🔥 If chat exists
+      if (data?._id && socket) {
+        setCurrentChatId(data._id);
 
-      setCurrentChatId(data._id);
-      if (socket) {
         socket.emit("join_chat", data._id);
         console.log("Joined chat room:", data._id);
-      }
-      // Fetch previous messages for this chat
-      const messagesResponse = await axios.get(`${BACKEND_URL}/api/messages/${data._id}`, {
-        withCredentials: true,
-      });
+        const messagesResponse = await axios.get(
+          `${BACKEND_URL}/api/messages/${data._id}`,
+          { withCredentials: true }
+        );
 
-      setConversations((prev) => ({
-        ...prev,
-        [receiverId]: messagesResponse.data,
-      }));
-      // ✅ 4️⃣ Mark all received messages as SEEN
-      await axios.put(
-        `${BACKEND_URL}/api/messages/seen/${data._id}`,
-        {},
-        { withCredentials: true }
-      );
-      setUnreadCounts((prev) => ({
-        ...prev,
-        [receiverId]: 0,
-      }));
-      console.log("Messages marked as seen!");
+        setConversations((prev) => ({
+          ...prev,
+          [receiverId]: messagesResponse.data,
+        }));
+        // ✅ 4️⃣ Mark all received messages as SEEN
+        await axios.put(
+          `${BACKEND_URL}/api/messages/seen/${data._id}`,
+          {},
+          { withCredentials: true }
+        );
+        setUnreadCounts((prev) => ({
+          ...prev,
+          [receiverId]: 0,
+        }));
+        console.log("Messages marked as seen!");
+      } else {
+        // 🔥 NO CHAT EXISTS → EMPTY STATE
+        setCurrentChatId(null);
+        setConversations((prev) => ({
+          ...prev,
+          [receiverId]: [],
+        }));
+      }
 
     } catch (error) {
       console.error("Error starting chat:", error);
@@ -368,7 +400,7 @@ const MessagingComponent = () => {
     const tempId = Date.now(); // unique temporary ID
     const newMessage = {
       tempId,
-      chatId: currentChatId,
+      chatId: currentChatId || null,
       senderId: currentUser ? currentUser : null,
       receiverId: activeChat,
       text: message,
@@ -643,72 +675,105 @@ const MessagingComponent = () => {
                     </div>
 
                     {/* Users List */}
+                    {/* Users List */}
                     <div className="flex-1 overflow-y-auto">
-                      {/* The comma operator executes the log and returns null, satisfying TypeScript and React */}
-                      {(console.log("🔥 unreadCounts STATE =", unreadCounts), null)}
-
-                      {filteredUsers.map((u) => (
-                        <div
-                          key={u.id}
-                          onClick={() => handleUserClick(u.id)}
-                          className={`flex items-center p-4 cursor-pointer transition-colors border-b ${isMaximized
-                            ? "hover:bg-white/10 border-white/10"
-                            : "hover:bg-gray-50 dark:hover:bg-gray-900 border-gray-100 dark:border-gray-800"
-                            }`}
-                        >
-                          <div className="relative">
-                            <div className="relative w-10 h-10">
-                              <img
-                                src={u.avatar ? u.avatar : "/default_avatar.png"}
-                                alt={u.name}
-                                className="w-10 h-10 rounded-full object-cover"
-                                onError={(e) => {
-                                  const img = e.currentTarget;
-                                  img.onerror = null;
-                                  img.src = "/default_avatar.png";
-                                }}
-                              />
-                            </div>
-                            {onlineUsers.includes(u.id) && (
-                              <div
-                                className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 ${isMaximized
-                                  ? "border-white"
-                                  : "border-white dark:border-black"
-                                  } bg-green-400`}
-                              />
-                            )}
+                      {loading ? (
+                        // Loading State
+                        <div className="flex flex-col items-center justify-center h-full py-12">
+                          <div className="w-8 h-8 border-4 border-gray-300 dark:border-gray-700 border-t-gray-600 dark:border-t-white rounded-full animate-spin mb-3"></div>
+                          <p className={`${isMaximized ? "text-white/70" : "text-gray-500 dark:text-gray-400"} text-sm`}>
+                            Loading users...
+                          </p>
+                        </div>
+                      ) : filteredUsers.length === 0 ? (
+                        // No Users Found
+                        <div className="flex flex-col items-center justify-center h-full py-16 px-6 text-center">
+                          <div className={`${isMaximized ? "text-white/30" : "text-gray-300 dark:text-gray-600"} mb-4`}>
+                            <MessageCircle size={48} />
                           </div>
 
-                          <div className="ml-3 flex-1">
-                            <div className="flex items-center justify-between">
-                              <h4
-                                className={`${isMaximized ? "text-white" : "text-gray-900 dark:text-white"
-                                  } font-semibold text-sm`}
-                              >
-                                {u.name}
-                              </h4>
+                          <h3 className={`font-medium text-lg mb-2 ${isMaximized ? "text-white" : "text-gray-900 dark:text-white"}`}>
+                            {searchTerm ? "No matching users" : "No users yet"}
+                          </h3>
 
-                              {/* Using optional chaining and nullish coalescing to ensure unreadCounts[u.id] is a number */}
-                              {(unreadCounts[u.id] ?? 0) > 0 && (
+                          <p className={`${isMaximized ? "text-white/60" : "text-gray-500 dark:text-gray-400"} text-sm max-w-[220px]`}>
+                            {searchTerm
+                              ? `No users found matching "${searchTerm}"`
+                              : "You haven't chatted with anyone yet. Start a conversation!"
+                            }
+                          </p>
+
+                          {searchTerm && (
+                            <button
+                              onClick={() => setSearchTerm("")}
+                              className="mt-4 text-sm text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 underline"
+                            >
+                              Clear search
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        // Actual Users List
+                        filteredUsers.map((u) => (
+                          <div
+                            key={u.id}
+                            onClick={() => handleUserClick(u.id)}
+                            className={`flex items-center p-4 cursor-pointer transition-colors border-b ${isMaximized
+                                ? "hover:bg-white/10 border-white/10"
+                                : "hover:bg-gray-50 dark:hover:bg-gray-900 border-gray-100 dark:border-gray-800"
+                              }`}
+                          >
+                            <div className="relative">
+                              <div className="relative w-10 h-10">
+                                <img
+                                  src={u.avatar ? u.avatar : "/default_avatar.png"}
+                                  alt={u.name}
+                                  className="w-10 h-10 rounded-full object-cover"
+                                  onError={(e) => {
+                                    const img = e.currentTarget;
+                                    img.onerror = null;
+                                    img.src = "/default_avatar.png";
+                                  }}
+                                />
+                              </div>
+                              {onlineUsers.includes(u.id) && (
                                 <div
-                                  className={`text-xs rounded-full h-5 w-5 flex items-center justify-center ${isMaximized
-                                    ? "bg-pink-500 text-white"
-                                    : "bg-gray-600 dark:bg-gray-400 text-white dark:text-black"
-                                    }`}
-                                >
-                                  {unreadCounts[u.id]}
-                                </div>
+                                  className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 ${isMaximized ? "border-white" : "border-white dark:border-black"
+                                    } bg-green-400`}
+                                />
                               )}
                             </div>
-                            <p
-                              className={`${isMaximized ? "text-white/70" : "text-gray-500 dark:text-gray-400"
-                                } text-xs mt-1`}
-                            >
-                              {u.lastSeen}
-                            </p>
+
+                            <div className="ml-3 flex-1">
+                              <div className="flex items-center justify-between">
+                                <h4
+                                  className={`${isMaximized ? "text-white" : "text-gray-900 dark:text-white"
+                                    } font-semibold text-sm`}
+                                >
+                                  {u.name}
+                                </h4>
+
+                                {(unreadCounts[u.id] ?? 0) > 0 && (
+                                  <div
+                                    className={`text-xs rounded-full h-5 w-5 flex items-center justify-center ${isMaximized
+                                        ? "bg-pink-500 text-white"
+                                        : "bg-gray-600 dark:bg-gray-400 text-white dark:text-black"
+                                      }`}
+                                  >
+                                    {unreadCounts[u.id]}
+                                  </div>
+                                )}
+                              </div>
+                              <p
+                                className={`${isMaximized ? "text-white/70" : "text-gray-500 dark:text-gray-400"
+                                  } text-xs mt-1`}
+                              >
+                                {u.lastSeen || "Never messaged"}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        ))
+                      )}
                     </div>
                   </div>
 

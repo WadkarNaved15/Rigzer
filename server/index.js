@@ -29,6 +29,7 @@ import postRoutes from "./routes/postRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import meRoutes from "./routes/me.js";
 import chatRoutes from "./routes/chatRoutes.js";
+import Chat from "./models/Chat.js";
 import messageRoutes from "./routes/messageRoutes.js";
 import feedBackRoutes from "./routes/feedback.js";
 import commentRoutes from "./routes/comment.js";
@@ -210,7 +211,17 @@ io.on("connection", (socket) => {
   // Send Post
   socket.on("send_post", async (data) => {
     const { chatId, senderId, receiverId, postId } = data;
+    if (!chatId) {
+      console.log("Creating new chat");
+      const participants = [senderId, receiverId].sort();
 
+      let chat = await Chat.findOne({ participants });
+      if (!chat) {
+        chat = await Chat.create({ participants });
+      }
+
+      chatId = chat._id;
+    }
     const message = await Message.create({
       chatId,
       receiverId,
@@ -249,8 +260,18 @@ io.on("connection", (socket) => {
 
   // normal message
   socket.on("send-message", async (msg) => {
-    const { chatId, senderId, receiverId, text, mediaUrl, mediaType } = msg;
+    let { chatId, senderId, receiverId, text, mediaUrl, mediaType } = msg;
+    if (!chatId) {
+      console.log("Creating new chat");
+      const participants = [senderId, receiverId].sort();
 
+      let chat = await Chat.findOne({ participants });
+      if (!chat) {
+        chat = await Chat.create({ participants });
+      }
+
+      chatId = chat._id;
+    }
     const message = await Message.create({
       chatId,
       senderId,
@@ -372,4 +393,3 @@ io.on("connection", (socket) => {
     process.exit(1);
   }
 })();
-

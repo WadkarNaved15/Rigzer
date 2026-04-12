@@ -15,7 +15,8 @@ const chatSchema = new mongoose.Schema(
 );
 
 // Ensure a chat between two users is not duplicated
-chatSchema.index({ participants: 1 }, { unique: false });
+chatSchema.index({ participants: 1 }, { unique: true });
 
 const Chat = mongoose.model("Chat", chatSchema);
+chatSchema.index({ participants: 1 });
 export default Chat;
