@@ -29,11 +29,6 @@ const CONFIG = {
 
 /**
  * POST /api/sessions/start
- * ✅ Updated: Returns 202 immediately (queued or direct)
- * Allocation happens asynchronously via instance-ready callback
- */
-/**
- * POST /api/sessions/start
  * ✅ FIXED: Queue ONLY when ASG at max
  *           Skip queue when ASG is scaling
  */
@@ -92,22 +87,14 @@ router.post(
       const maxDurationSeconds = calculateSessionDuration(game);
 
       let queueType = "direct";
-      // ✅ Try to allocate instance
       let response202 = {
         status: "waiting",
       };
 
       try {
-        
         const leaseResult = await assignOrStartInstance({});
 
-        // ✅ CASE 1: Got instance immediately
-        if (leaseResult && !leaseResult.scaling && !leaseResult.queued) {
-          console.log(`[Session Start] Got instance immediately`);
-          // This is direct play - shouldn't happen in this flow
-        }
-        // ✅ CASE 2: ASG at max → User QUEUES
-        else if (leaseResult && leaseResult.queued) {
+        if (leaseResult && leaseResult.queued) {
           console.log(`[Session Start] User will be queued:`, {
             position: leaseResult.queuePosition,
             total: leaseResult.totalQueued,
@@ -115,24 +102,18 @@ router.post(
           });
           queueType = "queued";
           
-          // Include queue info in response
           response202.queuePosition = leaseResult.queuePosition;
           response202.totalQueued = leaseResult.totalQueued;
           response202.estimatedWaitMinutes = leaseResult.estimatedWaitMinutes;
           response202.avgSessionDuration = leaseResult.avgSessionDuration;
-        }
-        // ✅ CASE 3: ASG scaling → Skip queue, go to ads
-        else if (leaseResult && leaseResult.scaling) {
+        } else if (leaseResult && leaseResult.scaling) {
           console.log(`[Session Start] ASG scaling - user skips queue, goes to ads`);
-          // ✅ NO queue info - user skips queue notification
-          // Frontend will show loading spinner, then ads
         }
       } catch (err) {
         console.error("[Session Start] Allocation check error (non-fatal):", err.message);
-        // Don't fail - allocation will happen via instance-ready callback
       }
 
-        // ✅ Create session in WAITING state
+      // ✅ Create session in WAITING state
       const session = await GameSession.create({
         user: userId,
         gamePost: gamePostId,
@@ -148,21 +129,17 @@ router.post(
       });
       response202.sessionId = session._id;
 
-// SSE initial event
-const send = sessionStreams.get(session._id.toString());
-if (send) {
-  send({
-    status: "waiting",
-    phase: null
-  });
-}
+      const send = sessionStreams.get(session._id.toString());
+      if (send) {
+        send({
+          status: "waiting",
+          phase: null
+        });
+      }
 
-console.log(`[Session Start] Returning 202`, response202);
-
+      console.log(`[Session Start] Returning 202`, response202);
 
       res.status(202).json(response202);
-      // Note: Allocation continues asynchronously via instance-ready callback
-
     } catch (err) {
       console.error("Session start error:", err);
       metrics.recordFailure("unknown", req.user?.id);
@@ -225,6 +202,8 @@ router.get("/status/:sessionId", verifyToken, async (req, res) => {
 router.get("/:sessionId/events", verifyToken, async (req, res) => {
   const { sessionId } = req.params;
   const userId = req.user.id;
+
+  console.log(`[SSE (Session)] User ${userId} requested events for session ${sessionId}`);
  
   const session = await GameSession.findById(sessionId)
     .select("user status phase countdownStartsAt")
@@ -244,7 +223,6 @@ router.get("/:sessionId/events", verifyToken, async (req, res) => {
     res.write(`data: ${JSON.stringify(data)}\n\n`);
   };
  
-  // Send initial state
   send({
     status: session.status,
     phase: session.phase,
@@ -257,8 +235,6 @@ router.get("/:sessionId/events", verifyToken, async (req, res) => {
     sessionStreams.delete(sessionId.toString());
   });
 });
- 
-
 
 /**
  * GET /api/sessions/:sessionId/stream-token
@@ -304,10 +280,6 @@ router.post("/:sessionId/heartbeat", verifyToken, async (req, res) => {
 
 /**
  * POST /api/sessions/:sessionId/cancel
- * ✅ NEW: User cancels before launch (queued or countdown)
- */
-/**
- * POST /api/sessions/:sessionId/cancel
  * ✅ User cancels before launch (queued or countdown)
  */
 router.post("/:sessionId/cancel", verifyToken, async (req, res) => {
@@ -316,6 +288,8 @@ router.post("/:sessionId/cancel", verifyToken, async (req, res) => {
     const userId = req.user.id;
  
     const session = await GameSession.findById(sessionId);
+
+      console.log(`[Session Cancel] User requested cancel for session ${sessionId}`);
  
     if (!session) {
       return res.status(404).json({ error: "Session not found" });
@@ -325,7 +299,6 @@ router.post("/:sessionId/cancel", verifyToken, async (req, res) => {
       return res.status(403).json({ error: "Unauthorized" });
     }
 
- 
     // ✅ Release instance if allocated
     if (session.instanceId && session.leaseToken) {
       try {
@@ -336,17 +309,16 @@ router.post("/:sessionId/cancel", verifyToken, async (req, res) => {
         console.log("[Cancel] Release result:", releaseResult);
       } catch (err) {
         console.error("[Cancel] Error releasing instance:", err.message);
-        // Don't fail cancel if release fails
       }
     }
  
     // ✅ Mark as ended
     const reason =
       session.status === "allocation_ready"
-        ? "user_cancelled" // User cancelled from countdown modal
-        : "user_abandoned"; // User cancelled from queue
+        ? "user_cancelled"
+        : "user_abandoned";
 
-        console.log(`[Session Cancel] User cancelled session ${sessionId} with reason ${reason} in session cancel`);
+    console.log(`[Session Cancel] User cancelled session ${sessionId} with reason ${reason}`);
  
     const updates = {
       status: "ended",
@@ -356,7 +328,6 @@ router.post("/:sessionId/cancel", verifyToken, async (req, res) => {
  
     await GameSession.findByIdAndUpdate(sessionId, updates);
  
-    // ✅ Notify SSE
     const send = sessionStreams.get(sessionId.toString());
     if (send) send({ status: "ended", reason });
  
@@ -381,6 +352,8 @@ router.post("/:sessionId/abandon/:secret", async (req, res) => {
   try {
     const session = await GameSession.findById(sessionId);
 
+    console.log(`[Abandon] Processing abandon for session ${sessionId}`);
+
     if (!session || session.status === "ended") {
       return res.sendStatus(200);
     }
@@ -394,7 +367,6 @@ router.post("/:sessionId/abandon/:secret", async (req, res) => {
       }
     }
 
-    // ✅ Mark as abandoned
     const updates = {
       status: "ended",
       endedAt: new Date(),
@@ -412,37 +384,67 @@ router.post("/:sessionId/abandon/:secret", async (req, res) => {
 });
 
 /**
- * GET /api/sessions/:sessionId/stream-token
- * (Duplicate? Already defined above - this should be removed)
- * Keeping for reference
- */
-
-/**
  * POST /api/sessions/running
  * ✅ Called by instance when stream starts (for metrics)
- * NOTE: Actual status change happens in /sessions/update
  */
 router.post("/running", async (req, res) => {
   const { session_id } = req.body;
+  console.log("[Running] Payload:", req.body);
+
+  if (!session_id) {
+    return res.status(400).json({ error: "session_id required" });
+  }
 
   try {
     const session = await GameSession.findById(session_id);
-    if (!session) return res.sendStatus(404);
 
-    // Stream token already generated in /sessions/update
-    // Just log for metrics
-    console.log(`[Running] Session ${session_id} is now streaming`);
+    if (!session) {
+      console.warn(`[Running] Session not found: ${session_id}`);
+      return res.status(404).json({ error: "Session not found" });
+    }
 
-    res.json({ success: true });
+    // If already running avoid duplicate updates
+    if (session.status !== "running") {
+      await GameSession.findByIdAndUpdate(session_id, {
+        status: "running",
+        phase: "streaming",
+        startedAt: new Date()
+      });
+
+      console.log(`[Running] Session ${session_id} is now streaming`);
+
+      // Notify SSE clients
+      const send = sessionStreams.get(session_id.toString());
+      if (send) {
+        send({
+          status: "running",
+          phase: "streaming"
+        });
+      }
+
+      // Optional: publish event for pubsub
+      try {
+        await publishSessionEvent(session_id, {
+          status: "running",
+          phase: "streaming"
+        });
+      } catch (err) {
+        console.warn("[Running] PubSub publish failed:", err.message);
+      }
+    }
+
+    return res.json({ success: true });
+
   } catch (err) {
     console.error("[Running] Error:", err);
-    res.sendStatus(500);
+    return res.status(500).json({ error: "internal_error" });
   }
 });
 
 /**
  * POST /api/sessions/complete
  * ✅ Called when session ends (by supervisor/controller)
+ * ✨ NEW: Automatically prepare instance for next stream via controller
  */
 router.post("/complete", async (req, res) => {
   try {
@@ -458,9 +460,11 @@ router.post("/complete", async (req, res) => {
       return res.status(404).json({ error: "Session not found" });
     }
 
-    // ✅ Only mark as ended if not already
+    console.log(`[Session Complete] Completing session ${session_id} with reason ${exit_reason} and duration ${duration_seconds}s`);
+
     if (session.status !== "ended") {
-      console.log(`[Session Complete] Ending session ${session_id} with reason ${exit_reason} and code ${exit_code} in sessions complete`);
+      console.log(`[Session Complete] Ending session ${session_id} with reason ${exit_reason}`);
+      
       const updates = {
         status: "ended",
         endedAt: new Date(),
@@ -470,7 +474,7 @@ router.post("/complete", async (req, res) => {
 
       await GameSession.findByIdAndUpdate(session_id, updates);
 
-      // Release instance
+            // Release instance
       if (session.instanceId && session.leaseToken) {
         try {
           await releaseInstance(session.instanceId, session.leaseToken);
@@ -478,10 +482,36 @@ router.post("/complete", async (req, res) => {
           console.error("Error releasing instance:", err);
         }
       }
+      const token = await cacheService.get(`streamtoken:${session_id}`);
+      if (token) {
+        await cacheService.del(`stream:${token}`);
+      }
+      await cacheService.del(`streamtoken:${session_id}`);
 
       // Notify SSE
       const send = sessionStreams.get(session_id.toString());
       if (send) send({ status: "ended", reason: exit_reason });
+
+      // ✨ NEW: Trigger controller to prepare for next stream (web server restart)
+      if (session.instanceIp) {
+        console.log(`[Session Complete] Preparing instance ${session.instanceIp} for next stream`);
+        try {
+          const prepareResponse = await fetch(
+            `http://${session.instanceIp}:4443/prepare-for-next-stream`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ session_id, force_restart: false }),
+              timeout: 30000,
+            }
+          );
+          const result = await prepareResponse.json();
+          console.log(`[Session Complete] Prepare result:`, result);
+        } catch (err) {
+          console.error(`[Session Complete] Prepare failed (non-blocking):`, err.message);
+        }
+      }
+
 
       metrics.recordSessionEnd(session.user.toString(), session_id);
     }
@@ -489,6 +519,84 @@ router.post("/complete", async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error("Session complete error:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+/**
+ * POST /api/sessions/violation
+ * ✅ Called by supervisor when a rule violation occurs
+ * (focus loss, unauthorized process, integrity failure, etc.)
+ */
+router.post("/violation", async (req, res) => {
+  try {
+    const {
+      session_id,
+      violation,
+      exit_code,
+      duration_seconds
+    } = req.body;
+
+    if (!session_id) {
+      return res.status(400).json({ error: "session_id required" });
+    }
+
+    const session = await GameSession.findById(session_id);
+    if (!session) {
+      return res.status(404).json({ error: "Session not found" });
+    }
+
+    console.log(
+      `[Session Violation] Session ${session_id} violation: ${violation}`
+    );
+
+    const updates = {
+      status: "ended",
+      endedAt: new Date(),
+      exitReason: violation || "violation",
+      exitCode: exit_code
+    };
+
+    await GameSession.findByIdAndUpdate(session_id, updates);
+
+    // Release instance
+    if (session.instanceId && session.leaseToken) {
+      try {
+        await releaseInstance(session.instanceId, session.leaseToken);
+      } catch (err) {
+        console.error("Violation release error:", err);
+      }
+    }
+
+    // Remove stream token
+    const token = await cacheService.get(`streamtoken:${session_id}`);
+    if (token) {
+      await cacheService.del(`stream:${token}`);
+    }
+    await cacheService.del(`streamtoken:${session_id}`);
+
+    // Notify SSE clients
+    const send = sessionStreams.get(session_id.toString());
+    if (send) {
+      send({
+        status: "ended",
+        reason: violation
+      });
+    }
+
+    await publishSessionEvent(session_id, {
+      status: "ended",
+      phase: null,
+      reason: violation
+    });
+
+    console.log(`[Session Violation] Session ${session_id} terminated`);
+
+    return res.json({ success: true });
+
+  } catch (err) {
+    console.error("[Session Violation] Error:", err);
     return res.status(500).json({ error: "Internal server error" });
   }
 });

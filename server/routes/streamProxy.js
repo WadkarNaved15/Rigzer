@@ -51,6 +51,14 @@ router.use(async (req, res) => {
     return res.sendStatus(404);
   }
 
+   if (cached.status !== "running") {
+    console.warn(
+      `[StreamProxy] Session not running (${cached.status}) for ${streamToken}`
+    );
+    return res.sendStatus(403);
+  }
+
+
   //Auth User
 //  const userId = getUserIdFromCookie(req);
 //   if (!userId || userId !== cached.userId) {
@@ -107,24 +115,26 @@ router.use(async (req, res) => {
 /* ===============================
    WebSocket Upgrade Handler
 ================================ */
-export function handleWsUpgrade(req, socket, head) {
+export async function handleWsUpgrade(req, socket, head) {
   const streamToken = getStreamToken(req.headers.host ?? "");
 
-  cacheService.get(`stream:${streamToken}`)
-    .then(cached => {
-      if (!cached) {
-        console.warn(`[StreamProxy] WS: No session for ${streamToken}`);
-        return socket.destroy();
-      }
+  try {
+    const cached = await cacheService.get(`stream:${streamToken}`);
 
-      proxy.ws(req, socket, head, {
-        target: `http://${cached.instanceIp}:8080`,
-      });
-    })
-    .catch(err => {
-      console.error("[StreamProxy] WS cache error:", err);
+    if (!cached || cached.status !== "running") {
+      console.warn(`[StreamProxy] WS blocked for ${streamToken}`);
       socket.destroy();
+      return;
+    }
+
+    proxy.ws(req, socket, head, {
+      target: `http://${cached.instanceIp}:8080`,
     });
+
+  } catch (err) {
+    console.error("[StreamProxy] WS cache error:", err);
+    socket.destroy();
+  }
 }
 
 /* ===============================
@@ -132,9 +142,24 @@ export function handleWsUpgrade(req, socket, head) {
 ================================ */
 proxy.on("error", (err, req, res) => {
   console.error("[StreamProxy] Proxy error:", err.message);
-  if (res && !res.headersSent) {
-    res.sendStatus(502);
+
+  // HTTP request
+  if (res && typeof res.writeHead === "function") {
+    if (!res.headersSent) {
+      res.writeHead(502);
+    }
+    res.end("Proxy error");
+    return;
   }
+
+  // WebSocket request
+  if (res && typeof res.destroy === "function") {
+    res.destroy();
+  }
+});
+
+proxy.on("close", (res, socket, head) => {
+  console.log("[StreamProxy] Connection closed");
 });
 
 export default router;

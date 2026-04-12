@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import axios from "axios";
-import { Loader2, ChevronRight } from "lucide-react";
+import { Loader2, ChevronRight, XCircle, AlertTriangle } from "lucide-react";
 
 type AdWithStatusProps = {
   sessionId: string;
@@ -13,10 +13,9 @@ interface Ad {
   mediaUrl: string;
   redirectUrl: string;
   logoUrl?: string | null;
-  impressions?: number;
-  clicks?: number;
-  isActive?: boolean;
 }
+
+type SessionError = "failed" | "ended" | "stream_error" | null;
 
 const stepsMap: { [key: string]: string } = {
   waiting: "Preparing Cloud Instance",
@@ -25,6 +24,8 @@ const stepsMap: { [key: string]: string } = {
   downloading: "Downloading Game",
   launching: "Launching Game",
   running: "Stream Ready",
+  failed: "Session Failed",
+  ended: "Session Ended",
 };
 
 const orderedSteps = [
@@ -43,11 +44,37 @@ export default function AdWithStatus({ sessionId }: AdWithStatusProps) {
   const [canSkip, setCanSkip] = useState(false);
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
   const [streamUrlError, setStreamUrlError] = useState(false);
+  const [sessionError, setSessionError] = useState<SessionError>(null);
+  const [errorMessage, setErrorMessage] = useState<string>("");
+
+  // Refs to avoid stale closures in SSE handler
+  const fetchRetryCount = useRef(0);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
-  // ✅ Separate async function to fetch stream URL
+  const handleTerminalState = useCallback((state: "failed" | "ended") => {
+    if (state === "failed") {
+      setSessionError("failed");
+      setErrorMessage("Your session failed to start. This is usually due to a server issue. Please try again.");
+    } else {
+      setSessionError("ended");
+      setErrorMessage("Your session has ended.");
+    }
+    setSessionStatus(state);
+    // Stop polling if running
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
   const fetchStreamUrl = useCallback(async () => {
+    const MAX_RETRIES = 5;
+    if (fetchRetryCount.current >= MAX_RETRIES) {
+      setStreamUrlError(true);
+      return;
+    }
     try {
       const res = await fetch(
         `${BACKEND_URL}/api/sessions/${sessionId}/stream-token`,
@@ -56,85 +83,152 @@ export default function AdWithStatus({ sessionId }: AdWithStatusProps) {
       if (res.ok) {
         const data = await res.json();
         setStreamUrl(data.streamUrl);
+        fetchRetryCount.current = 0;
       } else {
-        // Retry once after 2s if not ready yet
-        setTimeout(fetchStreamUrl, 2000);
+        fetchRetryCount.current += 1;
+        const backoff = Math.min(1000 * 2 ** fetchRetryCount.current, 10000);
+        setTimeout(fetchStreamUrl, backoff);
       }
     } catch (err) {
       console.error("Failed to fetch stream URL:", err);
-      setStreamUrlError(true);
+      fetchRetryCount.current += 1;
+      if (fetchRetryCount.current >= MAX_RETRIES) {
+        setStreamUrlError(true);
+      } else {
+        setTimeout(fetchStreamUrl, 3000);
+      }
     }
   }, [sessionId, BACKEND_URL]);
 
+  // Fallback poll — catches missed SSE events (multi-instance backend, dropped connections)
+  const startFallbackPoll = useCallback(() => {
+    if (pollRef.current) return; // already polling
+    pollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(
+          `${BACKEND_URL}/api/sessions/${sessionId}/status`,
+          { credentials: "include" }
+        );
+        if (!res.ok) return;
+        const { status, phase } = await res.json();
+
+        if (status === "failed") {
+          handleTerminalState("failed");
+        } else if (status === "ended") {
+          handleTerminalState("ended");
+        } else if (status === "running") {
+          setCanSkip(true);
+          setSessionStatus("running");
+          setCurrentStepIndex(orderedSteps.indexOf("running"));
+          fetchStreamUrl();
+        } else {
+          const effectiveStatus = phase ?? status;
+          const stepIndex = orderedSteps.indexOf(effectiveStatus);
+          if (stepIndex !== -1) {
+            setCurrentStepIndex(stepIndex);
+            setSessionStatus(effectiveStatus);
+          }
+        }
+      } catch {
+        // silent — SSE is the primary channel
+      }
+    }, 6000);
+  }, [sessionId, BACKEND_URL, handleTerminalState, fetchStreamUrl]);
+
   // Fetch ad
   useEffect(() => {
-    const loadAd = async () => {
-      try {
-        const res = await axios.get(`${BACKEND_URL}/api/ads/fairadd`);
-        setAd(res.data);
-      } catch (err) {
-        console.error("Failed to load ad:", err);
-      }
-    };
-    loadAd();
-  }, []);
+    axios
+      .get(`${BACKEND_URL}/api/ads/fairadd`)
+      .then((res) => setAd(res.data))
+      .catch((err) => console.error("Failed to load ad:", err));
+  }, [BACKEND_URL]);
 
-  // ✅ SSE — no async, no await inside handler
+  // SSE connection
   useEffect(() => {
     if (!sessionId) return;
 
-    const es = new EventSource(
-      `${BACKEND_URL}/api/sessions/${sessionId}/events`,
-      { withCredentials: true }
-    );
+    let es: EventSource;
+    let reconnectTimer: ReturnType<typeof setTimeout>;
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT = 8;
 
-    es.onmessage = (e) => {
-      const { status, phase } = JSON.parse(e.data);
+    const connect = () => {
+      es = new EventSource(
+        `${BACKEND_URL}/api/sessions/${sessionId}/events`,
+        { withCredentials: true }
+      );
 
-      const effectiveStatus =
-        status === "running" || status === "ended" || status === "failed"
-          ? status
-          : phase ?? status;
+      es.onmessage = (e) => {
+        reconnectAttempts = 0; // reset on successful message
+        const { status, phase } = JSON.parse(e.data);
 
-      setSessionStatus(effectiveStatus);
+        const effectiveStatus =
+          status === "running" || status === "ended" || status === "failed"
+            ? status
+            : phase ?? status;
 
-      const stepIndex = orderedSteps.indexOf(effectiveStatus);
-      if (stepIndex !== -1) {
-        setCurrentStepIndex(stepIndex);
-      }
+        if (effectiveStatus === "failed") {
+          handleTerminalState("failed");
+          es.close();
+          return;
+        }
 
-      // ✅ Trigger async fetch separately — don't await in handler
-      if (effectiveStatus === "running") {
-        setCanSkip(true);
-        fetchStreamUrl();  // fire and forget — state update happens inside
-      }
+        if (effectiveStatus === "ended") {
+          handleTerminalState("ended");
+          es.close();
+          return;
+        }
 
-      if (effectiveStatus === "failed") {
-        alert("Failed to start game session.");
+        setSessionStatus(effectiveStatus);
+        const stepIndex = orderedSteps.indexOf(effectiveStatus);
+        if (stepIndex !== -1) setCurrentStepIndex(stepIndex);
+
+        if (effectiveStatus === "running") {
+          setCanSkip(true);
+          fetchStreamUrl();
+          // Stop fallback poll — SSE is working
+          if (pollRef.current) {
+            clearInterval(pollRef.current);
+            pollRef.current = null;
+          }
+        }
+      };
+
+      es.onerror = () => {
         es.close();
-      }
-
-      if (effectiveStatus === "ended") {
-        alert("Session ended.");
-        es.close();
-      }
+        reconnectAttempts += 1;
+        if (reconnectAttempts > MAX_RECONNECT) {
+          console.error("SSE permanently failed, relying on poll");
+          // Poll takes over completely
+          startFallbackPoll();
+          return;
+        }
+        // Exponential backoff reconnect: 1s, 2s, 4s … capped at 15s
+        const delay = Math.min(1000 * 2 ** reconnectAttempts, 15000);
+        console.warn(`SSE error — reconnecting in ${delay}ms (attempt ${reconnectAttempts})`);
+        reconnectTimer = setTimeout(connect, delay);
+      };
     };
 
-    es.onerror = () => {
-      console.warn("SSE connection lost, retrying...");
-    };
+    connect();
+    startFallbackPoll(); // always run poll as safety net
 
-    return () => es.close();
-  }, [sessionId, fetchStreamUrl]);
+    return () => {
+      es?.close();
+      clearTimeout(reconnectTimer);
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [sessionId, BACKEND_URL, fetchStreamUrl, handleTerminalState, startFallbackPoll]);
 
   // Heartbeat + abandon beacon
   useEffect(() => {
     if (!sessionId) return;
 
     const interval = setInterval(() => {
-      navigator.sendBeacon(
-        `${BACKEND_URL}/api/sessions/${sessionId}/heartbeat`
-      );
+      navigator.sendBeacon(`${BACKEND_URL}/api/sessions/${sessionId}/heartbeat`);
     }, 10_000);
 
     const handleUnload = () => {
@@ -145,59 +239,99 @@ export default function AdWithStatus({ sessionId }: AdWithStatusProps) {
     };
 
     window.addEventListener("beforeunload", handleUnload);
-
     return () => {
       clearInterval(interval);
       window.removeEventListener("beforeunload", handleUnload);
     };
-  }, [sessionId]);
+  }, [sessionId, BACKEND_URL]);
 
   const handleAdClick = async () => {
-    if (ad) {
-      try {
-        await axios.post(`${BACKEND_URL}/api/ads/click/${ad._id}`);
-      } catch (err) {
-        console.error("Failed to track ad click:", err);
-      }
-      window.open(ad.redirectUrl, "_blank");
-    }
+    if (!ad) return;
+    try {
+      await axios.post(`${BACKEND_URL}/api/ads/click/${ad._id}`);
+    } catch {}
+    window.open(ad.redirectUrl, "_blank");
   };
 
   const cancelSession = async () => {
-  if (!sessionId) return;
-
-  const confirmCancel = confirm(
-    "Are you sure you want to cancel this session? Your game session will be terminated."
-  );
-
-  if (!confirmCancel) return;
-
-  try {
-    await axios.post(
-      `${BACKEND_URL}/api/sessions/${sessionId}/cancel`,
-      {},
-      { withCredentials: true }
-    );
-
-    // clear session state like queue cancel
-    localStorage.removeItem("queue");
-    localStorage.removeItem("session");
-
-    // redirect back to homepage
-    window.location.href = "/";
-
-  } catch (err) {
-    console.error("Cancel session error:", err);
-    alert("Failed to cancel the session.");
-  }
-};
-
-  const handleLaunch = () => {
-    if (streamUrl) {
-      window.location.href = streamUrl;
+    if (!sessionId) return;
+    if (!confirm("Are you sure you want to cancel this session? Your game session will be terminated.")) return;
+    try {
+      await axios.post(
+        `${BACKEND_URL}/api/sessions/${sessionId}/cancel`,
+        {},
+        { withCredentials: true }
+      );
+      localStorage.removeItem("queue");
+      localStorage.removeItem("session");
+      window.location.href = "/";
+    } catch (err) {
+      console.error("Cancel session error:", err);
+      setSessionError("failed");
+      setErrorMessage("Failed to cancel the session. Please refresh and try again.");
     }
   };
 
+  const handleLaunch = () => {
+    if (streamUrl) window.location.href = streamUrl;
+  };
+
+  const handleRetry = () => {
+    localStorage.removeItem("queue");
+    localStorage.removeItem("session");
+    window.location.href = "/";
+  };
+
+  // ── Error overlay ──────────────────────────────────────────────────────────
+  if (sessionError === "failed" || sessionError === "stream_error") {
+    return (
+      <div className="fixed inset-0 bg-white dark:bg-black z-50 flex flex-col items-center justify-center space-y-6 p-8">
+        <div className="flex flex-col items-center space-y-4 max-w-sm text-center">
+          <div className="w-16 h-16 rounded-full bg-red-50 dark:bg-red-950 flex items-center justify-center">
+            <AlertTriangle className="text-red-500" size={28} />
+          </div>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Session Failed
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+            {errorMessage}
+          </p>
+          <button
+            onClick={handleRetry}
+            className="mt-2 px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl text-sm font-semibold hover:opacity-90 transition"
+          >
+            Back to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (sessionError === "ended") {
+    return (
+      <div className="fixed inset-0 bg-white dark:bg-black z-50 flex flex-col items-center justify-center space-y-6 p-8">
+        <div className="flex flex-col items-center space-y-4 max-w-sm text-center">
+          <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-900 flex items-center justify-center">
+            <XCircle className="text-gray-400 dark:text-gray-500" size={28} />
+          </div>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            Session Ended
+          </h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {errorMessage}
+          </p>
+          <button
+            onClick={handleRetry}
+            className="mt-2 px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl text-sm font-semibold hover:opacity-90 transition"
+          >
+            Back to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Loading (no ad yet) ────────────────────────────────────────────────────
   if (!ad) {
     return (
       <div className="fixed inset-0 bg-white dark:bg-[#0a0a0a] z-50 flex flex-col items-center justify-center space-y-4">
@@ -209,14 +343,15 @@ export default function AdWithStatus({ sessionId }: AdWithStatusProps) {
     );
   }
 
+  // ── Main ad screen ─────────────────────────────────────────────────────────
   return (
     <div className="fixed inset-0 bg-white dark:bg-black z-50 flex flex-col font-sans overflow-hidden select-none">
 
-      {/* TOP BAR: SPONSOR INFO */}
+      {/* TOP BAR */}
       <div className="absolute top-0 left-0 right-0 p-6 z-20">
         <div className="flex items-center justify-between max-w-7xl mx-auto">
           <div
-            className="flex items-center space-x-3 bg-white/80 dark:bg-black/40 backdrop-blur-md border border-gray-200 dark:border-gray-800 p-2 pr-4 rounded-xl cursor-pointer shadow-sm group"
+            className="flex items-center space-x-3 bg-white/80 dark:bg-black/40 backdrop-blur-md border border-gray-200 dark:border-gray-800 p-2 pr-4 rounded-xl cursor-pointer shadow-sm"
             onClick={handleAdClick}
           >
             {ad.logoUrl && ad.logoUrl !== "null" && (
@@ -234,7 +369,7 @@ export default function AdWithStatus({ sessionId }: AdWithStatusProps) {
         </div>
       </div>
 
-      {/* MAIN AD CONTENT */}
+      {/* AD CONTENT */}
       <div className="relative flex-grow flex items-center justify-center bg-gray-50 dark:bg-black">
         {ad.mediaType === "video" ? (
           <video
@@ -253,7 +388,7 @@ export default function AdWithStatus({ sessionId }: AdWithStatusProps) {
         )}
       </div>
 
-      {/* BOTTOM CONTROL AREA */}
+      {/* BOTTOM CONTROLS */}
       <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-white dark:from-black to-transparent">
         <div className="max-w-7xl mx-auto flex items-end justify-between">
 
@@ -283,61 +418,54 @@ export default function AdWithStatus({ sessionId }: AdWithStatusProps) {
             </div>
           </div>
 
-{/* ACTION BUTTON */}
-<div className="flex flex-col items-end gap-3">
+          {/* ACTION BUTTONS */}
+          <div className="flex flex-col items-end gap-3">
+            {canSkip ? (
+              <>
+                <button
+                  onClick={handleLaunch}
+                  disabled={!streamUrl}
+                  className="group flex items-center space-x-3 bg-gray-800 dark:bg-gray-200 text-white dark:text-black px-8 py-3 rounded-xl text-sm font-bold transition-all shadow-lg hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {streamUrl ? (
+                    <>
+                      <span>LAUNCH SESSION</span>
+                      <ChevronRight size={18} />
+                    </>
+                  ) : (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>CONNECTING...</span>
+                    </>
+                  )}
+                </button>
+                {streamUrlError && (
+                  <button
+                    onClick={() => {
+                      setStreamUrlError(false);
+                      fetchRetryCount.current = 0;
+                      fetchStreamUrl();
+                    }}
+                    className="text-xs text-gray-500 underline"
+                  >
+                    Retry connection
+                  </button>
+                )}
+              </>
+            ) : (
+              <div className="flex items-center space-x-3 bg-white/80 dark:bg-black/40 backdrop-blur-md px-6 py-3 rounded-xl border border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-500 text-[10px] font-bold tracking-widest uppercase shadow-sm">
+                <div className="w-3 h-3 border-2 border-gray-300 dark:border-gray-700 border-t-gray-600 dark:border-t-gray-300 rounded-full animate-spin" />
+                <span>Preparing Session</span>
+              </div>
+            )}
 
-  {canSkip ? (
-    <>
-      <button
-        onClick={handleLaunch}
-        disabled={!streamUrl}
-        className="group flex items-center space-x-3 bg-gray-800 dark:bg-gray-200
-        text-white dark:text-black px-8 py-3 rounded-xl text-sm font-bold
-        transition-all shadow-lg hover:scale-[1.02] active:scale-95
-        disabled:opacity-50 disabled:cursor-not-allowed"
-      >
-        {streamUrl ? (
-          <>
-            <span>LAUNCH SESSION</span>
-            <ChevronRight size={18} />
-          </>
-        ) : (
-          <>
-            <Loader2 size={16} className="animate-spin" />
-            <span>CONNECTING...</span>
-          </>
-        )}
-      </button>
-
-      {streamUrlError && (
-        <button
-          onClick={() => {
-            setStreamUrlError(false);
-            fetchStreamUrl();
-          }}
-          className="text-xs text-gray-500 underline"
-        >
-          Retry connection
-        </button>
-      )}
-    </>
-  ) : (
-    <div className="flex items-center space-x-3 bg-white/80 dark:bg-black/40 backdrop-blur-md px-6 py-3 rounded-xl border border-gray-200 dark:border-gray-800 text-gray-400 dark:text-gray-500 text-[10px] font-bold tracking-widest uppercase shadow-sm">
-      <div className="w-3 h-3 border-2 border-gray-300 dark:border-gray-700 border-t-gray-600 dark:border-t-gray-300 rounded-full animate-spin" />
-      <span>Preparing Session</span>
-    </div>
-  )}
-
-  {/* CANCEL SESSION BUTTON (Always Visible) */}
-  <button
-    onClick={cancelSession}
-    className="text-xs font-bold text-red-500 border border-red-500/40
-    px-5 py-2 rounded-lg hover:bg-red-500/10 transition"
-  >
-    Cancel Session
-  </button>
-
-</div>
+            <button
+              onClick={cancelSession}
+              className="text-xs font-bold text-red-500 border border-red-500/40 px-5 py-2 rounded-lg hover:bg-red-500/10 transition"
+            >
+              Cancel Session
+            </button>
+          </div>
 
         </div>
       </div>
