@@ -89,7 +89,7 @@ router.post("/register", authLimiter, async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
     // 🔐 Generate 6 digit OTP
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    console.log("otp",otp)
+    console.log("otp", otp)
     // 🔐 Hash the OTP
     const hashedOTP = crypto
       .createHash("sha256")
@@ -199,9 +199,24 @@ router.post("/login", authLimiter, async (req, res) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
     if (!user.isVerified) {
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+      const hashedOTP = crypto
+        .createHash("sha256")
+        .update(otp)
+        .digest("hex");
+
+      user.emailVerificationOTP = hashedOTP;
+      user.emailVerificationExpires = Date.now() + 10 * 60 * 1000;
+
+      await user.save();
+
+      await sendVerificationEmail(user.email, otp);
+
       return res.status(403).json({
         error: "Please verify your email before logging in",
-        requiresVerification: true
+        requiresVerification: true,
+        email: user.email
       });
     }
     if (!user || !(await bcrypt.compare(password, user.password))) {

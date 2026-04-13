@@ -7,6 +7,7 @@ interface FollowButtonProps {
   initialFollowing: boolean;
 }
 
+
 const FollowButton: React.FC<FollowButtonProps> = ({ targetId, initialFollowing }) => {
   const [isFollowing, setIsFollowing] = useState(initialFollowing);
   const [loading, setLoading] = useState(false);

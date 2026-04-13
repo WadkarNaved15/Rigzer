@@ -1,21 +1,27 @@
 import { createContext, useContext, useState } from "react";
 
+interface ChatTarget {
+  id: string;
+  name: string;
+  avatar: string;
+}
+
 interface ChatContextType {
-  openChatWith: (userId: string) => void;
-  targetUserId: string | null;
+  openChatWith: (user: ChatTarget) => void;
+  targetUser: ChatTarget | null;
 }
 
 const ChatContext = createContext<ChatContextType | null>(null);
 
 export const ChatProvider = ({ children }: { children: React.ReactNode }) => {
-  const [targetUserId, setTargetUserId] = useState<string | null>(null);
+  const [targetUser, setTargetUser] = useState<ChatTarget | null>(null);
 
-  const openChatWith = (userId: string) => {
-    setTargetUserId(userId);
-  };
+  const openChatWith = (user: ChatTarget) => {
+  setTargetUser(user);
+};
 
   return (
-    <ChatContext.Provider value={{ openChatWith, targetUserId }}>
+    <ChatContext.Provider value={{ openChatWith, targetUser }}>
       {children}
     </ChatContext.Provider>
   );
