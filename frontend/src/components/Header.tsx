@@ -7,7 +7,7 @@ import {
   Sun,
 } from "lucide-react";
 import { useTheme } from "../hooks/useTheme";
-import Logo from "../assets/Rigzer.svg?react";
+import Logo from "../assets/Icon.svg?react";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
