@@ -155,7 +155,7 @@ router.post(
  * GET /api/sessions/status/:sessionId
  * ✅ Returns current session status including queue info
  */
-router.get("/status/:sessionId", verifyToken, async (req, res) => {
+router.get("/:sessionId/status", verifyToken, async (req, res) => {
   try {
     const { sessionId } = req.params;
     const userId = req.user.id;
