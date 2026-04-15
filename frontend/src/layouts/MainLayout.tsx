@@ -3,6 +3,7 @@ import { Suspense, lazy, useRef } from "react";
 import { Header } from "../components/Header";
 import Billboard from "../components/Home/Billboard";
 import UploadBox from "../components/Home/Upload";
+import { useUser } from "../context/user";
 import MessagingComponent from "../components/Home/Message";
 import ArticleRecommendations from "../components/Articles/ArticleRecommendations";
 import { ScrollRestoration } from "react-router-dom";
@@ -13,7 +14,7 @@ function MainLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { canvasId } = useParams();
-
+  const { user } = useUser();
   // Refs to measure the gap between sidebar and center feed.
   // VerticalBackButton uses both to find the exact midpoint.
   const sidebarRef = useRef<HTMLDivElement>(null);
@@ -28,6 +29,10 @@ function MainLayout() {
     isPostDetailsPage && location.state?.post?.type === "model_post";
 
   const handleUploadClick = () => {
+    if(!user){
+      navigate("/auth");
+      return;
+    }
     navigate("/create");
   };
 
