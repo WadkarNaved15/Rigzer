@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CircleUser, Bookmark, LogIn, LogOut, Bell } from "lucide-react";
+import { CircleUser, Bookmark, LogIn, LogOut, Bell,User} from "lucide-react";
 import AccountSwitcherOverlay from "./AccountSwitchOverlay";
 import { useUser } from "../../context/user";
 import { useNotification } from "../../context/Notifications";
@@ -8,7 +8,6 @@ import { useNotification } from "../../context/Notifications";
 interface ProfileCoverProps {
   onOpenWishlist: () => void;
 }
-
 export default function ProfileCover({
   onOpenWishlist,
 }: ProfileCoverProps) {
@@ -18,7 +17,42 @@ export default function ProfileCover({
   const navigate = useNavigate();
   const { unreadCount } = useNotification();
   const { user, logout } = useUser();
+  // If user is NOT logged in → Show login prompt card
+ if (!user) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div
+          className="
+            border-[2px] border-[#E0E0E5] dark:border-gray-700 
+            bg-[#F9FAFB] dark:bg-[#191919] 
+            rounded-[0.5rem] p-8 text-center
+            shadow-sm
+          "
+        >
+          {/* Top Profile Icon */}
+          <div className="mx-auto w-16 h-16 bg-gray-200 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+            <User className="h-8 w-8 text-gray-400 dark:text-gray-500" />
+          </div>
 
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+            Login to access further services
+          </h3>
+          
+          <button
+            onClick={() => navigate("/auth")}
+            className="
+              inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 
+              text-white font-medium text-sm px-4 py-1.5 rounded-full 
+              transition-colors duration-200 active:scale-95
+            "
+          >
+            <User className="h-4 w-4" /> {/* Profile icon inside button */}
+            Login / Sign Up
+          </button>
+        </div>
+      </div>
+    );
+  }
   // Dynamic values to match your schema
   const bannerUrl = user?.banner || 'https://fastly.picsum.photos/id/299/800/200.jpg?hmac=xMdRbjiNM_IogJDEgKIJ0GeCxZ8nwOGd5_Wf_ODZ94s';
   

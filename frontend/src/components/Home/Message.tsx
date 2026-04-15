@@ -54,8 +54,8 @@ const MessagingComponent = () => {
   const [onlineUsers, setOnlineUsers] = useState<string[]>([]);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { user} = useUser();
-  const { users, loading, setUsers} = useUsers();
+  const { user } = useUser();
+  const { users, loading, setUsers } = useUsers();
   const currentUser = user?._id;
   const { targetUser } = useChat();
   const socket = useSocket();
@@ -143,7 +143,7 @@ const MessagingComponent = () => {
   useEffect(() => scrollToBottom(), [conversations, activeChat]);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!currentUser) return;
 
     const fetchUnreadCounts = async () => {
       try {
@@ -169,33 +169,33 @@ const MessagingComponent = () => {
     };
 
     fetchUnreadCounts();
-  }, [isOpen]);
+  }, [currentUser]);
   useEffect(() => {
-  if (!targetUser) return;
+    if (!targetUser || targetUser.id === currentUser) return;;
 
-  setIsOpen(true);
+    setIsOpen(true);
 
-  // 🔥 Add user to users list IF NOT EXISTS
-  setUsers((prev) => {
-    const exists = prev.find((u) => u.id === targetUser.id);
-    if (exists) return prev;
+    // 🔥 Add user to users list IF NOT EXISTS
+    setUsers((prev) => {
+      const exists = prev.find((u) => u.id === targetUser.id);
+      if (exists) return prev;
 
-    return [
-      {
-        id: targetUser.id,
-        name: targetUser.name,
-        avatar: targetUser.avatar,
-        unreadCount: 0,
-        lastSeen: "Just now",
-      },
-      ...prev,
-    ];
-  });
+      return [
+        {
+          id: targetUser.id,
+          name: targetUser.name,
+          avatar: targetUser.avatar,
+          unreadCount: 0,
+          lastSeen: "Just now",
+        },
+        ...prev,
+      ];
+    });
 
-  // 🔥 Open chat
-  handleUserClick(targetUser.id);
+    // 🔥 Open chat
+    handleUserClick(targetUser.id);
 
-}, [targetUser]);
+  }, [targetUser, currentUser]);
   useEffect(() => {
     if (!socket) return;
 
@@ -340,8 +340,15 @@ const MessagingComponent = () => {
 
 
   const handleUserClick = async (receiverId: string) => {
+    console.log("receiver user", receiverId);
+    console.log("Current User", currentUser);
+    if (receiverId === currentUser) {
+      toast.error("Cannot chat with yourself");
+      return;
+    }
     try {
       // ✅ Leave old room first
+      console.log("currentChatId", currentChatId);
       if (currentChatId && socket) {
         socket.emit("leave_chat", currentChatId);
         console.log("Left previous room:", currentChatId);
@@ -354,6 +361,7 @@ const MessagingComponent = () => {
         { receiverId },
         { withCredentials: true }
       );
+      console.log("Chat data", data);
       // 🔥 If chat exists
       if (data?._id && socket) {
         setCurrentChatId(data._id);
@@ -427,7 +435,9 @@ const MessagingComponent = () => {
   };
   const formatTime = (ts: Date) => ts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const getUnreadCount = () => Object.values(unreadCounts).reduce((a, b) => a + b, 0);
-  const filteredUsers = users.filter((u) => u.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  const filteredUsers = users
+    .filter((u) => u.id !== currentUser)   // ← ADD THIS
+    .filter((u) => u.name.toLowerCase().includes(searchTerm.toLowerCase()));
   const activeUser = users.find((u) => u.id === activeChat);
 
   const toggleOpen = () => {
@@ -439,12 +449,14 @@ const MessagingComponent = () => {
   const toggleClose = () => {
     if (currentChatId && socket) {
       socket.emit("leave_chat", currentChatId);
+      console.log("Left previous room:", currentChatId);
     }
 
     setIsOpen(false);
     setIsMinimized(false);
     setIsMaximized(false);
     setActiveChat(null);
+    setCurrentChatId(null);
   };
 
   const toggleMinimize = () => {
@@ -719,8 +731,8 @@ const MessagingComponent = () => {
                             key={u.id}
                             onClick={() => handleUserClick(u.id)}
                             className={`flex items-center p-4 cursor-pointer transition-colors border-b ${isMaximized
-                                ? "hover:bg-white/10 border-white/10"
-                                : "hover:bg-gray-50 dark:hover:bg-gray-900 border-gray-100 dark:border-gray-800"
+                              ? "hover:bg-white/10 border-white/10"
+                              : "hover:bg-gray-50 dark:hover:bg-gray-900 border-gray-100 dark:border-gray-800"
                               }`}
                           >
                             <div className="relative">
@@ -756,8 +768,8 @@ const MessagingComponent = () => {
                                 {(unreadCounts[u.id] ?? 0) > 0 && (
                                   <div
                                     className={`text-xs rounded-full h-5 w-5 flex items-center justify-center ${isMaximized
-                                        ? "bg-pink-500 text-white"
-                                        : "bg-gray-600 dark:bg-gray-400 text-white dark:text-black"
+                                      ? "bg-pink-500 text-white"
+                                      : "bg-gray-600 dark:bg-gray-400 text-white dark:text-black"
                                       }`}
                                   >
                                     {unreadCounts[u.id]}

@@ -9,6 +9,9 @@ router.post("/start", verifyToken, async (req, res) => {
   try {
     const senderId = req.user.id; // from auth middleware
     const { receiverId } = req.body;
+    console.log("Chat debug");
+    console.log("Sender ID:", senderId);
+    console.log("Receiver ID:", receiverId);
     if (senderId === receiverId) {
       return res.status(400).json({ message: "Cannot chat with yourself" });
     }
@@ -38,7 +41,6 @@ router.post("/start", verifyToken, async (req, res) => {
 router.get("/my-chats", verifyToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    console.log("My chats request received");
     const chats = await Chat.find({
       participants: userId
     }).populate("participants", "username avatar");
