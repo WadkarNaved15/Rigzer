@@ -281,6 +281,7 @@ router.post("/:sessionId/heartbeat", verifyToken, async (req, res) => {
 router.post("/heartbeat-by-token/:token", async (req, res) => {
   try {
     const { token } = req.params;
+    console.log("Heartbeat from stream",token)
 
     const cached = await cacheService.get(`stream:${token}`);
 
