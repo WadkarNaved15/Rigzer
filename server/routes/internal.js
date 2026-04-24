@@ -36,10 +36,21 @@ router.post("/instance-ready", verifyInternalKey, async (req, res) => {
   try {
     // ✅ STEP 1: Find next waiting session (FIFO - queued first)
     const session = await GameSession.findOneAndUpdate(
-      { status: "waiting", leasing: false },
-      { $set: { leasing: true, lastAllocationAttempt: new Date() } },
-      { sort: { createdAt: 1 }, new: true }
-    );
+  {
+    status: "waiting",
+    leasing: { $ne: true }
+  },
+  {
+    $set: {
+      leasing: true,
+      lastAllocationAttempt: new Date()
+    }
+  },
+  {
+    sort: { createdAt: 1 },
+    new: true
+  }
+);
 
     if (!session) {
       log(`[Instance Ready] No waiting sessions, ${workerId} stays IDLE`);
@@ -214,24 +225,6 @@ const { status, error } = req.body;    console.log("[Controller Update] Body:", 
         updates.endedAt = new Date();
         updates.phase = null;
         updates.exitReason = "error";
-        
-        // ✨ NEW: Trigger controller prepare on failure (web server restart)
-        if (session.instanceIp) {
-          try {
-            await fetch(
-              `http://${session.instanceIp}:4443/prepare-for-next-stream`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ session_id: sessionId, force_restart: false }),
-                timeout: 20000,
-              }
-            );
-            console.log(`[Session Update] Instance prepared after failure`);
-          } catch (err) {
-            console.error(`[Session Update] Prepare after failure failed:`, err.message);
-          }
-        }
 
         if (session.instanceId && session.leaseToken) {
           try {
@@ -243,7 +236,6 @@ const { status, error } = req.body;    console.log("[Controller Update] Body:", 
               }
 
               await cacheService.del(`streamtoken:${sessionId}`);
-            await assignOrStartInstance({});
           } catch (err) {
             console.error(`[Session Update] Error releasing after failure:`, err.message);
           }
@@ -251,28 +243,11 @@ const { status, error } = req.body;    console.log("[Controller Update] Body:", 
         break;
 
       case "ended":
+      case "ended_and_ready":
         updates.status = "ended";
         updates.endedAt = new Date();
         updates.phase = null;
-        updates.exitReason = "user_exit";
-        
-        // ✨ NEW: Trigger controller prepare on normal end (web server restart)
-        if (session.instanceIp) {
-          try {
-            await fetch(
-              `http://${session.instanceIp}:4443/prepare-for-next-stream`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ session_id: sessionId, force_restart: false }),
-                timeout: 20000,
-              }
-            );
-            console.log(`[Session Update] Instance prepared after normal end`);
-          } catch (err) {
-            console.error(`[Session Update] Prepare after end failed:`, err.message);
-          }
-        }
+        updates.exitReason = "user_exit";        
 
         if (session.instanceId && session.leaseToken) {
           try {
@@ -284,12 +259,12 @@ const { status, error } = req.body;    console.log("[Controller Update] Body:", 
             }
 
             await cacheService.del(`streamtoken:${sessionId}`);
-            await assignOrStartInstance({});
           } catch (err) {
             console.error(`[Session Update] Error releasing after end:`, err.message);
           }
         }
         break;
+
 
       default:
         console.warn(`[Session Update] Unknown status: ${status}`);

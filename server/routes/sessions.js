@@ -278,6 +278,29 @@ router.post("/:sessionId/heartbeat", verifyToken, async (req, res) => {
   }
 });
 
+router.post("/heartbeat-by-token/:token", async (req, res) => {
+  try {
+    const { token } = req.params;
+    console.log("Heartbeat from stream",token)
+
+    const cached = await cacheService.get(`stream:${token}`);
+
+    if (!cached) {
+      return res.sendStatus(404);
+    }
+
+    await GameSession.findByIdAndUpdate(
+      cached.sessionId,
+      { lastHeartbeat: new Date() }
+    );
+
+    res.sendStatus(200);
+  } catch (err) {
+    console.error("Heartbeat by token error:", err);
+    res.sendStatus(500);
+  }
+});
+
 /**
  * POST /api/sessions/:sessionId/cancel
  * ✅ User cancels before launch (queued or countdown)
