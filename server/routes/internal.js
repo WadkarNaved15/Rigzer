@@ -243,6 +243,7 @@ const { status, error } = req.body;    console.log("[Controller Update] Body:", 
         break;
 
       case "ended":
+      case "ended_and_ready":
         updates.status = "ended";
         updates.endedAt = new Date();
         updates.phase = null;
@@ -263,6 +264,7 @@ const { status, error } = req.body;    console.log("[Controller Update] Body:", 
           }
         }
         break;
+
 
       default:
         console.warn(`[Session Update] Unknown status: ${status}`);
