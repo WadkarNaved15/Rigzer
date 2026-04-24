@@ -38,14 +38,14 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
   const accentRgb = !isTransparent && bgMode === 'color' && bgColor ? hexToRgb(bgColor) : null;
 
   const getContrastText = (hex: string) => {
-  const r = parseInt(hex.substring(1, 3), 16);
-  const g = parseInt(hex.substring(3, 5), 16);
-  const b = parseInt(hex.substring(5, 7), 16);
+    const r = parseInt(hex.substring(1, 3), 16);
+    const g = parseInt(hex.substring(3, 5), 16);
+    const b = parseInt(hex.substring(5, 7), 16);
 
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b);
 
-  return luminance > 186 ? "#000000" : "#ffffff";
-};
+    return luminance > 186 ? "#000000" : "#ffffff";
+  };
 
   // ── Observers ─────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -59,13 +59,13 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
       ([e]) => {
         if (e.isIntersecting) {
           viewStartTime.current = Date.now();
-          fetch(`${BACKEND_URL}/api/interactions/playtime-start`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ postId: _id }) }).catch(() => {});
-          fetch(`${BACKEND_URL}/api/interactions/view`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ postId: _id }) }).catch(() => {});
+          fetch(`${BACKEND_URL}/api/interactions/playtime-start`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ postId: _id }) }).catch(() => { });
+          fetch(`${BACKEND_URL}/api/interactions/view`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ postId: _id }) }).catch(() => { });
         } else {
           if (!viewStartTime.current) return;
           const duration = Math.floor((Date.now() - viewStartTime.current) / 1000);
           viewStartTime.current = null;
-          fetch(`${BACKEND_URL}/api/interactions/playtime-end`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ postId: _id, duration }) }).catch(() => {});
+          fetch(`${BACKEND_URL}/api/interactions/playtime-end`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ postId: _id, duration }) }).catch(() => { });
         }
       },
       { threshold: 0.4 }
@@ -109,8 +109,15 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
           <div ref={modelRef} className="relative overflow-hidden w-full h-[400px] rounded-xl bg-gray-100 dark:bg-zinc-900/50">
             {modelVisible && modelUrl ? (
               // @ts-ignore
-              <model-viewer src={modelUrl} camera-controls auto-rotate autoplay animation-name="*"
-                exposure="1.2" environment-image="neutral" shadow-intensity="1"
+              <model-viewer
+                src={modelUrl}
+                camera-controls
+                auto-rotate
+                autoplay
+                animation-name="*"
+                exposure="1.2"
+                environment-image="neutral"
+                shadow-intensity="1"
                 onClick={(e: React.MouseEvent) => e.stopPropagation()}
                 style={{ width: '100%', height: '400px', backgroundColor: 'transparent' }} />
             ) : (
@@ -139,17 +146,17 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
   //        image mode = sharp image, zero blur on the card itself
   const glassCardBase: React.CSSProperties = isImage
     ? {
-        backgroundImage: `url(${bgImageUrl})`,
-        backgroundSize: resolvedBgSize,
-        backgroundPosition: resolvedBgPos,
-        border: '1px solid rgba(255,255,255,0.18)',
-        boxShadow: '0 8px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12)',
-      }
+      backgroundImage: `url(${bgImageUrl})`,
+      backgroundSize: resolvedBgSize,
+      backgroundPosition: resolvedBgPos,
+      border: '1px solid rgba(255,255,255,0.18)',
+      boxShadow: '0 8px 40px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.12)',
+    }
     : {
-        background: `rgba(0,0,0,${overlayOpacity / 100})`,
-        border: `1px solid rgba(${accentRgb},0.3)`,
-        boxShadow: `0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)`,
-      };
+      background: `rgba(0,0,0,${overlayOpacity / 100})`,
+      border: `1px solid rgba(${accentRgb},0.3)`,
+      boxShadow: `0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.08)`,
+    };
 
   const headerPillStyle: React.CSSProperties = {
     background: 'rgba(255,255,255,0.12)',
@@ -263,30 +270,29 @@ const AdModelPost: React.FC<AdModelPostProps> = ({
             } />
         </div>
       </div>
-       {/* Description */}
-          {description && (
-  <div className="px-4 pb-3">
-    <p
-      className={`text-sm leading-relaxed font-light tracking-wide ${
-        isTransparent || bgMode === "image"
-          ? "text-black dark:text-white"
-          : ""
-      }`}
-    style={{
-  color:
-    bgMode === "color" && bgColor && bgColor !== "transparent"
-      ? getContrastText(bgColor)
-      : undefined,
-  textShadow:
-    bgMode === "image"
-      ? "0 1px 2px rgba(0,0,0,0.6)"
-      : "none",
-}}
-    >
-      {description}
-    </p>
-  </div>
-)}
+      {/* Description */}
+      {description && (
+        <div className="px-4 pb-3">
+          <p
+            className={`text-sm leading-relaxed font-light tracking-wide ${isTransparent || bgMode === "image"
+                ? "text-black dark:text-white"
+                : ""
+              }`}
+            style={{
+              color:
+                bgMode === "color" && bgColor && bgColor !== "transparent"
+                  ? getContrastText(bgColor)
+                  : undefined,
+              textShadow:
+                bgMode === "image"
+                  ? "0 1px 2px rgba(0,0,0,0.6)"
+                  : "none",
+            }}
+          >
+            {description}
+          </p>
+        </div>
+      )}
     </article>
   );
 };
