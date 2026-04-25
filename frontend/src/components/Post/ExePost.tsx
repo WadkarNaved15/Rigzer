@@ -153,7 +153,6 @@ const modelUrl =
                 camera-controls
                 auto-rotate
                 autoplay
-                animation-controls
                 animation-name="*"
                 exposure="1.2"
                 environment-image="neutral"
