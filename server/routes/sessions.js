@@ -291,9 +291,11 @@ router.post("/heartbeat-by-token/:token", async (req, res) => {
 
     await GameSession.findByIdAndUpdate(
       cached.sessionId,
-      { lastHeartbeat: new Date() }
+      {
+        lastHeartbeat: new Date(),
+        $unset: { disconnectDeadline: "" }
+      }
     );
-
     res.sendStatus(200);
   } catch (err) {
     console.error("Heartbeat by token error:", err);
@@ -375,37 +377,23 @@ router.post("/:sessionId/abandon/:secret", async (req, res) => {
   try {
     const session = await GameSession.findById(sessionId);
 
-    console.log(`[Abandon] Processing abandon for session ${sessionId}`);
-
     if (!session || session.status === "ended") {
       return res.sendStatus(200);
     }
 
-    // ✅ Release instance if allocated
-    if (session.instanceId && session.leaseToken) {
-      try {
-        await releaseInstance(session.instanceId, session.leaseToken);
-      } catch (err) {
-        console.error("Error releasing instance:", err);
-      }
-    }
+    console.log(`[Abandon] Marking session ${sessionId} as disconnecting`);
 
-    const updates = {
-      status: "ended",
-      endedAt: new Date(),
-      exitReason: "user_abandoned",
-    };
+    await GameSession.findByIdAndUpdate(sessionId, {
+      disconnectDeadline: new Date(Date.now() + 60000), // 60 sec
+      exitReason: "disconnect_pending"
+    });
 
-    await GameSession.findByIdAndUpdate(sessionId, updates);
-
-    console.log(`[Abandon] Session ${sessionId} abandoned by user`);
     return res.sendStatus(200);
   } catch (err) {
     console.error("Abandon error:", err);
     return res.sendStatus(500);
   }
 });
-
 /**
  * POST /api/sessions/running
  * ✅ Called by instance when stream starts (for metrics)
