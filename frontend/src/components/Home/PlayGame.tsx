@@ -56,8 +56,7 @@ export default function AdWithStatus({ sessionId }: AdWithStatusProps) {
 const handleTerminalState = useCallback((state: "failed" | "ended") => {
 
   // 🔴 Clear stale session state
-  localStorage.removeItem("session");
-  localStorage.removeItem("queue");
+localStorage.removeItem("rigzer_queue_session");
 
   if (state === "failed") {
     setSessionError("failed");
@@ -269,8 +268,7 @@ const handleTerminalState = useCallback((state: "failed" | "ended") => {
         {},
         { withCredentials: true }
       );
-      localStorage.removeItem("queue");
-      localStorage.removeItem("session");
+      localStorage.removeItem("rigzer_queue_session");
       window.location.href = "/";
     } catch (err) {
       console.error("Cancel session error:", err);
@@ -284,8 +282,7 @@ const handleTerminalState = useCallback((state: "failed" | "ended") => {
   };
 
   const handleRetry = () => {
-    localStorage.removeItem("queue");
-    localStorage.removeItem("session");
+    localStorage.removeItem("rigzer_queue_session");
     window.location.href = "/";
   };
 
