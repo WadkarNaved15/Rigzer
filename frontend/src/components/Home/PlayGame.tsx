@@ -53,21 +53,28 @@ export default function AdWithStatus({ sessionId }: AdWithStatusProps) {
 
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
-  const handleTerminalState = useCallback((state: "failed" | "ended") => {
-    if (state === "failed") {
-      setSessionError("failed");
-      setErrorMessage("Your session failed to start. This is usually due to a server issue. Please try again.");
-    } else {
-      setSessionError("ended");
-      setErrorMessage("Your session has ended.");
-    }
-    setSessionStatus(state);
-    // Stop polling if running
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-  }, []);
+const handleTerminalState = useCallback((state: "failed" | "ended") => {
+
+  // 🔴 Clear stale session state
+  localStorage.removeItem("session");
+  localStorage.removeItem("queue");
+
+  if (state === "failed") {
+    setSessionError("failed");
+    setErrorMessage("Your session failed to start. This is usually due to a server issue. Please try again.");
+  } else {
+    setSessionError("ended");
+    setErrorMessage("Your session has ended.");
+  }
+
+  setSessionStatus(state);
+
+  if (pollRef.current) {
+    clearInterval(pollRef.current);
+    pollRef.current = null;
+  }
+
+}, []);
 
   const fetchStreamUrl = useCallback(async () => {
     const MAX_RETRIES = 5;
