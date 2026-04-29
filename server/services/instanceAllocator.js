@@ -20,7 +20,9 @@ export async function assignOrStartInstance(requirements = {}) {
     });
 
     const response = await lambdaClient.send(command);
-    const payload = JSON.parse(Buffer.from(response.Payload).toString());
+    const payload = response.Payload
+  ? JSON.parse(Buffer.from(response.Payload).toString())
+  : {};
 
     console.log("[Allocator] Lease response:", {
       status: payload.status,
@@ -99,7 +101,9 @@ export async function releaseInstance(workerId, leaseToken) {
     });
 
     const response = await lambdaClient.send(command);
-    const payload = JSON.parse(Buffer.from(response.Payload).toString());
+    const payload = response.Payload
+  ? JSON.parse(Buffer.from(response.Payload).toString())
+  : {};
 
     console.log("[Allocator] Release response:", {
       status: payload.status,
@@ -117,15 +121,25 @@ export async function releaseInstance(workerId, leaseToken) {
       };
     }
 
-    if (payload.status === "ERROR") {
-      console.error("[Allocator] Release failed:", payload.reason);
-      return {
-        success: false,
-        workerId: payload.workerId,
-        reason: payload.reason,
-        error: payload.reason,
-      };
-    }
+if (payload.status === "ERROR") {
+
+  if (payload.reason === "Lease token mismatch") {
+    console.warn("[Allocator] Instance already reassigned, ignoring release");
+    return {
+      success: true,
+      workerId: payload.workerId,
+      reason: "already reassigned"
+    };
+  }
+
+  console.error("[Allocator] Release failed:", payload.reason);
+
+  return {
+    success: false,
+    workerId: payload.workerId,
+    reason: payload.reason
+  };
+}
 
     console.warn("[Allocator] Unknown release response status:", payload.status);
     return {
