@@ -166,19 +166,52 @@ const setupSSE = useCallback((sessionId: string) => {
         newState.estimatedWaitMinutes = data.estimatedWaitMinutes;
 
       // 🟡 QUEUED USER → show countdown modal
-      if (data.status === "allocation_ready") {
-        console.log("[Queue SSE] allocation_ready → queued user");
+if (data.status === "allocation_ready") {
+  console.log("[Queue SSE] allocation_ready → queued user");
 
-        newState.isDirectPlay = false;
-        newState.countdownStartsAt = data.countdownStartsAt
-          ? new Date(data.countdownStartsAt)
-          : null;
-        newState.countdownSecondsRemaining = data.countdownSeconds || 30;
+  newState.isDirectPlay = false;
+
+  const seconds = data.countdownSeconds || 30;
+
+  newState.countdownStartsAt = data.countdownStartsAt
+    ? new Date(data.countdownStartsAt)
+    : new Date();
+
+  newState.countdownSecondsRemaining = seconds;
+
+  // start countdown timer
+  if (countdownInterval) clearInterval(countdownInterval);
+
+  const interval = setInterval(() => {
+    setQueue(prev => {
+      if (!prev.countdownSecondsRemaining) return prev;
+
+      const next = prev.countdownSecondsRemaining - 1;
+
+      if (next <= 0) {
+        clearInterval(interval);
+        cancelSession(); // auto release
+        return { ...prev, countdownSecondsRemaining: 0 };
       }
+
+      return {
+        ...prev,
+        countdownSecondsRemaining: next
+      };
+    });
+  }, 1000);
+
+  setCountdownInterval(interval);
+}
 
       // 🟢 DIRECT USER → skip countdown, show ads
       if (data.status === "starting") {
         console.log("[Queue SSE] starting → direct session");
+
+        if (countdownInterval) {
+  clearInterval(countdownInterval);
+  setCountdownInterval(null);
+}
 
         newState.isDirectPlay = true;
 

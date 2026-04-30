@@ -21,7 +21,7 @@ export default function SessionOverlay() {
 
   const showAds =
     queue.sessionId &&
-    queue.queuePosition === null &&
+    queue.queuePosition == null &&
     ["waiting", "starting", "running"].includes(queue.status);
 
   return createPortal(

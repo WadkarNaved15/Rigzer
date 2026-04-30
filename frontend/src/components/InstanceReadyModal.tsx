@@ -28,9 +28,22 @@ export const InstanceReadyModal: React.FC<InstanceReadyModalProps> = ({
   const [isCancelling, setIsCancelling] = useState(false);
   const [displayCountdown, setDisplayCountdown] = useState(countdown);
 
-  useEffect(() => {
-    setDisplayCountdown(countdown);
-  }, [countdown]);
+useEffect(() => {
+  setDisplayCountdown(countdown);
+
+  const interval = setInterval(() => {
+    setDisplayCountdown((prev) => {
+      if (prev <= 1) {
+        clearInterval(interval);
+        onCancel(); // auto release instance
+        return 0;
+      }
+      return prev - 1;
+    });
+  }, 1000);
+
+  return () => clearInterval(interval);
+}, [countdown]);
 
   const handleLaunch = async () => {
     setIsLaunching(true);
