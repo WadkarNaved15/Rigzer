@@ -164,7 +164,7 @@ const server = http.createServer(app);
 server.on("upgrade", (req, socket, head) => {
   const host = req.headers.host?.split(":")[0];
 
-if (host?.endsWith(".stream.rigzer.com")) {
+  if (host?.endsWith(".stream.rigzer.com")) {
     handleWsUpgrade(req, socket, head);
   }
 });
@@ -341,7 +341,12 @@ io.on("connection", (socket) => {
 (async () => {
   try {
     // 1️⃣ Connect Mongo FIRST
-    await mongoose.connect(process.env.MONGO_URI);
+    await mongoose.connect(process.env.MONGO_URI, {
+      maxPoolSize: 20,       // default is 5 — too low for 200 VUs
+      minPoolSize: 5,        // keep connections warm
+      serverSelectionTimeoutMS: 3000,
+      socketTimeoutMS: 20000,
+    });
     console.log("MongoDB Connected");
 
     // 2️⃣ Initialize pubsub
@@ -370,7 +375,7 @@ io.on("connection", (socket) => {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ session_id: session._id.toString() }),
-            }).catch(() => {});
+            }).catch(() => { });
           }
 
           await GameSession.findByIdAndUpdate(session._id, {
@@ -380,7 +385,7 @@ io.on("connection", (socket) => {
           });
 
           if (session.instanceId && session.leaseToken) {
-            releaseInstance(session.instanceId, session.leaseToken).catch(() => {});
+            releaseInstance(session.instanceId, session.leaseToken).catch(() => { });
           }
         }
       } catch (err) {

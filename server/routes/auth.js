@@ -18,19 +18,21 @@ const url = process.env.FRONTEND_URL
 const isProduction = process.env.NODE_ENV === "production";
 const authLimiter = createRateLimiter("sessionStart");
 const verifyLimiter = ipRateLimiter(10, 60);
+
 const cookieOptions = {
   httpOnly: true,
-  secure: true,
-  sameSite: "none",
-  domain: ".rigzer.com",
+  secure: isProduction, // only true in production
+  sameSite: isProduction ? "none" : "lax",
+  ...(isProduction && { domain: ".rigzer.com" }), // only add in production
   path: "/",
   maxAge: 30 * 24 * 60 * 60 * 1000
-}
+};
+
 const clearCookieOptions = {
   httpOnly: true,
-  secure: true,
-  sameSite: "none",
-  domain: ".rigzer.com",
+  secure: isProduction,
+  sameSite: isProduction ? "none" : "lax",
+  ...(isProduction && { domain: ".rigzer.com" }),
   path: "/",
 };
 

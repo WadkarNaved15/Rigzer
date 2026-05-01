@@ -9,14 +9,11 @@ const verifyToken = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
     const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
-
     const session = await Session.findOne({
       tokenHash,
       deviceId: req.deviceId
     });
-
     if (!session) {
       return res.status(401).json({ error: "Session expired" });
     }
