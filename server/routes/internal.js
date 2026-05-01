@@ -411,26 +411,36 @@ async function callController(session, lease) {
     console.log(`[Controller] Calling http://${lease.ip}:4443/start-session`);
     console.log(`[Controller] Payload:`, JSON.stringify(payload, null, 2));
 
-    fetch(`http://${lease.ip}:4443/start-session`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Session-Id": session._id.toString(),
-      },
-      body: JSON.stringify(payload),
-    })
-      .then(async (r) => {
-        const text = await r.text();
-        console.log(`[Controller] Response ${r.status}: ${text}`);
-      })
-      .catch((err) => {
-        console.error(`[Controller] Fetch failed: ${err.message}`);
-        GameSession.findByIdAndUpdate(session._id, {
-          status: "failed",
-          exitReason: "error",
-          error: err.message,
-        }).catch(() => {});
-      });
+fetch(`http://${lease.ip}:4443/start-session`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    "X-Session-Id": session._id.toString(),
+  },
+  body: JSON.stringify(payload),
+})
+  .then(async (r) => {
+    const text = await r.text();
+    console.log(`[Controller] Response ${r.status}: ${text}`);
+  })
+  .catch(async (err) => {
+    console.error(`[Controller] Fetch failed: ${err.message}`);
+
+    await GameSession.findByIdAndUpdate(session._id, {
+      status: "failed",
+      exitReason: "controller_error",
+      error: err.message,
+      endedAt: new Date()
+    });
+
+    if (session.instanceId && session.leaseToken) {
+      try {
+        await releaseInstance(session.instanceId, session.leaseToken);
+      } catch (releaseErr) {
+        console.error("Release after controller failure failed:", releaseErr);
+      }
+    }
+  });
 
     log(`[Controller] Started session ${session._id}`);
   } catch (err) {

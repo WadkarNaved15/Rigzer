@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import fetch from "node-fetch";
 import crypto from "crypto";
 import { body, validationResult } from "express-validator";
+import { publishSessionEvent } from "../services/sessionPubSub.js";
 
 import AllPost from "../models/Allposts.js";
 import GameSession from "../models/GameSession.js";

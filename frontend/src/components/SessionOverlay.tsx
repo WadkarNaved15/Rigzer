@@ -17,11 +17,11 @@ export default function SessionOverlay() {
     queue.status === "waiting" && isQueued;
 
   const showInstanceReady =
-    queue.status === "allocation_ready" && !queue.isDirectPlay;
+  queue.status === "allocation_ready";
 
   const showAds =
     queue.sessionId &&
-    queue.queuePosition == null &&
+    queue.isDirectPlay &&
     ["waiting", "starting", "running"].includes(queue.status);
 
   return createPortal(
