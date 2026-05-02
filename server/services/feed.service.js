@@ -97,9 +97,11 @@ export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
     const [type, value] = cursor.split(/:(.+)/);
     if (type === "a") {
       allPostFilter = { _id: { $lt: value } };
-    } else if (type === "p") {
-      pocketFilter = { publishedAt: { $lt: new Date(value) } };
-    } else if (type === "g") {
+    } 
+    // else if (type === "p") {
+    //   pocketFilter = { publishedAt: { $lt: new Date(value) } };
+    // } 
+    else if (type === "g") {
       gorseOffset = parseInt(value, 10) || 0;
     } else {
       // Legacy cursor without prefix
@@ -108,11 +110,11 @@ export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
   }
 
   // ── Pocket query — always needed regardless of auth, start it immediately ────
-  const pocketPromise = PocketFeedEntry.find(pocketFilter)
-    .populate("owner", "username avatar")
-    .sort({ publishedAt: -1 })
-    .limit(limit)
-    .lean();
+  // const pocketPromise = PocketFeedEntry.find(pocketFilter)
+  //   .populate("owner", "username avatar")
+  //   .sort({ publishedAt: -1 })
+  //   .limit(limit)
+  //   .lean();
 
   // ── Post fetch strategy ───────────────────────────────────────────────────────
   //
@@ -187,7 +189,7 @@ export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
   }
 
   // ── Collect pockets (already in-flight since the top of the function) ────────
-  const pocketEntries = await pocketPromise;
+  // const pocketEntries = await pocketPromise;
 
   // ── Trim model assets to first only ──────────────────────────────────────────
   for (const post of allPosts) {
@@ -208,27 +210,27 @@ export async function getFeedPage({ cursor, limit = 10, userId } = {}) {
       : p._id.toString(),
   }));
 
-  const normalisedPockets = pocketEntries.map((e) => ({
-    _id: e._id,
-    createdAt: e.createdAt,
-    updatedAt: e.updatedAt,
-    publishedAt: e.publishedAt,
-    type: "pocket_update",
-    user: e.owner,
-    likesCount: e.likesCount,
-    commentsCount: e.commentsCount,
-    isLiked: false,
-    brandName: e.brandName,
-    tagline: e.tagline,
-    compiledBundleUrl: e.compiledBundleUrl,
-    _pocketEntryId: e._id,
-    _sortKey: new Date(e.publishedAt).getTime(),
-    _cursorType: "p",
-    _cursorVal: e.publishedAt.toISOString(),
-  }));
+  // const normalisedPockets = pocketEntries.map((e) => ({
+  //   _id: e._id,
+  //   createdAt: e.createdAt,
+  //   updatedAt: e.updatedAt,
+  //   publishedAt: e.publishedAt,
+  //   type: "pocket_update",
+  //   user: e.owner,
+  //   likesCount: e.likesCount,
+  //   commentsCount: e.commentsCount,
+  //   isLiked: false,
+  //   brandName: e.brandName,
+  //   tagline: e.tagline,
+  //   compiledBundleUrl: e.compiledBundleUrl,
+  //   _pocketEntryId: e._id,
+  //   _sortKey: new Date(e.publishedAt).getTime(),
+  //   _cursorType: "p",
+  //   _cursorVal: e.publishedAt.toISOString(),
+  // }));
 
   // ── Merge, sort, slice ────────────────────────────────────────────────────────
-  const merged = [...normalisedAllPosts, ...normalisedPockets]
+  const merged = [...normalisedAllPosts]
     .sort((a, b) => b._sortKey - a._sortKey)
     .slice(0, limit);
 

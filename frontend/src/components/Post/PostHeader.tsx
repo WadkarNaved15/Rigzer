@@ -58,7 +58,7 @@ const PostHeader: React.FC<PostHeaderProps> = ({
       <div className="flex items-center">
 
         {/* PRICE */}
-        {type === 'model_post' && typeof price === 'number' && (
+        {/* {type === 'model_post' && typeof price === 'number' && (
           <span
             className="
               text-sm font-semibold text-[#5799EF]
@@ -69,7 +69,7 @@ const PostHeader: React.FC<PostHeaderProps> = ({
           >
             ${price}
           </span>
-        )}
+        )} */}
 
 
         {/* MENU BUTTON */}

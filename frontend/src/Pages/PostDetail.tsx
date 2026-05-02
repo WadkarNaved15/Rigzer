@@ -139,9 +139,9 @@ const PostDetail = ({ post:initialPost, onClose }: { post: ExePostProps; onClose
               <aside className="col-span-3 flex flex-col gap-8">
                 {/* TITLE & DESCRIPTION */}
                 <div className="space-y-4">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase tracking-widest">
+                  {/* <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-[10px] font-bold uppercase tracking-widest">
                     Premium Asset
-                  </div>
+                  </div> */}
 
                   <div>
                     <h2 className="text-3xl font-extrabold tracking-tight text-gray-900 dark:text-white leading-tight">
@@ -353,10 +353,10 @@ const PostDetail = ({ post:initialPost, onClose }: { post: ExePostProps; onClose
 
                 {/* CTA SECTION */}
                 <div className="pt-6 space-y-4 border-t border-gray-200 dark:border-neutral-800">
-                  <button className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-500/20">
+                  {/* <button className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-blue-500/20">
                     <ShieldCheck className="w-5 h-5" />
                     Buy Assets
-                  </button>
+                  </button> */}
 
                   <p className="text-center text-[11px] text-gray-400 uppercase tracking-widest font-medium">
                     License: Standard Digital Media
