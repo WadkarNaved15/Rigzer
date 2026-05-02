@@ -222,7 +222,7 @@ const GamePost: React.FC<GamePostProps> = ({
                     <div className="mt-4 w-full bg-blue-500/10 border border-blue-500/30 rounded-lg p-2">
                       <p className="text-xs text-blue-600 dark:text-blue-400 font-medium flex items-center gap-2 justify-center">
                         <Loader2 size={14} className="animate-spin" />
-                        Waiting in queue... 
+                        Getting your instance ready ...
                       </p>
                     </div>
                   )}
