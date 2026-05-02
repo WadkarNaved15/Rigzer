@@ -7,8 +7,8 @@ interface QueueNotificationProps {
   totalQueued: number | null;
   estimatedWaitMinutes: number | null;
   isVisible: boolean;
-  isMinimized: boolean;               // ✅ lifted to GamePost — survives re-renders
-  onMinimize: (val: boolean) => void; // ✅ setter lives in GamePost
+  isMinimized: boolean;              
+  onMinimize: (val: boolean) => void; 
   onCancel: () => Promise<void>;
 }
 
@@ -45,14 +45,14 @@ export const QueueNotification: React.FC<QueueNotificationProps> = ({
     }
   };
 
-  // Gradient — light: sky-400 → gray-800 | dark: teal → black
+  // Gradient — light: gray-400 → gray-800 | dark: black → teal
   const gradient = isDark
     ? 'linear-gradient(to bottom right, #3D7A6E, #000000)'
-    : 'linear-gradient(to bottom right, #38bdf8, #1f2937)';
+    : 'linear-gradient(to bottom right, #9ca3af, #374151)';
 
   // Body bg — echoes the gradient endpoint so header flows into body seamlessly
-  const bodyBg = isDark ? '#0a0a0a' : '#1f2937';
-  const borderColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.15)';
+  const bodyBg = isDark ? '#000000' : '#f3f4f6';
+  const borderColor = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.1)';
 
   // ✅ MINIMIZED — badge only
   if (isMinimized) {
@@ -106,10 +106,24 @@ export const QueueNotification: React.FC<QueueNotificationProps> = ({
           </div>
           <button
             onClick={() => onMinimize(true)}
-            className="p-1.5 hover:bg-white/20 rounded-lg transition-colors"
+            className="
+              bg-gradient-to-br
+              from-gray-400 to-gray-600
+              hover:from-gray-500 hover:to-gray-700
+              
+              dark:from-gray-600 dark:to-gray-800
+              dark:hover:from-gray-700 dark:hover:to-gray-900
+              
+              text-white
+              p-2 rounded-lg
+              transition-all duration-300 transform
+              hover:scale-110
+              active:scale-95
+              group relative
+            "
             aria-label="Minimize"
           >
-            <ChevronDown size={20} />
+            <ChevronDown size={20} className="group-hover:animate-pulse text-white" />
           </button>
         </div>
 
@@ -125,7 +139,7 @@ export const QueueNotification: React.FC<QueueNotificationProps> = ({
               <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-0.5">
                 Queue Position
               </p>
-              <p className="text-3xl font-black text-sky-400 dark:text-[#3D7A6E] leading-none">
+              <p className="text-3xl font-black text-white dark:text-white leading-none">
                 #{queuePosition}
               </p>
             </div>
@@ -148,7 +162,7 @@ export const QueueNotification: React.FC<QueueNotificationProps> = ({
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
               className="flex items-center gap-3 p-3 rounded-xl"
             >
-              <Clock size={18} className="text-sky-400 flex-shrink-0" />
+              <Clock size={18} className="text-white flex-shrink-0" />
               <div>
                 <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-0.5">
                   Estimated Wait
@@ -169,19 +183,52 @@ export const QueueNotification: React.FC<QueueNotificationProps> = ({
 
         {/* Footer */}
         <div className="px-5 pb-5 flex gap-2">
+          {/* Cancel Button - Destructive */}
           <button
             onClick={handleCancel}
             disabled={isCancelling}
-            className="flex-1 py-2.5 rounded-xl font-bold text-sm transition-all
-              bg-red-500/10 text-red-400 hover:bg-red-500/20
-              disabled:opacity-50 disabled:cursor-not-allowed"
+            className="
+              flex-1
+              bg-gradient-to-br
+              from-red-500 to-red-600
+              hover:from-red-600 hover:to-red-700
+              
+              dark:from-red-600 dark:to-red-700
+              dark:hover:from-red-700 dark:hover:to-red-800
+              
+              text-white
+              py-2.5 rounded-xl
+              transition-all duration-300 transform
+              hover:scale-105
+              active:scale-95
+              disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100
+              font-bold text-sm
+              shadow-lg shadow-red-500/30
+            "
           >
             {isCancelling ? 'Cancelling...' : 'Cancel Queue'}
           </button>
+          
+          {/* Minimize Button - Secondary */}
           <button
             onClick={() => onMinimize(true)}
-            style={{ background: 'rgba(255,255,255,0.07)' }}
-            className="flex-1 py-2.5 rounded-xl font-bold text-sm text-white/80 hover:bg-white/10 transition-all"
+            className="
+              flex-1
+              bg-gradient-to-br
+              from-gray-600 to-gray-700
+              hover:from-gray-700 hover:to-gray-800
+              
+              dark:from-gray-700 dark:to-gray-800
+              dark:hover:from-gray-800 dark:hover:to-gray-900
+              
+              text-white
+              py-2.5 rounded-xl
+              transition-all duration-300 transform
+              hover:scale-105
+              active:scale-95
+              font-bold text-sm
+              shadow-lg shadow-gray-500/30
+            "
           >
             Minimize
           </button>

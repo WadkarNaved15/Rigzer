@@ -28,22 +28,22 @@ export const InstanceReadyModal: React.FC<InstanceReadyModalProps> = ({
   const [isCancelling, setIsCancelling] = useState(false);
   const [displayCountdown, setDisplayCountdown] = useState(countdown);
 
-useEffect(() => {
-  setDisplayCountdown(countdown);
+  useEffect(() => {
+    setDisplayCountdown(countdown);
 
-  const interval = setInterval(() => {
-    setDisplayCountdown((prev) => {
-      if (prev <= 1) {
-        clearInterval(interval);
-        onCancel(); // auto release instance
-        return 0;
-      }
-      return prev - 1;
-    });
-  }, 1000);
+    const interval = setInterval(() => {
+      setDisplayCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          onCancel(); // auto release instance
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
-  return () => clearInterval(interval);
-}, [countdown]);
+    return () => clearInterval(interval);
+  }, [countdown, onCancel]);
 
   const handleLaunch = async () => {
     setIsLaunching(true);
@@ -87,22 +87,22 @@ useEffect(() => {
 
       {/* Modal Content */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in zoom-in duration-300">
-        <div className="w-full max-w-md rounded-3xl border border-sky-200 dark:border-sky-800/50 bg-gradient-to-br from-white via-sky-50 to-blue-50 dark:from-gray-900 dark:via-slate-900 dark:to-slate-950 shadow-2xl overflow-hidden">
+        <div className="w-full max-w-md rounded-3xl border border-gray-300 dark:border-gray-700/50 bg-gradient-to-br from-gray-100 via-gray-50 to-white dark:from-black dark:via-slate-900 dark:to-black shadow-2xl overflow-hidden">
 
           {/* Header */}
-          <div className="px-6 py-6 text-center border-b border-sky-200/50 dark:border-sky-800/30 bg-gradient-to-r from-sky-500/5 to-blue-500/5">
+          <div className="px-6 py-6 text-center border-b border-gray-200/50 dark:border-gray-700/30 bg-gradient-to-r from-gray-200/50 to-gray-100/50 dark:from-gray-900/50 dark:to-black/50">
             <div className="flex items-center justify-center gap-2 mb-3">
               <div className="relative h-3 w-3 bg-green-500 rounded-full">
                 <div className="absolute inset-0 bg-green-500 rounded-full animate-pulse" />
               </div>
-              <span className="text-sm font-bold text-gray-600 dark:text-gray-300 tracking-wide uppercase">
+              <span className="text-sm font-bold text-gray-700 dark:text-gray-300 tracking-wide uppercase">
                 🎉 Instance Ready
               </span>
             </div>
             <h2 className="text-3xl font-black text-gray-900 dark:text-white leading-tight">
               Your Game<br />is Ready!
             </h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
               ✨ An instance has been allocated for you
             </p>
           </div>
@@ -160,41 +160,64 @@ useEffect(() => {
             </div>
 
             {/* Info Box */}
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <p className="text-xs text-blue-700 dark:text-blue-300">
+            <div className="p-3 bg-gray-100 dark:bg-gray-800/20 border border-gray-200 dark:border-gray-700 rounded-lg">
+              <p className="text-xs text-gray-700 dark:text-gray-300">
                 📌 If you don't click "Launch" within {displayCountdown}s, the instance will be released to the next user.
               </p>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="px-6 py-6 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 border-t border-gray-200 dark:border-gray-700 space-y-3">
+          <div className="px-6 py-6 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-black dark:to-gray-900 border-t border-gray-200 dark:border-gray-700 space-y-3">
             {/* Launch Button - Primary */}
             <button
               onClick={handleLaunch}
               disabled={isLaunching || displayCountdown === 0}
-              className="w-full flex items-center justify-center gap-3 py-4 px-6 rounded-xl
-                bg-gradient-to-r from-sky-500 to-blue-500 hover:from-sky-600 hover:to-blue-600
-                text-white font-black text-lg
-                shadow-lg shadow-sky-500/30 hover:shadow-xl
-                transition-all hover:scale-105 active:scale-95
-                disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100"
+              className="
+                w-full
+                bg-gradient-to-br
+                from-gray-600 to-gray-800
+                hover:from-gray-700 hover:to-gray-900
+                
+                dark:from-gray-700 dark:to-gray-900
+                dark:hover:from-gray-800 dark:hover:to-black
+                
+                text-white
+                py-4 px-6 rounded-xl
+                transition-all duration-300 transform
+                hover:scale-105 active:scale-95
+                disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100
+                font-black text-lg
+                shadow-lg shadow-gray-600/40
+                flex items-center justify-center gap-3
+              "
             >
               <Play size={24} fill="currentColor" />
               {isLaunching ? 'LAUNCHING...' : 'LAUNCH STREAM'}
             </button>
 
-            {/* Cancel Button - Secondary */}
+            {/* Cancel Button - Destructive Secondary */}
             <button
               onClick={handleCancel}
               disabled={isCancelling || isLaunching}
-              className="w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl
-                bg-red-500/10 hover:bg-red-500/20
-                text-red-600 dark:text-red-400
-                border border-red-300/30 dark:border-red-800/30
-                font-semibold
-                transition-all
-                disabled:opacity-50 disabled:cursor-not-allowed"
+              className="
+                w-full
+                bg-gradient-to-br
+                from-red-500 to-red-600
+                hover:from-red-600 hover:to-red-700
+                
+                dark:from-red-600 dark:to-red-700
+                dark:hover:from-red-700 dark:hover:to-red-800
+                
+                text-white
+                py-3 px-6 rounded-xl
+                transition-all duration-300 transform
+                hover:scale-105 active:scale-95
+                disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100
+                font-semibold text-base
+                shadow-lg shadow-red-500/30
+                flex items-center justify-center gap-2
+              "
             >
               <X size={18} />
               {isCancelling ? 'Cancelling...' : 'Cancel & Leave'}
@@ -202,8 +225,8 @@ useEffect(() => {
           </div>
 
           {/* Footer Info */}
-          <div className="px-6 py-3 bg-gray-100 dark:bg-gray-800/50 text-center border-t border-gray-200 dark:border-gray-700">
-            <p className="text-xs text-gray-600 dark:text-gray-400">
+          <div className="px-6 py-3 bg-gray-200 dark:bg-gray-900/50 text-center border-t border-gray-200 dark:border-gray-700">
+            <p className="text-xs text-gray-700 dark:text-gray-400">
               ⚡ Instance allocated • Ready to stream
             </p>
           </div>
