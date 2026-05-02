@@ -23,6 +23,14 @@ router.post("/presigned-url", async (req, res) => {
       return res.status(400).json({ message: "fileName and category required" });
     }
 
+    if (fileType?.startsWith("image/") && fileSize > 5 * 1024 * 1024) {
+      return res.status(400).json({ message: "Image too large" });
+    }
+
+    if (fileType?.startsWith("video/") && fileSize > 50 * 1024 * 1024) {
+      return res.status(400).json({ message: "Video too large" });
+    }
+    
     if (fileSize > MAX_MODEL_SIZE_BYTES) {
       return res.status(400).json({ message: "File size exceeds the limit" });
     }
