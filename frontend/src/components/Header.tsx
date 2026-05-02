@@ -111,7 +111,7 @@ export function Header() {
               className="group relative flex items-center justify-center"
             >
               <Logo
-                className="h-12 w-auto transition-all duration-300 hover:-translate-y-[1px] text-gray-800 dark:text-[#29665a]" />
+                className="h-12 w-auto transition-all duration-300 hover:-translate-y-[1px] text-[#29665a]" />
             </Link>
           </div>
 
