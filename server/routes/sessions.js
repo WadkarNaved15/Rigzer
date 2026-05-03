@@ -96,28 +96,49 @@ router.post(
 
       try {
         const leaseResult = await assignOrStartInstance({});
+        console.log("[Allocator] Lease response:", leaseResult);
 
+        const leaseStatus = leaseResult?.status?.toUpperCase();
 
-        if (leaseResult?.status === "ASSIGNED") {
-          assignedInstance = leaseResult;
-          response202.status = "starting";
-          response202.phase = "downloading";
-        }
+        switch (leaseStatus) {
 
-        if (leaseResult && leaseResult.queued) {
-          console.log(`[Session Start] User will be queued:`, {
-            position: leaseResult.queuePosition,
-            total: leaseResult.totalQueued,
-            wait: leaseResult.estimatedWaitMinutes
-          });
-          queueType = "queued";
-          
-          response202.queuePosition = leaseResult.queuePosition;
-          response202.totalQueued = leaseResult.totalQueued;
-          response202.estimatedWaitMinutes = leaseResult.estimatedWaitMinutes;
-          response202.avgSessionDuration = leaseResult.avgSessionDuration
-        } else if (leaseResult && leaseResult.scaling) {
-          console.log(`[Session Start] ASG scaling - user skips queue, goes to ads`);
+          case "ASSIGNED":
+            console.log("[Session Start] Idle instance assigned");
+
+            assignedInstance = leaseResult;
+
+            response202.status = "starting";
+            response202.phase = "downloading";
+            break;
+
+          case "WAITING":
+            console.log("[Session Start] User queued");
+
+            queueType = "queued";
+
+            response202.queuePosition = leaseResult.queuePosition;
+            response202.totalQueued = leaseResult.totalQueued;
+            response202.estimatedWaitMinutes = leaseResult.estimatedWaitMinutes;
+            response202.avgSessionDuration = leaseResult.avgSessionDuration;
+
+            break;
+
+          case "SCALING":
+            console.log("[Session Start] ASG scaling → instance launching");
+
+            // user waits for instance boot
+            response202.status = "waiting";
+
+            break;
+
+          case "RETRY":
+            console.log("[Session Start] Lease race condition, retry later");
+
+            response202.status = "waiting";
+            break;
+
+          default:
+            console.warn("[Session Start] Unknown allocator status:", leaseResult);
         }
       } catch (err) {
         console.error("[Session Start] Allocation check error (non-fatal):", err.message);
