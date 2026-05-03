@@ -16,6 +16,7 @@ interface InstanceReadyModalProps {
  * ✅ Two options: LAUNCH STREAM or CANCEL
  * ✅ If countdown expires, auto-cancel
  * ✅ Forces decision (modal backdrop, not dismissible)
+ * ✅ RESPONSIVE: Works on mobile, tablet, and desktop
  */
 export const InstanceReadyModal: React.FC<InstanceReadyModalProps> = ({
   sessionId,
@@ -85,37 +86,37 @@ export const InstanceReadyModal: React.FC<InstanceReadyModalProps> = ({
       {/* Modal Backdrop */}
       <div className="fixed inset-0 z-50 bg-black/50 dark:bg-black/70 backdrop-blur-sm animate-in fade-in duration-200" />
 
-      {/* Modal Content */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in zoom-in duration-300">
-        <div className="w-full max-w-md rounded-3xl border border-gray-300 dark:border-gray-700/50 bg-gradient-to-br from-gray-100 via-gray-50 to-white dark:from-black dark:via-slate-900 dark:to-black shadow-2xl overflow-hidden">
+      {/* Modal Container - Responsive and scrollable if needed */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto">
+        <div className="w-full max-w-md rounded-3xl border border-gray-300 dark:border-gray-700/50 bg-gradient-to-br from-gray-100 via-gray-50 to-white dark:from-black dark:via-slate-900 dark:to-black shadow-2xl overflow-hidden my-auto">
 
-          {/* Header */}
-          <div className="px-6 py-6 text-center border-b border-gray-200/50 dark:border-gray-700/30 bg-gradient-to-r from-gray-200/50 to-gray-100/50 dark:from-gray-900/50 dark:to-black/50">
-            <div className="flex items-center justify-center gap-2 mb-3">
+          {/* Header - Responsive padding and text */}
+          <div className="px-4 sm:px-6 py-4 sm:py-6 text-center border-b border-gray-200/50 dark:border-gray-700/30 bg-gradient-to-r from-gray-200/50 to-gray-100/50 dark:from-gray-900/50 dark:to-black/50">
+            <div className="flex items-center justify-center gap-2 mb-2 sm:mb-3">
               <div className="relative h-3 w-3 bg-green-500 rounded-full">
                 <div className="absolute inset-0 bg-green-500 rounded-full animate-pulse" />
               </div>
-              <span className="text-sm font-bold text-gray-700 dark:text-gray-300 tracking-wide uppercase">
+              <span className="text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-300 tracking-wide uppercase">
                 🎉 Instance Ready
               </span>
             </div>
-            <h2 className="text-3xl font-black text-gray-900 dark:text-white leading-tight">
+            <h2 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white leading-tight">
               Your Game<br />is Ready!
             </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-1 sm:mt-2">
               ✨ An instance has been allocated for you
             </p>
           </div>
 
-          {/* Countdown Section */}
-          <div className="px-6 py-8 space-y-6">
-            <div className="flex flex-col items-center gap-4">
-              <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+          {/* Countdown Section - Responsive spacing and sizes */}
+          <div className="px-4 sm:px-6 py-6 sm:py-8 space-y-4 sm:space-y-6">
+            <div className="flex flex-col items-center gap-3 sm:gap-4">
+              <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-medium">
                 Launching in
               </p>
 
-              {/* Circular Countdown */}
-              <div className="relative w-40 h-40 flex items-center justify-center">
+              {/* Circular Countdown - Responsive size */}
+              <div className="relative w-32 h-32 sm:w-40 sm:h-40 flex items-center justify-center">
                 {/* SVG Progress Circle */}
                 <svg className="absolute w-full h-full" style={{ transform: 'rotate(-90deg)' }}>
                   {/* Background circle */}
@@ -142,9 +143,9 @@ export const InstanceReadyModal: React.FC<InstanceReadyModalProps> = ({
                   />
                 </svg>
 
-                {/* Center Number */}
+                {/* Center Number - Responsive sizing */}
                 <div className="relative text-center">
-                  <div className={`text-5xl font-black tabular-nums ${getCountdownColor()}`}>
+                  <div className={`text-4xl sm:text-5xl font-black tabular-nums ${getCountdownColor()}`}>
                     {displayCountdown.toString().padStart(2, '0')}
                   </div>
                   <div className="text-xs font-semibold text-gray-500 dark:text-gray-400 mt-1 uppercase tracking-wider">
@@ -154,21 +155,21 @@ export const InstanceReadyModal: React.FC<InstanceReadyModalProps> = ({
               </div>
 
               {/* Message */}
-              <p className="text-center text-sm text-gray-600 dark:text-gray-400 font-medium">
+              <p className="text-center text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-medium">
                 {getCountdownMessage()}
               </p>
             </div>
 
-            {/* Info Box */}
-            <div className="p-3 bg-gray-100 dark:bg-gray-800/20 border border-gray-200 dark:border-gray-700 rounded-lg">
-              <p className="text-xs text-gray-700 dark:text-gray-300">
+            {/* Info Box - Responsive padding and text */}
+            <div className="p-2 sm:p-3 bg-gray-100 dark:bg-gray-800/20 border border-gray-200 dark:border-gray-700 rounded-lg">
+              <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">
                 📌 If you don't click "Launch" within {displayCountdown}s, the instance will be released to the next user.
               </p>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="px-6 py-6 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-black dark:to-gray-900 border-t border-gray-200 dark:border-gray-700 space-y-3">
+          {/* Action Buttons - Responsive padding and sizing */}
+          <div className="px-4 sm:px-6 py-4 sm:py-6 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-black dark:to-gray-900 border-t border-gray-200 dark:border-gray-700 space-y-2 sm:space-y-3">
             {/* Launch Button - Primary */}
             <button
               onClick={handleLaunch}
@@ -183,17 +184,18 @@ export const InstanceReadyModal: React.FC<InstanceReadyModalProps> = ({
                 dark:hover:from-gray-800 dark:hover:to-black
                 
                 text-white
-                py-4 px-6 rounded-xl
+                py-3 sm:py-4 px-4 sm:px-6 rounded-xl
                 transition-all duration-300 transform
                 hover:scale-105 active:scale-95
                 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100
-                font-black text-lg
+                font-black text-base sm:text-lg
                 shadow-lg shadow-gray-600/40
-                flex items-center justify-center gap-3
+                flex items-center justify-center gap-2 sm:gap-3
               "
             >
-              <Play size={24} fill="currentColor" />
-              {isLaunching ? 'LAUNCHING...' : 'LAUNCH STREAM'}
+              <Play size={20} className="sm:w-6 sm:h-6" fill="currentColor" />
+              <span className="hidden xs:inline">LAUNCH STREAM</span>
+              <span className="xs:hidden">LAUNCH</span>
             </button>
 
             {/* Cancel Button - Destructive Secondary */}
@@ -210,22 +212,23 @@ export const InstanceReadyModal: React.FC<InstanceReadyModalProps> = ({
                 dark:hover:from-red-700 dark:hover:to-red-800
                 
                 text-white
-                py-3 px-6 rounded-xl
+                py-2.5 sm:py-3 px-4 sm:px-6 rounded-xl
                 transition-all duration-300 transform
                 hover:scale-105 active:scale-95
                 disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100
-                font-semibold text-base
+                font-semibold text-sm sm:text-base
                 shadow-lg shadow-red-500/30
-                flex items-center justify-center gap-2
+                flex items-center justify-center gap-1.5 sm:gap-2
               "
             >
               <X size={18} />
-              {isCancelling ? 'Cancelling...' : 'Cancel & Leave'}
+              <span className="hidden xs:inline">Cancel & Leave</span>
+              <span className="xs:hidden">Cancel</span>
             </button>
           </div>
 
-          {/* Footer Info */}
-          <div className="px-6 py-3 bg-gray-200 dark:bg-gray-900/50 text-center border-t border-gray-200 dark:border-gray-700">
+          {/* Footer Info - Responsive text size */}
+          <div className="px-4 sm:px-6 py-2.5 sm:py-3 bg-gray-200 dark:bg-gray-900/50 text-center border-t border-gray-200 dark:border-gray-700">
             <p className="text-xs text-gray-700 dark:text-gray-400">
               ⚡ Instance allocated • Ready to stream
             </p>

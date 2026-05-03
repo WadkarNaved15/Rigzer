@@ -92,8 +92,17 @@ router.post(
         status: "waiting",
       };
 
+      let assignedInstance = null;
+
       try {
         const leaseResult = await assignOrStartInstance({});
+
+
+        if (leaseResult?.status === "ASSIGNED") {
+          assignedInstance = leaseResult;
+          response202.status = "starting";
+          response202.phase = "downloading";
+        }
 
         if (leaseResult && leaseResult.queued) {
           console.log(`[Session Start] User will be queued:`, {
@@ -106,7 +115,7 @@ router.post(
           response202.queuePosition = leaseResult.queuePosition;
           response202.totalQueued = leaseResult.totalQueued;
           response202.estimatedWaitMinutes = leaseResult.estimatedWaitMinutes;
-          response202.avgSessionDuration = leaseResult.avgSessionDuration;
+          response202.avgSessionDuration = leaseResult.avgSessionDuration
         } else if (leaseResult && leaseResult.scaling) {
           console.log(`[Session Start] ASG scaling - user skips queue, goes to ads`);
         }
@@ -118,8 +127,8 @@ router.post(
       const session = await GameSession.create({
         user: userId,
         gamePost: gamePostId,
-        status: "waiting",
-        phase: null,
+        status: assignedInstance ? "starting" : "waiting",
+        phase: assignedInstance ? "downloading" : null,
         maxDurationSeconds,
         queueType,
         metadata: {
@@ -130,11 +139,30 @@ router.post(
       });
       response202.sessionId = session._id;
 
+      if (assignedInstance) {
+      const updatedSession = await GameSession.findByIdAndUpdate(
+  session._id,
+  {
+    instanceId: assignedInstance.workerId,
+    instanceIp: assignedInstance.instanceIp,
+    leaseToken: assignedInstance.leaseToken,
+    leaseExpiresAt: new Date(assignedInstance.leaseExpiresAt * 1000)
+  },
+  { new: true }
+);
+
+await callController(updatedSession, {
+  id: assignedInstance.workerId,
+  ip: assignedInstance.instanceIp,
+  leaseToken: assignedInstance.leaseToken
+});
+    }
+
       const send = sessionStreams.get(session._id.toString());
       if (send) {
         send({
-          status: "waiting",
-          phase: null
+          status: assignedInstance ? "starting" : "waiting",
+          phase: assignedInstance ? "downloading" : null
         });
       }
 
