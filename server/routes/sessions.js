@@ -162,11 +162,11 @@ router.post(
       response202.sessionId = session._id;
 
       if (assignedInstance) {
-      const updatedSession = await GameSession.findByIdAndUpdate(
+     const updatedSession = await GameSession.findByIdAndUpdate(
   session._id,
   {
-    instanceId: assignedInstance.workerId,
-    instanceIp: assignedInstance.instanceIp,
+    instanceId: assignedInstance.id,
+    instanceIp: assignedInstance.ip,
     leaseToken: assignedInstance.leaseToken,
     leaseExpiresAt: new Date(assignedInstance.leaseExpiresAt * 1000)
   },
@@ -174,8 +174,8 @@ router.post(
 );
 
 await callController(updatedSession, {
-  id: assignedInstance.workerId,
-  ip: assignedInstance.instanceIp,
+  id: assignedInstance.id,
+  ip: assignedInstance.ip,
   leaseToken: assignedInstance.leaseToken
 });
     }
