@@ -4,6 +4,7 @@ import { useQueue } from "../context/QueueContext";
 import QueueNotification from "./QueueNotification";
 import InstanceReadyModal from "./InstanceReadyModal";
 import AdWithStatus from "../components/Home/PlayGame";
+import InstanceStartingNotification from "./InstanceStartingNotification";
 
 export default function SessionOverlay() {
   const { queue, cancelSession, launchSession } = useQueue();
@@ -13,30 +14,47 @@ export default function SessionOverlay() {
 
   const isQueued = queue.queuePosition !== null;
 
+  // USER IS IN QUEUE
   const showQueueNotification =
     queue.status === "waiting" && isQueued;
 
-  const showInstanceReady =
-  queue.status === "allocation_ready";
+  // INSTANCE ASSIGNED BUT STARTING
+  const showInstanceStarting =
+    queue.status === "waiting" && !isQueued;
 
+  // QUEUED USER GOT INSTANCE
+  const showInstanceReady =
+    queue.status === "allocation_ready";
+
+  // DIRECT USER OR AFTER LAUNCH
   const showAds =
     queue.sessionId &&
     queue.isDirectPlay &&
-    ["waiting", "starting", "running"].includes(queue.status);
+    ["starting", "running"].includes(queue.status);
 
   return createPortal(
     <>
       {showQueueNotification && (
         <QueueNotification
-            sessionId={queue.sessionId}
-            queuePosition={queue.queuePosition}
-            totalQueued={queue.totalQueued}
-            estimatedWaitMinutes={queue.estimatedWaitMinutes}
-            isVisible={true}
-            isMinimized={isQueueMinimized}
-            onMinimize={setIsQueueMinimized}
-            onCancel={cancelSession}
-            />
+          sessionId={queue.sessionId}
+          queuePosition={queue.queuePosition}
+          totalQueued={queue.totalQueued}
+          estimatedWaitMinutes={queue.estimatedWaitMinutes}
+          isVisible={true}
+          isMinimized={isQueueMinimized}
+          onMinimize={setIsQueueMinimized}
+          onCancel={cancelSession}
+        />
+      )}
+
+      {showInstanceStarting && (
+        <InstanceStartingNotification
+          sessionId={queue.sessionId}
+          isVisible={true}
+          isMinimized={isQueueMinimized}
+          onMinimize={setIsQueueMinimized}
+          onCancel={cancelSession}
+        />
       )}
 
       {showInstanceReady && (
