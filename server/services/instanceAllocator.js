@@ -34,6 +34,7 @@ export async function assignOrStartInstance(requirements = {}) {
     // ✅ CASE 1: Got instance immediately
     if (payload.status === "ASSIGNED") {
       return {
+        status: "ASSIGNED",
         id: payload.workerId,
         ip: payload.instanceIp,
         region: payload.region || "ap-south-1",
@@ -47,6 +48,7 @@ export async function assignOrStartInstance(requirements = {}) {
     if (payload.status === "WAITING") {
       console.log("[Allocator] ASG at max capacity → User goes to QUEUE");
       return {
+        status: "WAITING",
         scaling: false,
         queued: true,
         queuePosition: payload.queuePosition,
@@ -62,6 +64,7 @@ export async function assignOrStartInstance(requirements = {}) {
       return {
         scaling: true,  // ✅ Skip queue notification
         queued: false,  // ✅ Not in queue
+        status: "SCALING"
       };
     }
 
