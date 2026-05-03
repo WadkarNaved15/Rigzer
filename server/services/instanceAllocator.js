@@ -35,8 +35,8 @@ export async function assignOrStartInstance(requirements = {}) {
     if (payload.status === "ASSIGNED") {
       return {
         status: "ASSIGNED",
-        id: payload.workerId,
-        ip: payload.instanceIp,
+        workerId: payload.workerId,
+        instanceIp: payload.instanceIp,
         region: payload.region || "ap-south-1",
         hasGpu: true,
         leaseToken: payload.leaseToken,
