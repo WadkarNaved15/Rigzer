@@ -15,6 +15,7 @@ import verifyToken from "../middlewares/authMiddleware.js";
 import cacheService from "../services/cacheService.js";
 import { SessionMetrics } from "../services/sessionMetrics.js";
 import { sessionStreams } from "../services/sessionStream.js";
+import { callController } from "../services/controllerService.js";
 
 const router = express.Router();
 const metrics = new SessionMetrics();
