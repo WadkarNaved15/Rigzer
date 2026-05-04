@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { PlusCircle } from "lucide-react";
 import FollowFace from "./FollowFace";
+import PocketPost from "../Post/PocketPost";
 import { usePublishedArticles } from "../../context/PublishedArticleContext";
 interface CanvasPreview {
   _id: string;
@@ -9,16 +10,28 @@ interface CanvasPreview {
   hero_image_url?: string;
   author_name?: string;
 }
+interface Pocket {
+  _id: string;
+  user: {
+    username: string;
+    avatar?: string;
+  };
+  createdAt: string;
+  brandName: string;
+  tagline?: string;
+  compiledBundleUrl: string;
+}
 
-
-type Face = "follow" | "reading" ;
+type Face = "follow" | "reading" | "pockets";
 
 const Tower: React.FC<{
   activeFace: Face;
-}> = ({ activeFace}) => {
+}> = ({ activeFace }) => {
   const { articles } = usePublishedArticles();
   const cubeRef = useRef<HTMLDivElement>(null);
-  const navigate=useNavigate();
+  const navigate = useNavigate();
+  const [pockets, setPockets] = useState<Pocket[]>([]);
+  const [loadingPockets, setLoadingPockets] = useState(false);
   const [translateZ, setTranslateZ] = useState(150);
 
   useEffect(() => {
@@ -34,7 +47,23 @@ const Tower: React.FC<{
   }, []);
 
   const rotation = useMemo(() => {
-    return activeFace === "follow" ? "rotateY(0deg)" : "rotateY(-180deg)";
+    if (activeFace === "follow") return "rotateY(0deg)";
+    if (activeFace === "reading") return "rotateY(-120deg)";
+    return "rotateY(-240deg)";
+  }, [activeFace]);
+
+  useEffect(() => {
+    if (activeFace !== "pockets") return;
+
+    setLoadingPockets(true);
+
+    fetch(`${import.meta.env.VITE_BACKEND_URL}/api/fetchpockets/fetch_pockets`)
+      .then((res) => res.json())
+      .then((data) => {
+        setPockets(data.pockets || []);
+      })
+      .catch(() => { })
+      .finally(() => setLoadingPockets(false));
   }, [activeFace]);
 
   return (
@@ -50,14 +79,14 @@ const Tower: React.FC<{
         {/* FACE 2: READING - Now fixed with absolute positioning and backface logic */}
         <div
           className="absolute inset-0 face bg-[#F3F4F6] dark:bg-[#191919] dark:text-white overflow-y-auto backface-hidden"
-          style={{ transform: `rotateY(180deg) translateZ(${translateZ}px)` }}
+          style={{ transform: `rotateY(120deg) translateZ(${translateZ}px)` }}
         >
           {/* Internal scrollable container */}
           <div className="grid grid-cols-2 gap-4 px-3 py-6">
             {articles.map((canvas) => (
               <div
                 key={canvas._id}
-                 onClick={() => navigate(`/articles/${canvas._id}`)}
+                onClick={() => navigate(`/articles/${canvas._id}`)}
                 className="cursor-pointer group flex flex-col"
               >
                 <div className="relative aspect-[3/4] bg-gray-200 dark:bg-[#111] rounded-xl overflow-hidden border border-[#E0E0E5] dark:border-white/5 shadow-lg transition-transform duration-300 group-hover:border-purple-500/50 group-hover:shadow-purple-500/10">
@@ -91,6 +120,25 @@ const Tower: React.FC<{
               </div>
             ))}
           </div>
+        </div>
+        {/* FACE 3: POCKETS 👇 ADD THIS HERE */}
+        <div
+          className="absolute inset-0 bg-[#F3F4F6] dark:bg-[#191919] overflow-y-auto backface-hidden"
+          style={{ transform: `rotateY(240deg) translateZ(${translateZ}px)` }}
+        >
+          {loadingPockets ? (
+            <div className="text-center mt-10 text-gray-400">
+              Loading pockets...
+            </div>
+          ) : pockets.length === 0 ? (
+            <div className="text-center mt-10 text-gray-400">
+              No pockets yet
+            </div>
+          ) : (
+            pockets.map((pocket) => (
+              <PocketPost key={pocket._id} {...pocket} />
+            ))
+          )}
         </div>
       </div>
     </div>

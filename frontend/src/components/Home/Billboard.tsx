@@ -3,15 +3,23 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 
 const Tower = React.lazy(() => import("./Tower"));
 
-type Face = "follow" | "reading";
+type Face = "follow" | "reading" | "pockets";
+
+const faces: Face[] = ["follow", "reading", "pockets"];
 
 const Billboard: React.FC = () => {
-  const [activeSection, setActiveSection] = useState<Face>("follow");
+  const [activeIndex, setActiveIndex] = useState(0);
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const toggleSection = useCallback(() => {
-    setActiveSection((prev) => (prev === "follow" ? "reading" : "follow"));
+  const activeSection = faces[activeIndex];
+
+  const next = useCallback(() => {
+    setActiveIndex((prev) => (prev + 1) % faces.length);
+  }, []);
+
+  const prev = useCallback(() => {
+    setActiveIndex((prev) => (prev - 1 + faces.length) % faces.length);
   }, []);
 
   /* =========================
@@ -19,25 +27,19 @@ const Billboard: React.FC = () => {
   ========================= */
 
   useEffect(() => {
-    intervalRef.current = setInterval(toggleSection, 15000);
+    intervalRef.current = setInterval(next, 15000);
 
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [toggleSection]);
-
-  /* =========================
-     PAUSE / RESUME AUTO FLIP
-  ========================= */
+  }, [next]);
 
   const stopAuto = () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
+    if (intervalRef.current) clearInterval(intervalRef.current);
   };
 
   const resumeAuto = () => {
-    intervalRef.current = setInterval(toggleSection, 15000);
+    intervalRef.current = setInterval(next, 15000);
   };
 
   return (
@@ -48,7 +50,6 @@ const Billboard: React.FC = () => {
       onWheel={stopAuto}
     >
       {/* HEADER */}
-
       <div className="flex items-center justify-between px-2 py-3">
         <h2 className="text-lg font-bold dark:text-white capitalize">
           {activeSection}
@@ -56,14 +57,14 @@ const Billboard: React.FC = () => {
 
         <div className="flex gap-2">
           <button
-            onClick={toggleSection}
+            onClick={prev}
             className="p-2 rounded-full bg-gray-100 dark:bg-[#252525] dark:text-white hover:bg-purple-600 hover:text-white"
           >
             <ArrowLeft size={20} />
           </button>
 
           <button
-            onClick={toggleSection}
+            onClick={next}
             className="p-2 rounded-full bg-gray-100 dark:bg-[#252525] dark:text-white hover:bg-purple-600 hover:text-white"
           >
             <ArrowRight size={20} />
@@ -72,15 +73,8 @@ const Billboard: React.FC = () => {
       </div>
 
       {/* CONTENT */}
-
       <div className="flex-1 overflow-hidden border-t border-purple-600 dark:border-gray-200">
-        <Suspense
-          fallback={
-            <div className="text-center text-gray-400 pt-10">
-              Loading...
-            </div>
-          }
-        >
+        <Suspense fallback={<div className="text-center text-gray-400 pt-10">Loading...</div>}>
           <Tower activeFace={activeSection} />
         </Suspense>
       </div>
