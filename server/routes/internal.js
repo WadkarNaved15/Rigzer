@@ -49,6 +49,14 @@ router.post("/instance-ready", verifyInternalKey, async (req, res) => {
       return res.json({ assigned: false });
     }
 
+const freshSession = await GameSession.findById(session._id);
+
+if (freshSession.instanceId) {
+  log(`[Instance Ready] Session already assigned (fresh check), skipping`);
+  return res.json({ assigned: true });
+}
+console.log(`[DEBUG] Attempting claim for worker ${workerId}`);
+
     // ✅ Generate lease token HERE, write it to DynamoDB atomically
     const leaseToken = crypto.randomUUID();
     const leaseExpiresAt = Math.floor(Date.now() / 1000) + 1800;
@@ -57,14 +65,21 @@ router.post("/instance-ready", verifyInternalKey, async (req, res) => {
     try {
       await claimWorkerInDynamo(workerId, leaseToken, leaseExpiresAt);
     } catch (err) {
-      // Race condition — another request claimed it first
-      await GameSession.findByIdAndUpdate(session._id, {
-        status: "waiting",
-        leasing: false,
-      });
-      log(`[Instance Ready] Worker ${workerId} already claimed (race), releasing session`);
-      return res.json({ assigned: false });
-    }
+  console.error("Dynamo claim failed:", err.name, err.message);
+
+  if (err.name === "ConditionalCheckFailedException") {
+    log(`[Instance Ready] Worker ${workerId} not IDLE at claim time`);
+  } else {
+    log(`[Instance Ready] Dynamo error (NOT race): ${err.message}`);
+  }
+
+  await GameSession.findByIdAndUpdate(session._id, {
+    status: "waiting",
+    leasing: false,
+  });
+
+  return res.json({ assigned: false });
+}
 
     const wasQueued = session.queueType === "queued";
 

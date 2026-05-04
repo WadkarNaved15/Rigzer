@@ -1,5 +1,5 @@
 import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
-import { DynamoDBClient, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
+import { DynamoDBClient, UpdateItemCommand ,GetItemCommand} from "@aws-sdk/client-dynamodb";
 const lambdaClient = new LambdaClient({
   region: process.env.AWS_REGION || "ap-south-1",
 });
@@ -9,12 +9,19 @@ const RELEASE_LAMBDA_NAME = process.env.RELEASE_LAMBDA_NAME || "releaseGpuWorker
 
 const dynamo = new DynamoDBClient({ region: process.env.AWS_REGION || "ap-south-1" });
 
+
 export async function claimWorkerInDynamo(workerId, leaseToken, leaseExpiresAt) {
+  const state = await dynamo.send(new GetItemCommand({
+  TableName: process.env.WORKERS_TABLE,
+  Key: { worker_id: { S: workerId } }
+}));
+
+console.log("Dynamo BEFORE claim:", state.Item);
   await dynamo.send(new UpdateItemCommand({
     TableName: process.env.WORKERS_TABLE || "gpu_instances_workers",
     Key: { worker_id: { S: workerId } },
     UpdateExpression: "SET #s = :assigned, leaseToken = :token, leaseExpiresAt = :exp",
-    ConditionExpression: "#s = :idle",
+    ConditionExpression: "attribute_not_exists(#s) OR #s = :idle",
     ExpressionAttributeNames: { "#s": "status" },
     ExpressionAttributeValues: {
       ":assigned": { S: "ASSIGNED" },
