@@ -60,10 +60,7 @@ router.post("/instance-ready", verifyInternalKey, async (req, res) => {
 
     // ✅ STEP 2: Try to lease this instance
     try {
-      const lease = {
-  id: workerId,
-  ip: instanceIp
-};
+      const lease = await assignOrStartInstance({});
 
       if (!lease?.id) {
         await GameSession.findByIdAndUpdate(session._id, {
@@ -82,6 +79,7 @@ router.post("/instance-ready", verifyInternalKey, async (req, res) => {
         instanceId: lease.id,
         instanceIp: lease.ip,
         leaseExpiresAt: new Date(Date.now() + 1800 * 1000),
+        leaseToken: lease.leaseToken,
         expiresAt: new Date(Date.now() + session.maxDurationSeconds * 1000),
         leasing: false,
       };

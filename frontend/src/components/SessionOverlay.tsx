@@ -20,7 +20,7 @@ export default function SessionOverlay() {
 
   // INSTANCE ASSIGNED BUT STARTING
   const showInstanceStarting =
-    queue.status === "starting" && !isQueued;
+    queue.status === "waiting" && !isQueued;
 
   // QUEUED USER GOT INSTANCE
   const showInstanceReady =
