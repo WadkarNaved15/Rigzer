@@ -1,11 +1,30 @@
 import { LambdaClient, InvokeCommand } from "@aws-sdk/client-lambda";
-
+import { DynamoDBClient, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
 const lambdaClient = new LambdaClient({
   region: process.env.AWS_REGION || "ap-south-1",
 });
 
 const LEASE_LAMBDA_NAME = process.env.LEASE_LAMBDA_NAME || "leaseGpuWorker";
 const RELEASE_LAMBDA_NAME = process.env.RELEASE_LAMBDA_NAME || "releaseGpuWorker";
+
+const dynamo = new DynamoDBClient({ region: process.env.AWS_REGION || "ap-south-1" });
+
+export async function claimWorkerInDynamo(workerId, leaseToken, leaseExpiresAt) {
+  await dynamo.send(new UpdateItemCommand({
+    TableName: process.env.WORKERS_TABLE || "gpu_instances_workers",
+    Key: { worker_id: { S: workerId } },
+    UpdateExpression: "SET #s = :assigned, leaseToken = :token, leaseExpiresAt = :exp",
+    ConditionExpression: "#s = :idle",
+    ExpressionAttributeNames: { "#s": "status" },
+    ExpressionAttributeValues: {
+      ":assigned": { S: "ASSIGNED" },
+      ":idle":     { S: "IDLE" },
+      ":token":    { S: leaseToken },
+      ":exp":      { N: String(leaseExpiresAt) },
+    },
+  }));
+  // Throws ConditionalCheckFailedException if not IDLE — caller catches this
+}
 
 /**
  * Lease a GPU instance
