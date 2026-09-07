@@ -19,8 +19,6 @@ import Wishlist from "../models/Wishlist.js";
 import User from "../models/User.js";
 import {
   getRecommendations,
-  recordServed,
-  fireAndForget,
 } from "./gorse.client.js";
 import { enrichDemoConsumed } from "../utils/enrichDemoConsumed.js";
 import { enrichSessionRequests } from "../utils/enrichSessionRequests.js";
@@ -609,10 +607,6 @@ async function getFeedPageInner({ cursor, fetchLimit, userId }) {
       if (snapshotPage) {
         merged = snapshotPage.posts;
         nextCursor = `g:${snapshotPage.gorseOffset}:${snapshotPage.position}`;
-
-        if (merged.length > 0) {
-          fireAndForget(() => recordServed(userId, merged.map((p) => p._id.toString())));
-        }
       } else {
         let allPosts = [];
         let gorseConsumedCount = 0;
@@ -677,10 +671,6 @@ async function getFeedPageInner({ cursor, fetchLimit, userId }) {
               position: pageLimit,
             });
             nextCursor = `g:${gorseNextOffset}:${pageLimit}`;
-          }
-
-          if (merged.length > 0) {
-            fireAndForget(() => recordServed(userId, merged.map((p) => p._id.toString())));
           }
         }
       }
