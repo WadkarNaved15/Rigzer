@@ -31,7 +31,7 @@ auto_insert_item = true  # Creates item record on first feedback
 positive_feedback_types = ["like", "save", "share", "comment"]
 
 # What counts as "this user saw this post" (used to avoid re-showing)
-read_feedback_types = ["read","served"]
+read_feedback_types = ["served"]
 
 # How long to keep feedback for training (days)
 # 90 days gives the model enough signal without being too stale
@@ -86,7 +86,7 @@ type = "auto"
 
 [recommend.collaborative]
 type            = "mf"       # Matrix Factorization
-fit_period      = "5m"     # Retrain every 2 hours (reduce to 60m once you have real traffic)
+fit_period      = "60m"     # Retrain every 1 hours (reduce to 60m once you have real traffic)
 optimize_period = "720m"     # Hyperparameter tuning every 12 hours
 
 # ── RANKER ───────────────────────────────────────────────────
@@ -125,8 +125,14 @@ positive_replacement_decay = 0.6   # Liked posts reappear at 60% probability (sa
 read_replacement_decay     = 0.1   # Seen posts reappear at 10% probability (nearly hidden)
 
 # ── NOTES FOR SCALING ────────────────────────────────────────
-# < 1,000 users:    Current config is fine. MF may underperform — fallback carries the load.
-# 1k–10k users:     Reduce fit_period to 60m. Consider adding a second worker.
-# 10k–100k users:   Add workers (--scale gorse-worker=3). Increase cache_size to 5000.
-# 100k+ users:      Move to dedicated MongoDB Atlas M30+ cluster. Redis 1GB+ plan.
-#                   Consider sharding gorse data. Add gorse-server replica behind load balancer.
+# < 1,000 users:    60m MF / 120m ranker is sufficient.
+#                   MF may underperform with sparse positive feedback;
+#                   fallback and non-personalized recommenders carry the load.
+#
+# 1k–10k users:     Consider reducing MF fit_period to 30–60m
+#                   depending on feedback volume.
+#
+# 10k–100k users:   Add workers and increase cache_size.
+#
+# 100k+ users:      Move to dedicated MongoDB Atlas M30+ cluster,
+#                   Redis 1GB+ plan, and scale Gorse workers.
