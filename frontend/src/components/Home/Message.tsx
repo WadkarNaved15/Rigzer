@@ -31,7 +31,7 @@ const MessagingComponent = () => {
   const [requestedUser, setRequestedUser] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
-  const [currentChatId, setCurrentChatId] = useState(null);
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [statusLoading, setStatusLoading] = useState<"accepted" | "declined" | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [chatHasMore, setChatHasMore] = useState<Record<string, boolean>>({});
@@ -61,7 +61,7 @@ const MessagingComponent = () => {
 
   // Maximum amount of history that an automatic reply-preview jump
   // is allowed to load.
-  const MAX_REPLY_JUMP_MESSAGES = 300;
+  const MAX_REPLY_JUMP_MESSAGES = 150;
   const MAX_REPLY_JUMP_PAGES = Math.ceil(
     MAX_REPLY_JUMP_MESSAGES / CHAT_PAGE_SIZE
   );
@@ -696,7 +696,20 @@ const MessagingComponent = () => {
         createdAt: new Date(),
       };
 
-      socket.emit("send-message", newMessage);
+      socket.emit(
+        "send-message",
+        newMessage,
+        (response: {
+          success: boolean;
+          chatId?: string;
+        }) => {
+          if (!response?.success || !response.chatId) {
+            return;
+          }
+
+          setCurrentChatId(response.chatId);
+        }
+      );
 
       setConversations((prev) => ({
         ...prev,
@@ -839,7 +852,15 @@ const MessagingComponent = () => {
       createdAt: new Date(),
     };
 
-    socket.emit("send-message", newMessage);
+    socket.emit("send-message", newMessage, (response: {
+      success: boolean;
+      chatId?: string;
+    }) => {
+      if (!response?.success || !response.chatId) {
+        return;
+      }
+      setCurrentChatId(response.chatId);
+    });
 
     setConversations((prev) => ({
       ...prev,

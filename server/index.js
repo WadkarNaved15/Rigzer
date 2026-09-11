@@ -28,6 +28,7 @@ import redisClient from "./config/redis.js";
 import startCleanupWorker from "./services/sessionCleanupWorker.js";
 
 // ROUTES
+import User from "./models/User.js";
 import modelUploadRouter from "./routes/compression.js";
 import internalNotificationRoutes from "./routes/internalNotification.js";
 import chatMediaUpload from "./routes/chatMediaUpload.js";
@@ -181,24 +182,24 @@ const isProduction = process.env.NODE_ENV === "production";
 
 const corsWhitelist = isProduction
   ? [
-      "https://www.rigzer.com",
-      "https://rigzer.com",
-      "https://stream.rigzer.com",
-      /^https:\/\/.*\.stream\.rigzer\.com$/,
-      process.env.FRONTEND_URL,
-    ].filter(Boolean)
+    "https://www.rigzer.com",
+    "https://rigzer.com",
+    "https://stream.rigzer.com",
+    /^https:\/\/.*\.stream\.rigzer\.com$/,
+    process.env.FRONTEND_URL,
+  ].filter(Boolean)
   : [
-      "http://localhost:5173",
-      "https://localhost:5173",
+    "http://localhost:5173",
+    "https://localhost:5173",
 
-      // Your development frontend
-      process.env.FRONTEND_URL,
+    // Your development frontend
+    process.env.FRONTEND_URL,
 
-      // Dev stream domain
-      "https://dev-stream.rigzer.com",
-      /^https:\/\/.*\.dev-stream\.rigzer\.com$/,
+    // Dev stream domain
+    "https://dev-stream.rigzer.com",
+    /^https:\/\/.*\.dev-stream\.rigzer\.com$/,
 
-    ].filter(Boolean);
+  ].filter(Boolean);
 
 app.use(
   cors({
@@ -451,6 +452,7 @@ io.on("connection", (socket) => {
 
       let finalChatId = chatId;
       let chat = null;
+      let isNewChat = false;
 
       // ----------------------------------------
       // Find or create chat
@@ -469,6 +471,8 @@ io.on("connection", (socket) => {
             status: "pending",
           });
 
+          isNewChat = true;
+
           await sendEventToQueue({
             type: "CHAT_REQUEST",
             actorId: senderId,
@@ -479,6 +483,8 @@ io.on("connection", (socket) => {
         }
 
         finalChatId = chat._id;
+        socket.join(finalChatId.toString());
+        console.log("Joined chat room:", finalChatId);
       } else {
         // Existing chat → fetch only what we need
         chat = await Chat.findById(finalChatId)
@@ -496,6 +502,25 @@ io.on("connection", (socket) => {
         messageType: "post",
         sharedPostId: postId,
       });
+
+      if (isNewChat) {
+        const sender = await User.findById(senderId)
+          .select("_id username avatar")
+          .lean();
+
+        if (sender) {
+          io.to(`user-${receiverId}`).emit("new-chat-request", {
+            chatId: finalChatId,
+            status: chat.status,
+            requestedBy: senderId,
+            user: {
+              id: sender._id,
+              name: sender.username,
+              avatar: sender.avatar || "",
+            },
+          });
+        }
+      }
 
       // ----------------------------------------
       // Emit message
@@ -551,7 +576,7 @@ io.on("connection", (socket) => {
   });
 
   // Normal message
-  socket.on("send-message", async (msg) => {
+  socket.on("send-message", async (msg, ack) => {
     try {
       let {
         chatId,
@@ -567,6 +592,7 @@ io.on("connection", (socket) => {
 
       let finalChatId = chatId;
       let chat = null;
+      let isNewChat = false;
 
       // ----------------------------------------
       // Find or create chat
@@ -585,6 +611,8 @@ io.on("connection", (socket) => {
             status: "pending",
           });
 
+          isNewChat = true;
+
           await sendEventToQueue({
             type: "CHAT_REQUEST",
             actorId: senderId,
@@ -595,11 +623,21 @@ io.on("connection", (socket) => {
         }
 
         finalChatId = chat._id;
+        socket.join(finalChatId.toString());
+        console.log("Joined chat room:", finalChatId);
       } else {
         // Existing chat → fetch only the fields we actually need
         chat = await Chat.findById(finalChatId)
           .select("status")
           .lean();
+      }
+
+      // Tell the sender the authoritative chat ID
+      if (typeof ack === "function") {
+        ack({
+          success: true,
+          chatId: finalChatId.toString(),
+        });
       }
 
       // ----------------------------------------
@@ -658,6 +696,25 @@ io.on("connection", (socket) => {
         messageType: mediaUrl ? "media" : "text",
         replyTo: resolvedReplyTo,
       });
+
+      if (isNewChat) {
+        const sender = await User.findById(senderId)
+          .select("_id username avatar")
+          .lean();
+
+        if (sender) {
+          io.to(`user-${receiverId}`).emit("new-chat-request", {
+            chatId: finalChatId,
+            status: chat.status,
+            requestedBy: senderId,
+            user: {
+              id: sender._id,
+              name: sender.username,
+              avatar: sender.avatar || "",
+            },
+          });
+        }
+      }
 
       // ----------------------------------------
       // Emit message
