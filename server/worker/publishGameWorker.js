@@ -1,5 +1,3 @@
-// workers/publishGameWorker.js
-
 import { Worker } from "bullmq";
 import { redisConfig } from "../config/redis.js";
 
@@ -7,15 +5,48 @@ import {
   runPublishJob,
 } from "../routes/gamePosts.js";
 
+console.log(
+  "[publishGameWorker] Starting worker for queue: publish-game"
+);
+
 const worker = new Worker(
   "publish-game",
   async (job) => {
 
-    await runPublishJob(
-      job.data.draftId,
-      job.data.creditPurchaseId
+    console.log(
+      `[publishGameWorker] Processing job ${job.id}`
     );
 
+    console.log(
+      `[publishGameWorker] Job data:`,
+      JSON.stringify(job.data)
+    );
+
+    try {
+      const result = await runPublishJob(
+        job.data.draftId,
+        job.data.creditPurchaseId
+      );
+
+      console.log(
+        `[publishGameWorker] Publish job ${job.id} completed`
+      );
+
+      return {
+        success: true,
+        draftId: job.data.draftId,
+        result,
+      };
+
+    } catch (error) {
+
+      console.error(
+        `[publishGameWorker] Publish job ${job.id} failed:`,
+        error
+      );
+
+      throw error;
+    }
   },
   {
     connection: redisConfig,
@@ -24,16 +55,29 @@ const worker = new Worker(
   }
 );
 
-
-worker.on("completed", job => {
+worker.on("ready", () => {
   console.log(
-    `Job ${job.id} completed`
+    "[publishGameWorker] Worker connected and ready"
+  );
+});
+
+worker.on("completed", (job) => {
+  console.log(
+    `[publishGameWorker] Job ${job.id} completed`
   );
 });
 
 worker.on("failed", (job, err) => {
   console.error(
-    `Job ${job?.id} failed`,
+    `[publishGameWorker] Job ${job?.id} failed`
+  );
+
+  console.error(err);
+});
+
+worker.on("error", (err) => {
+  console.error(
+    "[publishGameWorker] Worker error:",
     err
   );
 });
