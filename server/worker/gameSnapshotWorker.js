@@ -66,9 +66,8 @@ const worker = new Worker(
     );
 
     const executionName =
-      `game-${job.data.gamePostId}-${job.data.buildId}`
-        .replace(/[^a-zA-Z0-9-_]/g, "-")
-        .slice(0, 80);
+    `game-${gamePostId}-${Date.now()}`
+
 
     console.log(
       `[gameSnapshotWorker] Execution name: ${executionName}`
