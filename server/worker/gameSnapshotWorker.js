@@ -12,9 +12,18 @@ const awsRegion =
 const stateMachineArn =
   process.env.GAME_SNAPSHOT_STATE_MACHINE_ARN;
 
+const gameStorageBucket =
+  process.env.AWS_BUCKET_NAME;
+
 if (!stateMachineArn) {
   throw new Error(
     "[gameSnapshotWorker] GAME_SNAPSHOT_STATE_MACHINE_ARN is not configured"
+  );
+}
+
+if (!gameStorageBucket) {
+  throw new Error(
+    "[gameSnapshotWorker] AWS_BUCKET_NAME is not configured"
   );
 }
 
@@ -28,6 +37,10 @@ console.log(
 
 console.log(
   `[gameSnapshotWorker] State machine: ${stateMachineArn}`
+);
+
+console.log(
+  `[gameSnapshotWorker] Storage bucket: ${gameStorageBucket}`
 );
 
 console.log(
@@ -48,34 +61,6 @@ const worker = new Worker(
     );
 
     console.log(
-      `[gameSnapshotWorker] Processing job ${job.id}`
-    );
-
-    console.log(
-      `[gameSnapshotWorker] GamePost: ${job.data.gamePostId}`
-    );
-
-    console.log(
-      `[gameSnapshotWorker] Build: ${job.data.buildId}`
-    );
-
-    console.log(
-      `[gameSnapshotWorker] Game: ${job.data.gameId}`
-    );
-
-    console.log(
-      `[gameSnapshotWorker] Format: ${job.data.format}`
-    );
-
-    console.log(
-      `[gameSnapshotWorker] S3 key: ${job.data.s3Key}`
-    );
-
-    console.log(
-      `[gameSnapshotWorker] Source region: ${job.data.sourceRegion}`
-    );
-
-    console.log(
       `[gameSnapshotWorker] Target regions:`,
       job.data.targetRegions
     );
@@ -89,6 +74,35 @@ const worker = new Worker(
       `[gameSnapshotWorker] Execution name: ${executionName}`
     );
 
+    // ==========================================================
+    // Validate S3 key
+    // ==========================================================
+
+    const s3Key = String(
+      job.data.s3Key || ""
+    ).replace(/^\/+/, "");
+
+    if (!s3Key) {
+      throw new Error(
+        "[gameSnapshotWorker] s3Key is missing"
+      );
+    }
+
+    // ==========================================================
+    // Build canonical S3 URI
+    // ==========================================================
+
+    const s3Url =
+      `s3://${gameStorageBucket}/${s3Key}`;
+
+    console.log(
+      `[gameSnapshotWorker] S3 key: ${s3Key}`
+    );
+
+    console.log(
+      `[gameSnapshotWorker] S3 URL: ${s3Url}`
+    );
+
     console.log(
       `[gameSnapshotWorker] Starting Step Functions execution...`
     );
@@ -98,8 +112,15 @@ const worker = new Worker(
       gameId: job.data.gameId,
       buildId: job.data.buildId,
       startPath: job.data.startPath,
-      s3Key: job.data.s3Key,
-      s3Url: job.data.s3Url,
+
+      // Keep the key separately.
+      s3Key,
+
+      // IMPORTANT:
+      // Do NOT pass job.data.s3Url because it may be
+      // an application path such as /games/builds/...
+      s3Url,
+
       format: job.data.format,
       buildSize: job.data.buildSize,
       sourceRegion: job.data.sourceRegion,
@@ -113,13 +134,15 @@ const worker = new Worker(
 
     try {
 
-      const command = new StartExecutionCommand({
-        stateMachineArn,
-        name: executionName,
-        input: JSON.stringify(input),
-      });
+      const command =
+        new StartExecutionCommand({
+          stateMachineArn,
+          name: executionName,
+          input: JSON.stringify(input),
+        });
 
-      const response = await sfn.send(command);
+      const response =
+        await sfn.send(command);
 
       if (!response.executionArn) {
         throw new Error(
