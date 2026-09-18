@@ -3,6 +3,7 @@ import GameSession from "../models/GameSession.js";
 import AllPost from "../models/Allposts.js";
 import { releaseInstance } from "./instanceAllocator.js";
 import { reconcileCapacity } from "./capacityReconciler.js";
+import { deleteSessionStorage } from "./sessionStorage.js";
 
 export async function callController(session, lease) {
   try {
@@ -30,7 +31,13 @@ export async function callController(session, lease) {
       s3_url: s3Url,
       format: game.file.format,
       start_path: startPath,
+
+      storage_volume_id: session.storage?.volumeId || null,
+      storage_device_name: session.storage?.deviceName || null,
+      storage_mount_point: "D:",
+
       max_duration_seconds: session.maxDurationSeconds,
+
       backend_api_url: process.env.BACKEND_PUBLIC_URL,
       backend_api_key: process.env.INSTANCE_BACKEND_KEY,
 
@@ -124,6 +131,14 @@ await GameSession.findByIdAndUpdate(
     },
   ]
 );
+        try {
+          await deleteSessionStorage(session._id);
+        } catch (storageErr) {
+          console.error(
+            `[Controller] Storage cleanup failed session=${session._id}:`,
+            storageErr
+          );
+        }
 
         if (session.instanceId && session.leaseToken) {
           try {
@@ -137,6 +152,7 @@ await GameSession.findByIdAndUpdate(
         }
 
         reconcileCapacity(session.instanceRegion).catch(console.error);
+
       }
     })();
 

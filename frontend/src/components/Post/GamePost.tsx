@@ -335,6 +335,18 @@ const GamePost: React.FC<GamePostProps> = ({
   const isTestUpload = gamePost?.isTestUpload === true;
   const isOwner = currentUser?._id === user._id;
   const isAdmin = currentUser?.role === "admin";
+
+  const snapshot = gamePost?.snapshot;
+
+  const areAllSnapshotsReady =
+    snapshot?.status === "ready" &&
+    Array.isArray(snapshot?.regions) &&
+    snapshot.regions.length > 0 &&
+    snapshot.regions.every(
+      (region: any) =>
+        region?.status === "ready" &&
+        !!region?.snapshotId
+    );
   
   const isCreditLimited = !isTestUpload;
   const canRepurchase = isOwner && !isTestUpload;
@@ -801,7 +813,7 @@ const PlayButton = () => {
                           )}
                         </h3>
                         <div className="flex items-center gap-2 shrink-0">
-                          <PlayButton />
+                           {areAllSnapshotsReady && <PlayButton />}
 
                             {(canRepurchase) && (
                               <button
@@ -866,7 +878,7 @@ const PlayButton = () => {
                           )}
                         </h3>
                         <div className="flex items-center gap-2 shrink-0">
-                          <PlayButton />
+                          {areAllSnapshotsReady && <PlayButton />}
 
                           {(canRepurchase) && (
 <button

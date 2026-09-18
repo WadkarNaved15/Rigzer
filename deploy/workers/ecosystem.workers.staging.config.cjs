@@ -10,6 +10,15 @@ module.exports = {
       },
     },
     {
+      name: "snapshot-worker-dev",
+      script: "npm",
+      args: "run snapshot-worker",
+      cwd: "/home/ubuntu/Rigzer/server",
+      env: {
+        NODE_ENV: "development",
+      },
+    },
+    {
       name: "notification-worker-dev",
       script: "npm",
       args: "run notification-worker",

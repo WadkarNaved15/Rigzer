@@ -367,6 +367,7 @@ const POST_PROJECTION = {
   "gamePost.gameMetrics.totalSessionTimeMs": 1,
   "gamePost.gameMetrics.sessionRequests": 1,
   "gamePost.isTestUpload": 1,
+  "gamePost.snapshot": 1,
   "normalPost.assets": 1,
   "adModelPost.brandName": 1,
   "adModelPost.logoUrl": 1,

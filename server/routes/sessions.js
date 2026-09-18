@@ -35,6 +35,14 @@ import {
 import UserSession from "../models/UserSession.js";
 import { selectRegion } from "../services/regionSelector.js";
 import { reconcileCapacity } from "../services/capacityReconciler.js";
+import {
+  createSessionStorage,deleteSessionStorage
+} from "../services/sessionStorage.js";
+
+import {
+  tryFinalizeSessionAllocation,
+} from "../services/sessionAllocationCoordinator.js";
+
 
 const router = express.Router();
 const metrics = new SessionMetrics();
@@ -134,7 +142,28 @@ if (!skipDemoConsumption) {
         });
       }
 
-      const game = post.gamePost;
+const game = post.gamePost;
+
+// A game is playable only when the source snapshot and
+// every required regional snapshot are completely READY.
+const snapshot = game.snapshot;
+
+const allRegionalSnapshotsReady =
+  snapshot?.status === "ready" &&
+  Array.isArray(snapshot?.regions) &&
+  snapshot.regions.length > 0 &&
+  snapshot.regions.every(
+    (region) =>
+      region?.status === "ready" &&
+      !!region?.snapshotId
+  );
+
+if (!allRegionalSnapshotsReady) {
+  return res.status(409).json({
+    error: "Game is not ready to play",
+    code: "SNAPSHOTS_NOT_READY",
+  });
+}
 
 if (
     !game.isTestUpload &&
@@ -151,11 +180,15 @@ if (
       const maxDurationSeconds = calculateSessionDuration(game);
 
       let queueType = "direct";
+
       let response202 = {
         status: "waiting",
       };
 
       let assignedInstance = null;
+      let allocationType = null;
+      let allocationRequestId = null;
+      let baselineInstanceIds = [];
 
       const userSession = await UserSession
       .findOne({ user: userId })
@@ -179,27 +212,82 @@ if (
             preferredRegion
           });
 
-        if (leaseResult?.status === "ASSIGNED") {
-          assignedInstance = leaseResult;
-          response202.status = "starting";
-          response202.phase = "downloading";
-        }
+      if (leaseResult?.status === "ASSIGNED") {
+        assignedInstance = leaseResult;
+        allocationType = "idle";
 
-        if (leaseResult && leaseResult.queued) {
-          console.log(`[Session Start] User will be queued:`, {
-            position: leaseResult.queuePosition,
-            total: leaseResult.totalQueued,
-            wait: leaseResult.estimatedWaitMinutes
-          });
-          queueType = "queued";
+        /*
+        * IMPORTANT:
+        *
+        * We have a GPU lease, but the session is NOT ready to
+        * launch yet.
+        *
+        * Its game-specific EBS volume still needs to be:
+        *   - created from snapshot
+        *   - attached
+        *   - marked ready
+        *
+        * Therefore do NOT call the controller here.
+        */
+        response202.status = "waiting";
 
-          response202.queuePosition = leaseResult.queuePosition;
-          response202.totalQueued = leaseResult.totalQueued;
-          response202.estimatedWaitMinutes = leaseResult.estimatedWaitMinutes;
-          response202.avgSessionDuration = leaseResult.avgSessionDuration
-        } else if (leaseResult && leaseResult.scaling) {
-          console.log(`[Session Start] ASG scaling - user skips queue, goes to ads`);
-        }
+        console.log("[Session Start] Existing GPU leased; storage preparation required", {
+          workerId: leaseResult.workerId,
+          region: leaseResult.region,
+          availabilityZone: leaseResult.availabilityZone,
+        });
+      }
+
+      else if (leaseResult?.status === "WAITING" || leaseResult?.queued) {
+        /*
+        * Real queue:
+        * ASG is already at maximum capacity.
+        */
+        queueType = "queued";
+        allocationType = "queued";
+
+        console.log("[Session Start] User entering actual queue", {
+          position: leaseResult.queuePosition,
+          total: leaseResult.totalQueued,
+          wait: leaseResult.estimatedWaitMinutes,
+        });
+
+        response202.status = "waiting";
+        response202.queuePosition = leaseResult.queuePosition;
+        response202.totalQueued = leaseResult.totalQueued;
+        response202.estimatedWaitMinutes =
+          leaseResult.estimatedWaitMinutes;
+        response202.avgSessionDuration =
+          leaseResult.avgSessionDuration;
+      }
+
+      else if (leaseResult?.status === "SCALING" || leaseResult?.scaling) {
+        /*
+        * NOT a queue.
+        *
+        * ASG has room and a new GPU is being created.
+        */
+        queueType = "direct";
+        allocationType = "scaling";
+
+        allocationRequestId =
+          leaseResult.allocationRequestId || null;
+
+        baselineInstanceIds =
+          Array.isArray(leaseResult.baselineInstanceIds)
+            ? leaseResult.baselineInstanceIds
+            : [];
+
+        response202.status = "waiting";
+
+        console.log("[Session Start] GPU scaling started", {
+          allocationRequestId,
+          region: leaseResult.region || preferredRegion,
+          baselineCount: baselineInstanceIds.length,
+          desiredCapacity: leaseResult.desiredCapacity,
+          targetCapacity: leaseResult.targetCapacity,
+        });
+      }
       } catch (err) {
         console.error("[Session Start] Allocation check error (non-fatal):", err.message);
       }
@@ -208,47 +296,111 @@ if (
       const session = await GameSession.create({
         user: userId,
         gamePost: gamePostId,
-        status: assignedInstance ? "starting" : "waiting",
-        phase: assignedInstance ? "downloading" : null,
+
+        /*
+        * Keep waiting until GPU + storage are both ready.
+        */
+        status: "waiting",
+        phase: null,
+
         maxDurationSeconds,
         queueType,
-        instanceRegion: assignedInstance?.region || preferredRegion,
+
+        instanceRegion:
+          assignedInstance?.region ||
+          preferredRegion,
+
+        /*
+        * GPU allocation state.
+        */
+        allocation: {
+          type: allocationType,
+          requestId: allocationRequestId,
+          baselineInstanceIds,
+        },
+
+        /*
+        * If an existing GPU was immediately leased,
+        * persist it now.
+        *
+        * A scaling session won't have these yet.
+        */
+        instanceId:
+          assignedInstance?.workerId || null,
+
+        instanceIp:
+          assignedInstance?.instanceIp || null,
+
+        leaseToken:
+          assignedInstance?.leaseToken || null,
+
+        leaseExpiresAt:
+          assignedInstance?.leaseExpiresAt
+            ? new Date(
+                assignedInstance.leaseExpiresAt * 1000
+              )
+            : null,
+
+        /*
+        * We know the AZ immediately for an existing worker.
+        *
+        * For a scaling worker this will be populated later
+        * after the specific EC2 has been discovered.
+        */
+        storage: {
+          status: "pending",
+          availabilityZone:
+            assignedInstance?.availabilityZone || null,
+        },
+
         metadata: {
           gameVersion: game.version,
           platform: game.platform,
-          gpuRequired: game.systemRequirements?.gpuRequired || false,
-           skipDemoConsumption,
+          gpuRequired:
+            game.systemRequirements?.gpuRequired || false,
+          skipDemoConsumption,
         },
       });
       response202.sessionId = session._id;
+      response202.queueType = queueType;
+      response202.allocationType = allocationType;
+
+      if (
+        assignedInstance?.instanceId ||
+        assignedInstance?.workerId
+      ) {
+        createSessionStorage(
+          session._id
+        ).then(() => {
+          return tryFinalizeSessionAllocation(
+            session._id
+          );
+        }).catch(error => {
+          console.error(
+            `[Start] Storage failed ${session._id}:`,
+            error
+          );
+        });
+      }
+
+      if (allocationRequestId) {
+        response202.allocationRequestId =
+          allocationRequestId;
+      }
       reconcileCapacity(
           session.instanceRegion
       ).catch(console.error);
 
-      if (assignedInstance) {
-        const updatedSession = await GameSession.findByIdAndUpdate(
-          session._id,
-          {
-            instanceId: assignedInstance.workerId,
-            instanceIp: assignedInstance.instanceIp,
-            leaseToken: assignedInstance.leaseToken,
-            leaseExpiresAt: new Date(assignedInstance.leaseExpiresAt * 1000)
-          },
-          { new: true }
-        );
+      const send = sessionStreams.get(
+        session._id.toString()
+      );
 
-        await callController(updatedSession, {
-          id: assignedInstance.workerId,
-          ip: assignedInstance.instanceIp,
-          leaseToken: assignedInstance.leaseToken
-        });
-      }
-
-      const send = sessionStreams.get(session._id.toString());
       if (send) {
         send({
-          status: assignedInstance ? "starting" : "waiting",
-          phase: assignedInstance ? "downloading" : null
+          status: "waiting",
+          phase: null,
+          queueType,
+          allocationType,
         });
       }
 
@@ -781,21 +933,34 @@ catch(err){
 
     if (billingResult?.exhausted) {
 
-      if (
-        session.instanceId &&
-        session.leaseToken
-      ) {
-        await releaseInstance(
-          session.instanceId,
-          session.leaseToken,
-          session.instanceRegion
-        );
-      }
-
       await finalizeSession(
         session,
         "credits_exhausted"
       );
+
+      try {
+        await deleteSessionStorage(session._id);
+      } catch (storageErr) {
+        console.error(
+          "[Credits] Storage cleanup failed:",
+          storageErr
+        );
+      }
+
+      try {
+        if (session.instanceId && session.leaseToken) {
+          await releaseInstance(
+            session.instanceId,
+            session.leaseToken,
+            session.instanceRegion
+          );
+        }
+      } catch (releaseErr) {
+        console.error(
+          "[Credits] GPU release failed:",
+          releaseErr
+        );
+      }
 
       reconcileCapacity(
         session.instanceRegion
@@ -864,6 +1029,23 @@ router.post("/:sessionId/cancel", verifyToken, async (req, res) => {
       }
     }
 
+    const reason = "user_cancelled";
+
+    console.log(
+      `[Session Cancel] User cancelled session ${sessionId} with reason ${reason}`
+    );
+
+    await finalizeSession(session, reason);
+
+    try {
+      await deleteSessionStorage(session._id);
+    } catch (storageErr) {
+      console.error(
+        "[Cancel] Storage cleanup failed:",
+        storageErr
+      );
+    }
+
     // Release instance
     if (session.instanceId && session.leaseToken) {
       try {
@@ -882,15 +1064,8 @@ router.post("/:sessionId/cancel", verifyToken, async (req, res) => {
       }
     }
 
-const reason = "user_cancelled";
-
-    console.log(
-      `[Session Cancel] User cancelled session ${sessionId} with reason ${reason}`
-    );
-
-    await finalizeSession(session, reason);
-
     reconcileCapacity(session.instanceRegion).catch(console.error);
+
 
     const send = sessionStreams.get(sessionId.toString());
     if (send) send({ status: "ended", reason });
@@ -926,6 +1101,19 @@ router.post("/cancel-by-token/:token", async (req, res) => {
       return res.status(404).json({ error: "Session not found" });
     }
 
+    const reason = "user_exit";
+    // Mark session as ended cleanly
+    await finalizeSession(session, reason);
+
+    try {
+      await deleteSessionStorage(session._id);
+    } catch (storageErr) {
+      console.error(
+        "[Session Update] Storage cleanup failed:",
+        storageErr
+      );
+    }
+
     if (session.instanceId && session.leaseToken) {
       try {
         await releaseInstance(session.instanceId, session.leaseToken, session.instanceRegion);
@@ -934,9 +1122,6 @@ router.post("/cancel-by-token/:token", async (req, res) => {
       }
     }
 
-    const reason = "user_exit";
-    // Mark session as ended cleanly
-    await finalizeSession(session, reason);
 
     reconcileCapacity(
         session.instanceRegion
@@ -979,7 +1164,7 @@ router.post("/:sessionId/abandon/:secret", async (req, res) => {
 
     await GameSession.findByIdAndUpdate(sessionId, {
       disconnectDeadline: new Date(Date.now() + 60000), // 60 sec
-      exitReason: "disconnect_pending"
+      exitReason: "disconnect"
     });
 
     return res.sendStatus(200);
@@ -1094,6 +1279,14 @@ router.post("/complete", async (req, res) => {
 
 await finalizeSession(session, finalReason);
 
+      try {
+        await deleteSessionStorage(session._id);
+      } catch (storageErr) {
+        console.error(
+          "[Session Update] Storage cleanup failed:",
+          storageErr
+        );
+      }
       // Release instance
       if (session.instanceId && session.leaseToken) {
         try {
@@ -1106,6 +1299,7 @@ await finalizeSession(session, finalReason);
       reconcileCapacity(
           session.instanceRegion
       ).catch(console.error);
+
 
       const token = await cacheService.get(`streamtoken:${session_id}`);
       if (token) {
@@ -1180,13 +1374,26 @@ router.post("/violation", async (req, res) => {
 
     await finalizeSession(session, exitReason);
 
+    try {
+      await deleteSessionStorage(session._id);
+    } catch (storageErr) {
+      console.error(
+        "[Session Violation] Storage cleanup failed:",
+        storageErr
+      );
+    }
+
     // Release instance
-    if (session.instanceId && session.leaseToken) {
-      try {
-        await releaseInstance(session.instanceId, session.leaseToken, session.instanceRegion);
-      } catch (err) {
-        console.error("Violation release error:", err);
+    try {
+      if (session.instanceId && session.leaseToken) {
+        await releaseInstance(
+          session.instanceId,
+          session.leaseToken,
+          session.instanceRegion
+        );
       }
+    } catch (releaseErr) {
+      console.error("[Violation] GPU release failed:", releaseErr);
     }
 
     reconcileCapacity(

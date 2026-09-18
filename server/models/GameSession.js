@@ -138,6 +138,86 @@ const GameSessionSchema = new mongoose.Schema(
       type: String,
     },
 
+        // ============================================================
+    // ALLOCATION TRACKING
+    // ============================================================
+    allocation: {
+      type: {
+        type: String,
+        enum: ["idle", "scaling", "queued"],
+        default: null,
+      },
+
+      // Unique ID for this scale-up allocation request.
+      // Used to associate the newly-created EC2 with this session.
+      requestId: {
+        type: String,
+        default: null,
+        index: true,
+      },
+
+      // ASG instance IDs that existed when the scale-up started.
+      // Used to discover the newly-created instance.
+      baselineInstanceIds: {
+        type: [String],
+        default: [],
+      },
+    },
+
+    storage: {
+      status: {
+        type: String,
+        enum: [
+          "pending",
+          "creating",
+          "attaching",
+          "ready",
+          "detaching",
+          "deleted",
+          "failed"
+        ],
+        default: "pending"
+      },
+      snapshotId: {
+        type: String,
+        default: null
+      },
+      volumeId: {
+        type: String,
+        default: null,
+        index: true
+      },
+      deviceName: {
+        type: String,
+        default: null
+      },
+      availabilityZone: {
+        type: String,
+        default: null
+      },
+      attachedAt: {
+        type: Date,
+        default: null
+      },
+      readyAt: {
+        type: Date,
+        default: null
+      },
+      cleanupStartedAt: {
+        type: Date,
+        default: null,
+      },
+
+      cleanupLeaseExpiresAt: {
+        type: Date,
+        default: null,
+      },
+      error: {
+        type: String,
+        default: null
+      }
+    },
+
     // ✅ EXIT TRACKING
     exitReason: {
       type: String,
@@ -153,7 +233,11 @@ const GameSessionSchema = new mongoose.Schema(
         "user_cancelled",       // User clicked cancel in modal
         "stale_abandoned",      // Cleanup job found abandoned session
         "credits_exhausted",    // Session ended due to credit exhaustion
-        "allocation_timeout"
+        "allocation_timeout",
+        "controller_error",
+        "storage_error",
+        "instance_error",
+        "unknown"
       ],
     },
 
@@ -334,6 +418,8 @@ GameSessionSchema.statics.findAbandonedSessions = function () {
 GameSessionSchema.statics.findNextQueued = function () {
   return this.findOne({
     status: "waiting",
+    queueType: "queued",
+    "allocation.type": "queued",
     leasing: false,
   }).sort({ createdAt: 1 });
 };

@@ -16,6 +16,7 @@ import GameSession from "../models/GameSession.js";
 import { releaseInstance } from "./instanceAllocator.js";
 import { finalizeSession } from "../helper/session.js"; 
 import { reconcileCapacity } from "./capacityReconciler.js";
+import { deleteSessionStorage } from "./sessionStorage.js";
 import { ALLOCATION_GRACE_MS } from "../helper/session.js";
 
 dotenv.config();
@@ -234,6 +235,8 @@ const claimedSession = await GameSession.findOneAndUpdate(
           claimedSession,
           cleanupReason
         );
+
+        await deleteSessionStorage(claimedSession._id);
 
         /*
          * Release instance lease.

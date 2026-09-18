@@ -7,6 +7,12 @@ module.exports = {
       cwd: "/home/ubuntu/Rigzer/server",
     },
     {
+      name: "snapshot-worker",
+      script: "npm",
+      args: "run snapshot-worker",
+      cwd: "/home/ubuntu/Rigzer/server",
+    },
+    {
       name: "notification-worker",
       script: "npm",
       args: "run notification-worker",
