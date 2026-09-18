@@ -478,9 +478,37 @@ export async function listGames({
       _id:     String(g._id),
       gamePost: {
         gameName:     g.gamePost?.gameName,
-        verification: { status: g.gamePost?.verification?.status },
-        visibility:   g.gamePost?.visibility,
-        creditBudget: { status: g.gamePost?.creditBudget?.status },
+
+        verification: {
+          status: g.gamePost?.verification?.status,
+        },
+
+        visibility: g.gamePost?.visibility,
+
+        creditBudget: {
+          status: g.gamePost?.creditBudget?.status,
+        },
+
+        snapshot: {
+          status: g.gamePost?.snapshot?.status ?? "pending",
+
+          sourceRegion:
+            g.gamePost?.snapshot?.sourceRegion ?? null,
+
+          sourceSnapshotId:
+            g.gamePost?.snapshot?.sourceSnapshotId ?? null,
+
+          regions: Array.isArray(g.gamePost?.snapshot?.regions)
+            ? g.gamePost.snapshot.regions.map(region => ({
+                region: region.region,
+                snapshotId: region.snapshotId ?? null,
+                status: region.status ?? "pending",
+                error: region.error ?? null,
+                createdAt: region.createdAt ?? null,
+                completedAt: region.completedAt ?? null,
+              }))
+            : [],
+        },
       },
       creator:    { username: creatorMap.get(String(g.user)) ?? "—" },
       // views from AllPost.viewsCount (authoritative)

@@ -147,18 +147,51 @@ interface CreatorRow {
 
 interface GameRow {
   _id: string;
+
   gamePost?: {
     gameName: string;
-    verification?: { status: string };
+    verification?: {
+      status: string;
+    };
+
     visibility?: string;
-    creditBudget?: { status: string };
+
+    creditBudget?: {
+      status: string;
+    };
+
+    snapshot?: {
+      status: string;
+      sourceRegion?: string | null;
+      sourceSnapshotId?: string | null;
+
+      regions?: {
+        region: string;
+        snapshotId?: string | null;
+        status: string;
+        error?: string | null;
+        createdAt?: string | null;
+        completedAt?: string | null;
+      }[];
+    };
   };
-  creator?: { username: string };
-  viewsCount: number; likesCount: number;
+
+  creator?: {
+    username: string;
+  };
+
+  viewsCount: number;
+  likesCount: number;
+
   sessionStats?: {
-    totalSessions: number; uniquePlayers: number; totalPlayTime: number;
-    totalCredits: number; failureRate: number; crashRate: number;
+    totalSessions: number;
+    uniquePlayers: number;
+    totalPlayTime: number;
+    totalCredits: number;
+    failureRate: number;
+    crashRate: number;
   };
+
   createdAt: string;
 }
 
@@ -1318,6 +1351,7 @@ function GameIntelligence() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState(""); const [qs, setQs] = useState("");
   const [sortBy, setSortBy] = useState("sessions");
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -1330,6 +1364,36 @@ function GameIntelligence() {
   const { data, loading, error, refresh } = usePoller<PaginatedResponse<GameRow>>(
     () => apiFetch("/games", params), 0, [JSON.stringify(params)]
   );
+  
+
+  const retrySnapshots = async (postId: string) => {
+  try {
+    setRetryingId(postId);
+
+    await api.post(
+      `/games/${postId}/retry-snapshots`
+    );
+
+    await refresh();
+  } catch (error) {
+    console.error(
+      "Snapshot recovery failed:",
+      error
+    );
+
+
+
+    const message = axios.isAxiosError(error)
+      ? error.response?.data?.message
+      : error instanceof Error
+        ? error.message
+        : "Failed to retry snapshots";
+
+    window.alert(message);
+  } finally {
+    setRetryingId(null);
+  }
+};
 
   const statusBadge = (s: string | undefined) => {
     const map: Record<string, string> = {
@@ -1346,6 +1410,34 @@ function GameIntelligence() {
     };
     return <span className={`text-[10px] font-bold ${map[s ?? ""] ?? "text-white/30"}`}>{s ?? "—"}</span>;
   };
+
+  const getSnapshotInfo = (
+  game: GameRow
+) => {
+  const snapshot = game.gamePost?.snapshot;
+
+  if (!snapshot) {
+    return {
+      status: null,
+      failedRegions: [],
+      hasFailedRegions: false,
+    };
+  }
+
+  const failedRegions =
+    snapshot.regions?.filter(
+      region =>
+        region.status !== "ready" ||
+        !region.snapshotId
+    ) ?? [];
+
+  return {
+    status: snapshot.status,
+    failedRegions,
+    hasFailedRegions:
+      failedRegions.length > 0,
+  };
+};
 
   return (
     <div>
@@ -1371,14 +1463,15 @@ function GameIntelligence() {
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="border-b border-white/[0.07]">
-                {["Game","Creator","Sessions","Players","Play Time","Credits","Failure","Crash","Verification","Visibility","Views"].map(h => (
+                {["Game","Creator","Sessions","Players","Play Time","Credits","Failure","Crash","Verification","Visibility","Snapshots","Views" ,"Actions"].map(h => (
                   <th key={h} className="px-3.5 py-2.5 text-left text-[10px] text-white/25 font-bold uppercase tracking-widest whitespace-nowrap">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {loading ? <SkeletonRow cols={11} /> : data?.rows.map((row, i) => {
+              {loading ? <SkeletonRow cols={13} /> : data?.rows.map((row, i) => {
                 const ss = row.sessionStats;
+                const snapshotInfo = getSnapshotInfo(row);
                 return (
                   <tr key={row._id} className={`border-b border-white/[0.04] hover:bg-teal-900/5 transition-colors ${i % 2 ? "bg-white/[0.01]" : ""}`}>
                     <td className="px-3.5 py-2.5 font-semibold text-white/90">{row.gamePost?.gameName ?? "—"}</td>
@@ -1399,7 +1492,58 @@ function GameIntelligence() {
                     </td>
                     <td className="px-3.5 py-2.5">{verifyBadge(row.gamePost?.verification?.status)}</td>
                     <td className="px-3.5 py-2.5">{statusBadge(row.gamePost?.visibility)}</td>
+                    <td className="px-3.5 py-2.5">
+                      {snapshotInfo.status === "ready" ? (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border bg-green-900/30 text-green-400 border-green-600/30">
+                          READY
+                        </span>
+                      ) : snapshotInfo.status === "failed" ? (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border bg-red-900/30 text-red-400 border-red-600/30">
+                          FAILED
+                        </span>
+                      ) : snapshotInfo.status === "replicating" ? (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border bg-amber-900/30 text-amber-400 border-amber-600/30">
+                          REPLICATING
+                        </span>
+                      ) : snapshotInfo.status ? (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border bg-white/5 text-white/40 border-white/10">
+                          {snapshotInfo.status.toUpperCase()}
+                        </span>
+                      ) : (
+                        <span className="text-white/20 text-[10px]">
+                          —
+                        </span>
+                      )}
+                    </td>
                     <td className="px-3.5 py-2.5 text-white/50 font-mono">{fmtNum(row.viewsCount)}</td>
+                    <td className="px-3.5 py-2.5">
+  {snapshotInfo.status === "failed"  ? (
+    <Btn
+      variant="teal"
+      size="sm"
+      onClick={() =>
+        retrySnapshots(row._id)
+      }
+      loading={
+        retryingId === row._id
+      }
+    >
+      ↻ Retry
+    </Btn>
+  ) : snapshotInfo.status === "replicating" ? (
+    <span className="text-[9px] text-amber-400/70">
+      Processing…
+    </span>
+  ) : snapshotInfo.status === "ready" ? (
+    <span className="text-[9px] text-green-400/50">
+      ✓ Ready
+    </span>
+  ) : (
+    <span className="text-white/20 text-[10px]">
+      —
+    </span>
+  )}
+</td>
                   </tr>
                 );
               })}

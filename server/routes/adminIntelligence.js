@@ -29,8 +29,12 @@ import {
   listGames,
   listModels,
 } from "../services/adminList.js";
+import {
+  retryFailedGameSnapshots,
+} from "../services/gameSnapshotRecovery.js";
 import verifyToken       from "../middlewares/authMiddleware.js";
 import requireAdmin      from "../middlewares/adminMiddleware.js";
+
 
 
 const router = express.Router();
@@ -143,6 +147,40 @@ router.get("/games", async (req, res) => {
     }));
   } catch (e) { fail(res, e); }
 });
+
+
+// ── Game Snapshot Recovery ───────────────────────────────────────────────────
+
+/**
+ * POST /api/admin/intelligence/games/:postId/retry-snapshots
+ *
+ * Admin-only recovery of failed regional game snapshots.
+ *
+ * Only regions that are not READY are retried.
+ */
+router.post(
+  "/games/:postId/retry-snapshots",
+  async (req, res) => {
+    try {
+      const result =
+        await retryFailedGameSnapshots(
+          req.params.postId
+        );
+
+      return res.json({
+        success: true,
+        message: "Snapshot recovery queued",
+        data: result,
+      });
+    } catch (e) {
+      return fail(
+        res,
+        e,
+        e.statusCode || 500
+      );
+    }
+  }
+);
 
 // ── Models ────────────────────────────────────────────────────────────────────
 
