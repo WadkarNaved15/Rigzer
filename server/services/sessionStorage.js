@@ -131,7 +131,7 @@ async function waitForVolumeAvailable(ec2, volumeId, timeoutMs = 120000) {
 /**
  * Wait until AWS reports the volume attached.
  */
-async function waitForVolumeAttached(ec2, volumeId, instanceId, timeoutMs = 60000) {
+async function waitForVolumeAttached(ec2, volumeId, instanceId, timeoutMs = 180000) {
   const started = Date.now();
 
   while (Date.now() - started < timeoutMs) {
@@ -158,7 +158,7 @@ async function waitForVolumeAttached(ec2, volumeId, instanceId, timeoutMs = 6000
 async function waitForVolumeDetached(
   ec2,
   volumeId,
-  timeoutMs = 60000
+  timeoutMs = 180000
 ) {
   const started = Date.now();
 

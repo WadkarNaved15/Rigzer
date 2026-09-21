@@ -16,8 +16,7 @@ export async function callController(session, lease) {
     }
 
     const game = post.gamePost;
-
-    const buildId = game.file.name;
+    const buildId = post._id.toString();
     const startPath = game.startPath.replace(/\//g, "\\");
     const fileUrl = game.file.url.replace(/^\/+/, "");
     const s3Url = `${process.env.GAME_S3_URL}/${fileUrl}`;
