@@ -1351,7 +1351,7 @@ function GameIntelligence() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState(""); const [qs, setQs] = useState("");
   const [sortBy, setSortBy] = useState("sessions");
-  const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [snapshotActionId, setSnapshotActionId] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -1366,32 +1366,35 @@ function GameIntelligence() {
   );
   
 
-  const retrySnapshots = async (postId: string) => {
+const createOrRetrySnapshots = async (
+  postId: string,
+  hasSnapshot: boolean
+) => {
   try {
-    setRetryingId(postId);
+    setSnapshotActionId(postId);
 
     await api.post(
-      `/games/${postId}/retry-snapshots`
+      hasSnapshot
+        ? `/games/${postId}/retry-snapshots`
+        : `/games/${postId}/create-snapshots`
     );
 
     await refresh();
   } catch (error) {
     console.error(
-      "Snapshot recovery failed:",
+      "Snapshot operation failed:",
       error
     );
-
-
 
     const message = axios.isAxiosError(error)
       ? error.response?.data?.message
       : error instanceof Error
         ? error.message
-        : "Failed to retry snapshots";
+        : "Failed to create snapshots";
 
     window.alert(message);
   } finally {
-    setRetryingId(null);
+    setSnapshotActionId(null);
   }
 };
 
@@ -1517,33 +1520,49 @@ function GameIntelligence() {
                     </td>
                     <td className="px-3.5 py-2.5 text-white/50 font-mono">{fmtNum(row.viewsCount)}</td>
                     <td className="px-3.5 py-2.5">
-  {snapshotInfo.status === "failed"  ? (
-    <Btn
-      variant="teal"
-      size="sm"
-      onClick={() =>
-        retrySnapshots(row._id)
-      }
-      loading={
-        retryingId === row._id
-      }
-    >
-      ↻ Retry
-    </Btn>
-  ) : snapshotInfo.status === "replicating" ? (
-    <span className="text-[9px] text-amber-400/70">
-      Processing…
-    </span>
-  ) : snapshotInfo.status === "ready" ? (
-    <span className="text-[9px] text-green-400/50">
-      ✓ Ready
-    </span>
-  ) : (
-    <span className="text-white/20 text-[10px]">
-      —
-    </span>
-  )}
-</td>
+                      {snapshotInfo.status === null ? (
+                        <Btn
+                          variant="teal"
+                          size="sm"
+                          onClick={() =>
+                            createOrRetrySnapshots(row._id, false)
+                          }
+                          loading={
+                            snapshotActionId === row._id
+                          }
+                        >
+                          Create Snapshots
+                        </Btn>
+                      ) : snapshotInfo.status === "failed" ? (
+                        <Btn
+                          variant="teal"
+                          size="sm"
+                          onClick={() =>
+                            createOrRetrySnapshots(row._id, true)
+                          }
+                          loading={
+                            snapshotActionId === row._id
+                          }
+                        >
+                          ↻ Retry
+                        </Btn>
+                      ) : snapshotInfo.status === "replicating" ||
+                        snapshotInfo.status === "pending" ||
+                        snapshotInfo.status === "creating" ||
+                        snapshotInfo.status === "preparing" ? (
+                        <span className="text-[9px] text-amber-400/70">
+                          Processing…
+                        </span>
+                      ) : snapshotInfo.status === "ready" ? (
+                        <span className="text-[9px] text-green-400/50">
+                          ✓ Ready
+                        </span>
+                      ) : (
+                        <span className="text-white/20 text-[10px]">
+                          —
+                        </span>
+                      )}
+                      </td>
                   </tr>
                 );
               })}

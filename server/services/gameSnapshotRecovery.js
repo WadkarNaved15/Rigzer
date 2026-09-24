@@ -266,3 +266,141 @@ export async function retryFailedGameSnapshots(postId) {
     jobId: job.id,
   };
 }
+
+
+export async function createGameSnapshots(postId) {
+  const post = await AllPost.findOne({
+    _id: postId,
+    type: "game_post",
+  });
+
+  if (!post) {
+    const error = new Error("Game post not found");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const game = post.gamePost;
+
+  if (!game?.file?.key) {
+    const error = new Error("Game build file is missing");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (!game.startPath) {
+    const error = new Error("Game startPath is missing");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  /*
+   * ---------------------------------------------------------
+   * Already ready
+   * ---------------------------------------------------------
+   */
+  if (game.snapshot?.status === "ready") {
+    return {
+      mode: "already_ready",
+      postId: post._id.toString(),
+      sourceSnapshotId: game.snapshot.sourceSnapshotId || null,
+      jobId: null,
+    };
+  }
+
+  /*
+   * ---------------------------------------------------------
+   * Snapshot is already being prepared.
+   *
+   * Don't create duplicate Step Functions executions.
+   * ---------------------------------------------------------
+   */
+  const activeStatuses = ["pending", "creating", "preparing", "replicating"];
+
+  if (game.snapshot && activeStatuses.includes(game.snapshot.status)) {
+    return {
+      mode: "already_in_progress",
+      postId: post._id.toString(),
+      sourceSnapshotId: game.snapshot.sourceSnapshotId || null,
+      jobId: null,
+    };
+  }
+
+  /*
+   * ---------------------------------------------------------
+   * Initialize snapshot metadata.
+   *
+   * This makes an old game look like a newly published game
+   * from the snapshot pipeline's point of view.
+   * ---------------------------------------------------------
+   */
+  const regions = GAME_SNAPSHOT_REGIONS.map((region) => ({
+    region,
+    snapshotId: null,
+    status: "pending",
+    error: null,
+    createdAt: null,
+    completedAt: null,
+  }));
+
+  await AllPost.updateOne(
+    { _id: post._id },
+    {
+      $set: {
+        "gamePost.snapshot": {
+          status: "pending",
+          sourceRegion: GAME_SNAPSHOT_SOURCE_REGION,
+          sourceSnapshotId: null,
+          sourceVolumeId: null,
+          regions,
+          error: null,
+          createdAt: new Date(),
+          completedAt: null,
+        },
+      },
+    }
+  );
+
+  /*
+   * ---------------------------------------------------------
+   * Queue the exact same full snapshot pipeline used for
+   * newly published games.
+   * ---------------------------------------------------------
+   */
+  const job = await gameSnapshotQueue.add(
+    "prepareGameSnapshot",
+    {
+      gamePostId: post._id.toString(),
+      gameId: game.gameName,
+      buildId: post._id.toString(),
+      startPath: game.startPath,
+      s3Key: game.file.key,
+      s3Url: game.file.url,
+      format: game.file.format,
+      buildSize: game.file.size,
+      sourceRegion: GAME_SNAPSHOT_SOURCE_REGION,
+      targetRegions: GAME_SNAPSHOT_REGIONS,
+      recovery: false,
+      recoveryRegions: [],
+      snapshot: null,
+    },
+    {
+      jobId: `snapshot-manual-${post._id}-${Date.now()}`,
+      attempts: 3,
+      backoff: {
+        type: "exponential",
+        delay: 10000,
+      },
+      removeOnComplete: 500,
+      removeOnFail: 500,
+    }
+  );
+
+  return {
+    mode: "full",
+    postId: post._id.toString(),
+    sourceSnapshotId: null,
+    recoveryRegions: [],
+    jobId: job.id,
+  };
+}
