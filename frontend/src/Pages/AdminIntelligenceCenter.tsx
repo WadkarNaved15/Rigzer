@@ -1519,7 +1519,7 @@ const createOrRetrySnapshots = async (
                       )}
                     </td>
                     <td className="px-3.5 py-2.5 text-white/50 font-mono">{fmtNum(row.viewsCount)}</td>
-                    <td className="px-3.5 py-2.5">
+                    <td className="px-3.5 py-2.5 whitespace-nowrap">
                       {snapshotInfo.status === null ? (
                         <Btn
                           variant="teal"
@@ -1527,9 +1527,7 @@ const createOrRetrySnapshots = async (
                           onClick={() =>
                             createOrRetrySnapshots(row._id, false)
                           }
-                          loading={
-                            snapshotActionId === row._id
-                          }
+                          loading={snapshotActionId === row._id}
                         >
                           Create Snapshots
                         </Btn>
@@ -1540,16 +1538,14 @@ const createOrRetrySnapshots = async (
                           onClick={() =>
                             createOrRetrySnapshots(row._id, true)
                           }
-                          loading={
-                            snapshotActionId === row._id
-                          }
+                          loading={snapshotActionId === row._id}
                         >
                           ↻ Retry
                         </Btn>
-                      ) : snapshotInfo.status === "replicating" ||
-                        snapshotInfo.status === "pending" ||
+                      ) : snapshotInfo.status === "pending" ||
                         snapshotInfo.status === "creating" ||
-                        snapshotInfo.status === "preparing" ? (
+                        snapshotInfo.status === "preparing" ||
+                        snapshotInfo.status === "replicating" ? (
                         <span className="text-[9px] text-amber-400/70">
                           Processing…
                         </span>
@@ -1562,7 +1558,7 @@ const createOrRetrySnapshots = async (
                           —
                         </span>
                       )}
-                      </td>
+                    </td>
                   </tr>
                 );
               })}
