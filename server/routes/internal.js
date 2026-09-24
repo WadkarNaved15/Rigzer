@@ -486,7 +486,7 @@ router.post("/sessions/update", verifyInternalKey, async (req, res) => {
         console.warn(`[Session Update] Unknown status: ${status}`);
     }
 
-    const updatedSession = await GameSession.findByIdAndUpdate(
+    let updatedSession = await GameSession.findByIdAndUpdate(
       sessionId, 
       updates, 
       { new: true }
