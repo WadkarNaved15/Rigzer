@@ -70,6 +70,11 @@ const GameSessionSchema = new mongoose.Schema(
       index: true,
     },
 
+    endingAt: {
+      type: Date,
+      index: true,
+    },
+
     endedAt: {
       type: Date,
       index: true,
@@ -360,6 +365,11 @@ GameSessionSchema.index({
 GameSessionSchema.index({
   status: 1,
   startedAt: -1,
+});
+
+GameSessionSchema.index({
+  status: 1,
+  endingAt: 1,
 });
 
 GameSessionSchema.index({

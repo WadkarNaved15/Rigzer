@@ -12,10 +12,8 @@ import cacheService from "../services/cacheService.js";
 import crypto from "crypto";
 import { callController } from "../services/controllerService.js";
 import {reconcileCapacity} from "../services/capacityReconciler.js";
-import { ALLOCATION_GRACE_MS } from "../helper/session.js";
-import {
-  createSessionStorage, deleteSessionStorage
-} from "../services/sessionStorage.js";
+import { ALLOCATION_GRACE_MS , finalizeSession} from "../helper/session.js";
+import { createSessionStorage,  deleteSessionStorage,  cleanupSessionStorageInBackground } from "../services/sessionStorage.js";
 
 import {
   tryFinalizeSessionAllocation,
@@ -400,10 +398,10 @@ return res.json({
  * Called by instance controller to update session status
  * ✅ Handles all phase transitions including cleanup
  */
-router.post("/sessions/update", async (req, res) => {
+router.post("/sessions/update", verifyInternalKey, async (req, res) => {
   try {
-const sessionId = req.body.sessionId || req.body.session_id;
-const { status, error } = req.body;  
+    const sessionId = req.body.sessionId || req.body.session_id;
+    const { status, error } = req.body;  
 
     if (!sessionId) {
       return res.status(400).json({ error: "sessionId required" });
@@ -429,6 +427,7 @@ const { status, error } = req.body;
       case "running":
         updates.status = "running";
         updates.phase = null;
+        updates.endingAt = null;
         if (!session.startedAt) updates.startedAt = new Date();
 
         // ✅ Generate stream token
@@ -466,39 +465,13 @@ const { status, error } = req.body;
           updates.exitReason = "error";
         }
 
-        if (session.instanceId && session.leaseToken) {
-          try {
-            const releaseResult = await releaseInstance(session.instanceId, session.leaseToken, session.instanceRegion);
-            const token = await cacheService.get(`streamtoken:${sessionId}`);
-
-            reconcileCapacity(session.instanceRegion).catch(console.error);
-
-            try {
-              await deleteSessionStorage(
-                sessionId
-              );
-            } catch (storageErr) {
-              console.error(
-                "[Session Update] Storage cleanup failed:",
-                storageErr
-              );
-            }
-
-              if (token) {
-                await cacheService.del(`stream:${token}`);
-              }
-
-              await cacheService.del(`streamtoken:${sessionId}`);
-          } catch (err) {
-            console.error(`[Session Update] Error releasing after failure:`, err.message);
-          }
-        }
         break;
 
         case "ended":
         case "ended_and_ready":
           updates.status = "ended";
           updates.endedAt = new Date();
+          updates.endingAt = null;
           updates.phase = null;
 
           // Only assign user_exit if no reason has already been recorded.
@@ -506,33 +479,6 @@ const { status, error } = req.body;
             updates.exitReason = "user_exit";
           }   
 
-        if (session.instanceId && session.leaseToken) {
-          try {
-            const releaseResult = await releaseInstance(session.instanceId, session.leaseToken, session.instanceRegion);
-            const token = await cacheService.get(`streamtoken:${sessionId}`);
-
-            reconcileCapacity(session.instanceRegion).catch(console.error);
-
-            try {
-                await deleteSessionStorage(
-                  sessionId
-                );
-              } catch (storageErr) {
-                console.error(
-                  "[Session Update] Storage cleanup failed:",
-                  storageErr
-                );
-              }
-
-            if (token) {
-              await cacheService.del(`stream:${token}`);
-            }
-
-            await cacheService.del(`streamtoken:${sessionId}`);
-          } catch (err) {
-            console.error(`[Session Update] Error releasing after end:`, err.message);
-          }
-        }
         break;
 
 
@@ -545,6 +491,102 @@ const { status, error } = req.body;
       updates, 
       { new: true }
     );
+
+    if (!updatedSession) {
+      return res.status(404).json({
+        error: "Session not found after update",
+      });
+    }
+
+
+    if (status === "ended_and_ready") {
+
+      const freshSession = await GameSession.findById(sessionId);
+
+      if (!freshSession) {
+        throw new Error(
+          `Session ${sessionId} disappeared before finalization`
+        );
+      }
+
+      const exitReason = freshSession.exitReason || "user_exit";
+
+      await finalizeSession(freshSession, exitReason);
+
+      updatedSession = await GameSession.findById(sessionId);
+
+      if (!updatedSession) {
+        throw new Error(
+          `Session ${sessionId} disappeared after finalization`
+        );
+      }
+
+      if (freshSession.instanceId && freshSession.leaseToken) {
+        try {
+          const releaseResult = await releaseInstance(
+            freshSession.instanceId,
+            freshSession.leaseToken,
+            freshSession.instanceRegion
+          );
+
+          /*
+           * IMPORTANT:
+           * releaseInstance() can return { success: false }
+           * without throwing.
+           *
+           * Treat that as a real release failure.
+           *
+           * A lease-token mismatch may intentionally return
+           * success=true from releaseInstance() because the worker
+           * may already have been reassigned. Preserve that behavior.
+           */
+          if (!releaseResult?.success) {
+            throw new Error(
+              releaseResult?.reason ||
+              releaseResult?.error ||
+              "GPU release failed"
+            );
+          }
+
+          log(
+            `[Session Update] Worker released after Windows dismount ` +
+            `session=${sessionId} instance=${freshSession.instanceId}`
+          );
+        } catch (releaseErr) {
+          console.error(
+            `[Session Update] GPU release failed after ended_and_ready ` +
+            `session=${sessionId}:`,
+            releaseErr
+          );
+
+          /*
+           * DO NOT start a new session on an unconfirmed lease.
+           *
+           * AWS storage cleanup is still safe because Rust has
+           * already dismounted the Windows volume, but the worker
+           * itself must not be considered reusable if the lease
+           * release failed.
+           */
+        }
+      }
+
+      /*
+       * AWS cleanup is deliberately fire-and-forget.
+       *
+       * Rust has already dismounted the volume from Windows.
+       * Therefore AWS DetachVolume/DeleteVolume no longer needs
+       * to block worker reuse.
+       */
+      cleanupSessionStorageInBackground(sessionId);
+
+      /*
+       * Capacity reconciliation is also asynchronous.
+       */
+      reconcileCapacity(
+        freshSession.instanceRegion
+      ).catch(console.error);
+    }
+
 
     // ✅ Publish to SSE clients
     const send = sessionStreams.get(sessionId.toString());
