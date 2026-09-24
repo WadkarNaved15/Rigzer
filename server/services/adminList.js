@@ -490,7 +490,8 @@ export async function listGames({
         },
 
         snapshot: {
-          status: g.gamePost?.snapshot?.status ?? "pending",
+          status:
+            g.gamePost?.snapshot?.status ?? "pending",  
 
           sourceRegion:
             g.gamePost?.snapshot?.sourceRegion ?? null,
@@ -498,7 +499,21 @@ export async function listGames({
           sourceSnapshotId:
             g.gamePost?.snapshot?.sourceSnapshotId ?? null,
 
-          regions: Array.isArray(g.gamePost?.snapshot?.regions)
+          sourceVolumeId:
+            g.gamePost?.snapshot?.sourceVolumeId ?? null,
+
+          createdAt:
+            g.gamePost?.snapshot?.createdAt ?? null,
+
+          completedAt:
+            g.gamePost?.snapshot?.completedAt ?? null,
+
+          error:
+            g.gamePost?.snapshot?.error ?? null,
+
+          regions: Array.isArray(
+            g.gamePost?.snapshot?.regions
+          )
             ? g.gamePost.snapshot.regions.map(region => ({
                 region: region.region,
                 snapshotId: region.snapshotId ?? null,

@@ -164,6 +164,9 @@ interface GameRow {
       status: string;
       sourceRegion?: string | null;
       sourceSnapshotId?: string | null;
+      sourceVolumeId?: string | null;
+      createdAt?: string | null;
+      completedAt?: string | null;
 
       regions?: {
         region: string;
@@ -1414,12 +1417,13 @@ const createOrRetrySnapshots = async (
     return <span className={`text-[10px] font-bold ${map[s ?? ""] ?? "text-white/30"}`}>{s ?? "—"}</span>;
   };
 
-  const getSnapshotInfo = (
-  game: GameRow
-) => {
+const getSnapshotInfo = (game: GameRow) => {
   const snapshot = game.gamePost?.snapshot;
 
-  if (!snapshot) {
+  const snapshotActuallyCreated =
+    snapshot?.createdAt != null;
+
+  if (!snapshot || !snapshotActuallyCreated) {
     return {
       status: null,
       failedRegions: [],

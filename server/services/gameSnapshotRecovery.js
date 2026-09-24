@@ -281,6 +281,7 @@ export async function createGameSnapshots(postId) {
   }
 
   const game = post.gamePost;
+  const snapshot = game?.snapshot;
 
   if (!game?.file?.key) {
     const error = new Error("Game build file is missing");
@@ -299,49 +300,51 @@ export async function createGameSnapshots(postId) {
    * Already ready
    * ---------------------------------------------------------
    */
-  if (game.snapshot?.status === "ready") {
+  if (snapshot?.status === "ready") {
     return {
       mode: "already_ready",
       postId: post._id.toString(),
-      sourceSnapshotId: game.snapshot.sourceSnapshotId || null,
+      sourceSnapshotId:
+        snapshot.sourceSnapshotId || null,
       jobId: null,
     };
   }
 
-  /*
-   * ---------------------------------------------------------
-   * Snapshot is already being prepared.
-   *
-   * Don't create duplicate Step Functions executions.
-   * ---------------------------------------------------------
-   */
-  const activeStatuses = ["pending", "creating", "preparing", "replicating"];
+  const snapshotActuallyCreated =
+    snapshot?.createdAt != null;
 
-  if (game.snapshot && activeStatuses.includes(game.snapshot.status)) {
+  const activeStatuses = [
+    "pending",
+    "creating",
+    "preparing",
+    "replicating",
+  ];
+
+  if (
+    snapshotActuallyCreated &&
+    activeStatuses.includes(snapshot.status)
+  ) {
     return {
       mode: "already_in_progress",
       postId: post._id.toString(),
-      sourceSnapshotId: game.snapshot.sourceSnapshotId || null,
-      jobId: null,
     };
   }
 
   /*
    * ---------------------------------------------------------
    * Initialize snapshot metadata.
-   *
-   * This makes an old game look like a newly published game
-   * from the snapshot pipeline's point of view.
    * ---------------------------------------------------------
    */
-  const regions = GAME_SNAPSHOT_REGIONS.map((region) => ({
-    region,
-    snapshotId: null,
-    status: "pending",
-    error: null,
-    createdAt: null,
-    completedAt: null,
-  }));
+  const regions = SNAPSHOT_TARGET_REGIONS.map(
+    (region) => ({
+      region,
+      snapshotId: null,
+      status: "pending",
+      error: null,
+      createdAt: null,
+      completedAt: null,
+    })
+  );
 
   await AllPost.updateOne(
     { _id: post._id },
@@ -349,12 +352,20 @@ export async function createGameSnapshots(postId) {
       $set: {
         "gamePost.snapshot": {
           status: "pending",
-          sourceRegion: GAME_SNAPSHOT_SOURCE_REGION,
+
+          sourceRegion:
+            SNAPSHOT_SOURCE_REGION,
+
           sourceSnapshotId: null,
+
           sourceVolumeId: null,
+
           regions,
+
           error: null,
+
           createdAt: new Date(),
+
           completedAt: null,
         },
       },
@@ -370,37 +381,69 @@ export async function createGameSnapshots(postId) {
   const job = await gameSnapshotQueue.add(
     "prepareGameSnapshot",
     {
-      gamePostId: post._id.toString(),
-      gameId: game.gameName,
-      buildId: post._id.toString(),
-      startPath: game.startPath,
-      s3Key: game.file.key,
-      s3Url: game.file.url,
-      format: game.file.format,
-      buildSize: game.file.size,
-      sourceRegion: GAME_SNAPSHOT_SOURCE_REGION,
-      targetRegions: GAME_SNAPSHOT_REGIONS,
+      gamePostId:
+        post._id.toString(),
+
+      gameId:
+        game.gameName,
+
+      buildId:
+        post._id.toString(),
+
+      startPath:
+        game.startPath,
+
+      s3Key:
+        game.file.key,
+
+      s3Url:
+        game.file.url,
+
+      format:
+        game.file.format,
+
+      buildSize:
+        game.file.size,
+
+      sourceRegion:
+        SNAPSHOT_SOURCE_REGION,
+
+      targetRegions:
+        SNAPSHOT_TARGET_REGIONS,
+
       recovery: false,
+
       recoveryRegions: [],
+
       snapshot: null,
     },
     {
-      jobId: `snapshot-manual-${post._id}-${Date.now()}`,
+      jobId:
+        `snapshot-manual-${post._id}-${Date.now()}`,
+
       attempts: 3,
+
       backoff: {
         type: "exponential",
         delay: 10000,
       },
+
       removeOnComplete: 500,
+
       removeOnFail: 500,
     }
   );
 
   return {
     mode: "full",
-    postId: post._id.toString(),
+
+    postId:
+      post._id.toString(),
+
     sourceSnapshotId: null,
+
     recoveryRegions: [],
+
     jobId: job.id,
   };
 }
