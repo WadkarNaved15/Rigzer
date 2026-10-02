@@ -41,6 +41,7 @@ function MainLayout() {
   const [bannerShown, setBannerShown] = useState(false);
   const [feedLocked, setFeedLocked] = useState(false);
   const [isFeedbackOpen, setIsFeedbackOpen] = useState(false);
+  const [isToggled, setIsToggled] = useState(false);
 
   const [activeModal, setActiveModal] = useState<'terms' | 'privacy' | null>(null);
 
@@ -129,58 +130,86 @@ function MainLayout() {
             >
               <div className="sticky top-20 space-y-3">
                 <Suspense fallback={null}>
-                  <ProfileCover onOpenWishlist={handleWishlist} />
+                  <ProfileCover
+                    onOpenWishlist={handleWishlist}
+                    isToggled={isToggled}
+                    onToggle={() => setIsToggled((prev) => !prev)}
+                  />
                 </Suspense>
 
-                <SidebarNavigation
-                  onOpenWishlist={handleWishlist}
-                  onOpenSettings={(view) => setSettingsConfig({ isOpen: true, view })}
-                />
+                {!isToggled && (
+                  <>
+                    <SidebarNavigation
+                      onOpenWishlist={handleWishlist}
+                      onOpenSettings={(view) => setSettingsConfig({ isOpen: true, view })}
+                    />
 
-                <UploadBox
-                  onUploadClick={handleUploadClick}
-                />
+                    <UploadBox
+                      onUploadClick={handleUploadClick}
+                    />
 
-                <div className="px-2 pt-2 pb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
-                  <button
-                    onClick={() => setActiveModal('terms')}
-                    className="hover:text-gray-900 dark:hover:text-gray-200 hover:underline transition-colors"
-                  >
-                    Terms of Service
-                  </button>
-                  <span>|</span>
-                  <button
-                    onClick={() => setActiveModal('privacy')}
-                    className="hover:text-gray-900 dark:hover:text-gray-200 hover:underline transition-colors"
-                  >
-                    Privacy Policy
-                  </button>
-                  <span>|</span>
-                  {/* <button
+                    <div className="px-2 pt-2 pb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
+                      <button
+                        onClick={() => setActiveModal('terms')}
+                        className="hover:text-gray-900 dark:hover:text-gray-200 hover:underline transition-colors"
+                      >
+                        Terms of Service
+                      </button>
+                      <span>|</span>
+                      <button
+                        onClick={() => setActiveModal('privacy')}
+                        className="hover:text-gray-900 dark:hover:text-gray-200 hover:underline transition-colors"
+                      >
+                        Privacy Policy
+                      </button>
+                      <span>|</span>
+                      {/* <button
                     onClick={() => setActiveModal('paid')}
                     className="hover:text-gray-900 dark:hover:text-gray-200 hover:underline transition-colors"
                   >
                     Paid Services Policy
                   </button>
                   <span>|</span> */}
-                  <button
-                    onClick={() => setIsFeedbackOpen(true)}
-                    className="hover:text-gray-900 dark:hover:text-gray-200 hover:underline transition-colors"
-                  >
-                    Feedback
-                  </button>
-                  <span className=" mt-1">© {new Date().getFullYear()} Rigzer</span>
-                </div>
+                      <button
+                        onClick={() => setIsFeedbackOpen(true)}
+                        className="hover:text-gray-900 dark:hover:text-gray-200 hover:underline transition-colors"
+                      >
+                        Feedback
+                      </button>
+                      <span className=" mt-1">© {new Date().getFullYear()} Rigzer</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
             {isArticlePage ? (
               <>
-                <div className="lg:col-span-7 2xl:col-span-9 flex flex-col items-stretch min-h-[80vh] w-full py-4">
+                <div
+                  className={`
+                    lg:col-span-7
+                    2xl:col-span-9
+                    flex flex-col
+                    items-stretch
+                    min-h-[80vh]
+                    w-full
+                    py-4
+                    ${isToggled ? "invisible pointer-events-none" : ""}
+                  `}
+                  aria-hidden={isToggled}
+                >
                   <Outlet />
                 </div>
 
-                <div className="lg:col-span-3 2xl:col-span-4 hidden lg:block">
+                <div
+                  className={`
+                    lg:col-span-3
+                    2xl:col-span-4
+                    hidden lg:block
+                    ${isToggled ? "invisible pointer-events-none" : ""}
+                  `}
+                  aria-hidden={isToggled}
+                >
                   <div className="sticky top-20 space-y-6">
                     {canvasId && (
                       <ArticleRecommendations
@@ -195,30 +224,37 @@ function MainLayout() {
               <>
                 <div
                   ref={centerRef}
+                  aria-hidden={isToggled}
                   className={`
-                      flex flex-col w-full
-                      ${hideBillboard
+                    flex flex-col w-full
+                    ${hideBillboard
                       ? "lg:col-span-10 2xl:col-span-13"
                       : "lg:col-span-6 2xl:col-span-8"
                     }
-                 `}
+                    ${isToggled ? "invisible pointer-events-none" : ""}
+                  `}
                 >
                   <Outlet />
                 </div>
 
                 <div
+                  aria-hidden={isToggled}
                   className={`
                     hidden lg:block
                     ${hideBillboard
                       ? "lg:col-span-0 w-0 overflow-hidden pointer-events-none"
                       : "lg:col-span-4 2xl:col-span-5"
                     }
+                    ${isToggled ? "invisible pointer-events-none" : ""}
                   `}
                 >
                   <div
                     className={`
                       sticky top-20
-                      ${hideBillboard ? "h-0 overflow-hidden" : "h-[calc(100vh-5rem)]"}
+                      ${hideBillboard
+                        ? "h-0 overflow-hidden"
+                        : "h-[calc(100vh-5rem)]"
+                      }
                     `}
                   >
                     <Billboard />
@@ -229,45 +265,55 @@ function MainLayout() {
           </div>
         </main>
 
-        <MessagingComponent />
-        {isOpen && (
+        {!isToggled && <MessagingComponent />}
+        {!isToggled && isOpen && (
           <AccountSwitcherOverlay
             anchorRect={anchorRect}
             onClose={closeAccountSwitcher}
           />
         )}
-        <SettingsModal
-          isOpen={settingsConfig.isOpen}
-          initialView={settingsConfig.view}
-          onClose={() => setSettingsConfig(prev => ({ ...prev, isOpen: false }))}
-        // onManageAccounts={openAccountSwitcher}
-        />
 
-        <LegalModal
-          type={activeModal}
-          onClose={() => setActiveModal(null)}
-        />
+        {!isToggled && (
+          <SettingsModal
+            isOpen={settingsConfig.isOpen}
+            initialView={settingsConfig.view}
+            onClose={() => setSettingsConfig(prev => ({ ...prev, isOpen: false }))}
+          // onManageAccounts={openAccountSwitcher}
+          />
+        )}
 
-        <FeedbackModal
-          isOpen={isFeedbackOpen}
-          onClose={() => setIsFeedbackOpen(false)}
-        />
-        <GameSessionFeedbackModal
-          open={feedback.open}
-          onClose={() =>
-            setFeedback({
-              open: false,
-              sessionId: null,
-              gameId: null,
-              gameName: null,
-              steamUrl: null,
-              playTimeMs: null
-            })
-          }
-          gameName={feedback.gameName || ""}
-          steamUrl={feedback.steamUrl}
-          playTimeMs={feedback.playTimeMs || 0}
-        />
+        {!isToggled && (
+          <LegalModal
+            type={activeModal}
+            onClose={() => setActiveModal(null)}
+          />
+        )}
+
+        {!isToggled && (
+          <FeedbackModal
+            isOpen={isFeedbackOpen}
+            onClose={() => setIsFeedbackOpen(false)}
+          />
+        )}
+
+        {!isToggled && (
+          <GameSessionFeedbackModal
+            open={feedback.open}
+            onClose={() =>
+              setFeedback({
+                open: false,
+                sessionId: null,
+                gameId: null,
+                gameName: null,
+                steamUrl: null,
+                playTimeMs: null
+              })
+            }
+            gameName={feedback.gameName || ""}
+            steamUrl={feedback.steamUrl}
+            playTimeMs={feedback.playTimeMs || 0}
+          />
+        )}
 
       </div>
     </>

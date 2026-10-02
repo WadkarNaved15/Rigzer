@@ -8,14 +8,16 @@ import { useNotification } from "../../context/Notifications";
 
 interface ProfileCoverProps {
   onOpenWishlist: () => void;
+  isToggled: boolean;
+  onToggle: () => void;
 }
 
-export default function ProfileCover({ onOpenWishlist }: ProfileCoverProps) {
+export default function ProfileCover({ onOpenWishlist, isToggled, onToggle }: ProfileCoverProps) {
   const [bioExpanded, setBioExpanded] = useState(false);
   const navigate = useNavigate();
   const { unreadCount } = useNotification();
   const { user, logout } = useUser();
-  
+
   const userBio = user?.bio || "Bio goes here...";
   const isBioLong = userBio.length > 40;
   const avatarRef = useRef<HTMLImageElement>(null);
@@ -123,7 +125,7 @@ export default function ProfileCover({ onOpenWishlist }: ProfileCoverProps) {
     // Prevent outer containers from hijacking the click
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Ensure user has a username before routing
     if (user.username) {
       navigate(`/profile/${user.username}`);
@@ -217,17 +219,49 @@ export default function ProfileCover({ onOpenWishlist }: ProfileCoverProps) {
         </div>
 
         {/* Content */}
-        <div className="mt-10 px-4 pb-8 flex flex-col items-start relative z-10">
-          {/* Display Name */}
-          <h4 className="text-md font-bold text-gray-900 dark:text-gray-100 leading-tight">
-            {user?.displayName || user?.username || ""}
-          </h4>
+        <div className="mt-10 px-4 pb-8 flex items-center justify-between w-full relative z-10">
+          {/* User Info (Left Side) */}
+          <div className="flex flex-col items-start">
+            {/* Display Name */}
+            <h4 className="text-md font-bold text-gray-900 dark:text-gray-100 leading-tight">
+              {user?.displayName || user?.username || ""}
+            </h4>
 
-          {/* Username Handle */}
-          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-0.5 lowercase">
-            @{user?.username?.replace(/\s+/g, "") || ""}
-          </p>
+            {/* Username Handle */}
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-0.5 lowercase">
+              @{user?.username?.replace(/\s+/g, "") || ""}
+            </p>
+          </div>
+
+          {/* Vertical Transparent Toggle Button (Right Side) */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isToggled}
+            onClick={onToggle}
+            className={`
+              relative w-6 h-10 rounded-full p-1
+              border border-white/20
+              bg-white/10 dark:bg-white/5
+              backdrop-blur-md
+              transition-colors duration-300 ease-in-out
+              flex flex-col justify-between items-center
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30
+          `}
+          >
+            <span
+              className={`
+                w-4 h-4 rounded-full shadow-md
+                transition-all duration-300 ease-in-out
+                ${isToggled
+                  ? "translate-y-[16px] bg-blue-500 shadow-blue-500/50"
+                  : "translate-y-0 bg-white"
+                }
+              `}
+            />
+          </button>
         </div>
+
 
         {accountOverlayOpen && (
           <AccountSwitcherOverlay

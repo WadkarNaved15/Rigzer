@@ -194,6 +194,45 @@ const NormalPostSchema = new mongoose.Schema(
           type: Date,
           default: null,
         },
+        semanticTagging: {
+          status: {
+            type: String,
+            enum: ["pending", "processing", "completed", "failed"],
+            default: "pending",
+          },
+
+          contentVersion: {
+            type: Number,
+            default: 1,
+          },
+
+          signals: [
+            {
+              name: {
+                type: String,
+                required: true,
+              },
+              rank: {
+                type: Number,
+                required: true,
+              },
+              score: {
+                type: Number,
+                required: true,
+              },
+            },
+          ],
+
+          processedAt: {
+            type: Date,
+            default: null,
+          },
+
+          error: {
+            type: String,
+            default: null,
+          },
+        }
       },
     ],
   },
