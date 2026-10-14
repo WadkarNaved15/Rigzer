@@ -9,7 +9,7 @@ import {
 
 
 const awsRegion =
-  process.env.AWS_REGION || "ap-south-1";
+  process.env.GAME_SNAPSHOT_SOURCE_REGION || "ap-south-1";
 
 const stateMachineArn =
   process.env.GAME_SNAPSHOT_STATE_MACHINE_ARN;
