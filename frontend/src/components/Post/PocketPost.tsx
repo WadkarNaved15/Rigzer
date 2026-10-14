@@ -1,8 +1,7 @@
 // src/components/Post/PocketPost.tsx
-
 import React, { memo, useEffect, useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+
 const POCKET_HEIGHT = 550;
 
 interface User { username: string; avatar?: string; }
@@ -10,9 +9,31 @@ interface PocketPostProps {
   _id: string; user: User; createdAt: string;
   likesCount?: number; isLiked?: boolean; commentsCount?: number;
   brandName: string; tagline?: string; compiledBundleUrl: string;
+  sourceType?: "jsx" | "html";            // optional; falls back to the URL extension
   onOpenDetails?: () => void; disableInteractions?: boolean;
   onPrev?: () => void;
   onNext?: () => void;
+}
+
+// CSP for the JSX host page. Scripts: inline (the compiled bundle) + React from unpkg only.
+// No eval, so Babel Standalone is deliberately not allowed here.
+const JSX_HOST_CSP = [
+  "default-src 'none'",
+  "script-src 'unsafe-inline' https://unpkg.com",
+  "style-src 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src https://fonts.gstatic.com data:",
+  "img-src data: https: blob:",
+  "media-src data: https: blob:",
+  "connect-src 'none'",
+  "frame-src 'none'",
+  "object-src 'none'",
+  "base-uri 'none'",
+  "form-action 'none'",
+].join("; ");
+
+function isHtmlBundle(url: string, sourceType?: "jsx" | "html"): boolean {
+  if (sourceType) return sourceType === "html";
+  return /\.html?(?:[?#]|$)/i.test(url);   // server uploads HTML pockets as bundle-<ts>.html
 }
 
 async function fetchBundleText(url: string): Promise<string> {
@@ -21,170 +42,84 @@ async function fetchBundleText(url: string): Promise<string> {
   return res.text();
 }
 
-function buildSrcdoc(bundleCode: string): string {
-  const source = bundleCode.trim();
-
-  // Detect standalone HTML documents.
-  if (/<(?:!doctype\s+html|html|head|body)\b/i.test(source)) {
-    const csp = [
-      "default-src 'none'",
-      "script-src 'unsafe-inline'",
-      "style-src 'unsafe-inline' https://fonts.googleapis.com",
-      "font-src https://fonts.gstatic.com data:",
-      "img-src data: https: blob:",
-      "media-src data: https: blob:",
-      "connect-src 'none'",
-      "frame-src 'none'",
-      "object-src 'none'",
-      "base-uri 'none'",
-      "form-action 'none'",
-    ].join("; ");
-
-    const cspTag =
-      `<meta http-equiv="Content-Security-Policy" content="${csp}">`;
-
-    // Remove existing CSP declarations to avoid conflicting policies.
-    let html = source.replace(
-      /<meta\b[^>]*http-equiv\s*=\s*["']?Content-Security-Policy["']?[^>]*>/gi,
-      ""
-    );
-
-    // Inject security policy and fixed-height styles.
-    const headContent = `
-      ${cspTag}
-      <style>
-        *, *::before, *::after { box-sizing: border-box; }
-        html, body {
-          width: 100%;
-          height: ${POCKET_HEIGHT}px;
-          margin: 0;
-          overflow: hidden;
-          background: transparent;
-        }
-      </style>
-    `;
-
-    if (/<head(?:\s[^>]*)?>/i.test(html)) {
-      html = html.replace(
-        /<head(?:\s[^>]*)?>/i,
-        (head) => `${head}${headContent}`
-      );
-    } else if (/<html(?:\s[^>]*)?>/i.test(html)) {
-      html = html.replace(
-        /<html(?:\s[^>]*)?>/i,
-        (tag) => `${tag}<head>${headContent}</head>`
-      );
-    } else {
-      html = `<!DOCTYPE html><html><head>${headContent}</head><body>${html}</body></html>`;
-    }
-
-    return html;
-  }
-
-  // Existing compiled React/JSX bundle handling.
-  const safeCode = source.replace(/<\/script/gi, "<\\/script>");
+// JSX pockets arrive already compiled by the server (self-mounting into #root).
+// Host them with React only — no Babel in the viewer's browser.
+function buildJsxHost(bundle: string): string {
+  // Keep the bundle from closing the <script> tag or opening an HTML comment.
+  const safeBundle = bundle
+    .replace(/<\/script/gi, "<\\/script")
+    .replace(/<!--/g, "<\\!--");
 
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta http-equiv="Content-Security-Policy"
-    content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' https://esm.sh; style-src 'unsafe-inline'; img-src https: data: blob:; media-src https: blob:; connect-src 'none';"/>
+  <meta http-equiv="Content-Security-Policy" content="${JSX_HOST_CSP}">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <style>
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-    html, body {
-      width: 100%;
-      height: ${POCKET_HEIGHT}px;
-      overflow: hidden;
-      background: transparent;
-    }
-    #root {
-      width: 100%;
-      height: ${POCKET_HEIGHT}px;
-      overflow: hidden;
-    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
+    #root { width: 100%; height: 100%; overflow: hidden; }
   </style>
 </head>
 <body>
   <div id="root"></div>
-
-  <script type="module">
-    import React from "https://esm.sh/react@18";
-    import ReactDOM from "https://esm.sh/react-dom@18/client";
-
-    window.React = React;
-    window.ReactDOM = ReactDOM;
-  </script>
-
-  <script>
-    window.addEventListener("error", function (e) {
-      var root = document.getElementById("root");
-
-      if (root) {
-        root.innerHTML =
-          '<div style="padding:14px;font-family:monospace;font-size:11px;color:#f87171;background:#0a0a0a;height:100%;box-sizing:border-box;overflow:auto">' +
-          '<b>Runtime error:</b><br/><br/>' +
-          String(e.message || "").replace(/</g, "&lt;") +
-          (e.lineno ? '<br/><span style="opacity:.4">line ' + e.lineno + '</span>' : '') +
-          '</div>';
-      }
-    });
-  </script>
-
-  ${safeCode}
+  <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+  <script>${safeBundle}</script>
 </body>
 </html>`;
 }
 
 const PocketPost: React.FC<PocketPostProps> = ({
-  _id, user, brandName, tagline, compiledBundleUrl, onOpenDetails,onPrev, onNext
+  _id, brandName, compiledBundleUrl, sourceType, onOpenDetails,
 }) => {
-  const postRef = useRef<HTMLElement>(null);
+  const postRef   = useRef<HTMLElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const viewStart = useRef<number | null>(null);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
   const navigate = useNavigate();
-  const [srcdoc, setSrcdoc] = useState<string | null>(null);
+  const [srcdoc, setSrcdoc]     = useState<string | null>(null);
   const [fetchErr, setFetchErr] = useState<string | null>(null);
 
+  // Internal navigation requested by the pocket. Only accept messages from THIS
+  // post's iframe, otherwise every post in the feed would navigate at once.
   useEffect(() => {
     const handlePocketNavigation = (event: MessageEvent) => {
+      if (event.source !== iframeRef.current?.contentWindow) return;
+
       const data = event.data;
-      console.log("Received message from Pocket iframe:", data);
-
       if (!data || data.type !== "RIGZER_NAVIGATE") return;
-
       if (typeof data.path !== "string") return;
 
-      // Only allow internal routes
-      if (!data.path.startsWith("/")) return;
+      const path: string = data.path;
+      if (!path.startsWith("/") || path.startsWith("//") || path.includes("\\")) return;
 
-      navigate(data.path);
+      navigate(path);
     };
 
     window.addEventListener("message", handlePocketNavigation);
-
-    return () => {
-      window.removeEventListener("message", handlePocketNavigation);
-    };
+    return () => window.removeEventListener("message", handlePocketNavigation);
   }, [navigate]);
 
+  // Load the published bundle and turn it into the iframe document.
   useEffect(() => {
     let cancelled = false;
     setSrcdoc(null);
     setFetchErr(null);
+
     fetchBundleText(compiledBundleUrl)
-      .then(code => { if (!cancelled) setSrcdoc(buildSrcdoc(code)); })
+      .then(text => {
+        if (cancelled) return;
+        // HTML: the server already wrapped it with the CSP, so use it as-is.
+        // JSX:  already compiled, so host it with React.
+        setSrcdoc(isHtmlBundle(compiledBundleUrl, sourceType) ? text : buildJsxHost(text));
+      })
       .catch(err => { if (!cancelled) setFetchErr(String(err.message)); });
+
     return () => { cancelled = true; };
-  }, [compiledBundleUrl]);
+  }, [compiledBundleUrl, sourceType]);
 
-
-  // Stable track function — wrapped in useCallback so the analytics
-  // useEffect doesn't need to re-run when the component re-renders.
   const track = useCallback((event: string, seconds?: number) => {
     fetch(`${BACKEND_URL}/api/pockets/entries/${_id}/analytics`, {
       method: "POST", credentials: "include",
@@ -205,169 +140,34 @@ const PocketPost: React.FC<PocketPostProps> = ({
     }, { threshold: 0.5 });
     if (postRef.current) observer.observe(postRef.current);
     return () => observer.disconnect();
-  }, [track]); // track is stable — this effect runs once
+  }, [track]);
 
   return (
-    <article
-      ref={postRef}
-      className="relative w-full bg-transparent"
-    >
+    <article ref={postRef} className="relative w-full bg-transparent">
       <div
         style={{
           width: "100%",
           height: POCKET_HEIGHT,
           position: "relative",
-          background:"transparent",
-          // backgroundImage: "url('/defaultBackground.jpeg')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
+          background: "transparent",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
         }}
         onClick={() => onOpenDetails?.()}
       >
-        {/* 🔥 INNER POCKET (slightly smaller → border visible) */}
         <div
           style={{
             width: "100%",
             height: "100%",
             overflow: "hidden",
             background: "transparent",
-
             display: "flex",
             flexDirection: "column",
-
-            // borderTopLeftRadius: "28px",
-            // borderTopRightRadius: "28px",
             borderBottomLeftRadius: "12px",
             borderBottomRightRadius: "12px",
           }}
         >
-          {/* Pocket Header */}
-          {/* <div
-            onClick={() => onOpenDetails?.()}
-            style={{
-              flexShrink: 0,
-
-              padding: "10px 14px",
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-
-              background: "rgba(32, 30, 31, 0.96)",
-              backdropFilter: "blur(6px)",
-              WebkitBackdropFilter: "blur(6px)",
-            }}
-          >
-            <img
-              src={user.avatar || "/default_avatar.png"}
-              alt={user.username}
-              onClick={(e) => {
-                e.stopPropagation();
-                navigate(`/profile/${user.username}`);
-              }}
-              style={{
-                width: "30px",
-                height: "30px",
-                borderRadius: "999px",
-                objectFit: "cover",
-                flexShrink: 0,
-                border: "2px solid rgba(255,255,255,0.15)",
-              }}
-            />
-
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                minWidth: 0,
-                flex: 1,
-              }}
-            >
-              <span
-                style={{
-                  color: "white",
-                  fontWeight: 800,
-                  fontSize: "14px",
-                  lineHeight: 1.1,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {brandName}
-              </span>
-
-              {tagline && (
-                <span
-                  style={{
-                    color: "rgba(255,255,255,0.72)",
-                    fontSize: "11px",
-                    marginTop: "3px",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  {tagline}
-                </span>
-              )}
-            </div> */}
-
-            {/* Arrows */}
-            {/* <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                flexShrink: 0,
-              }}
-            >
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPrev?.();
-                }}
-                style={{
-                  border: "none",
-                  background: "rgba(255,255,255,0.08)",
-                  color: "white",
-                  borderRadius: "999px",
-                  width: "28px",
-                  height: "28px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                }}
-              >
-                <ArrowLeft size={14} />
-              </button>
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onNext?.();
-                }}
-                style={{
-                  border: "none",
-                  background: "rgba(255,255,255,0.08)",
-                  color: "white",
-                  borderRadius: "999px",
-                  width: "32px",
-                  height: "32px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                }}
-              >
-                <ArrowRight size={14} />
-              </button>
-            </div>
-          </div> */}
-
           {!srcdoc && !fetchErr && (
             <div
               style={{
@@ -382,27 +182,23 @@ const PocketPost: React.FC<PocketPostProps> = ({
 
           {fetchErr && (
             <div style={{
-              flex: 1, width: "100%", background: "#0a0a0a",
-              display: "flex", alignItems: "center", justifyContent: "center",
+              flex: 1, width: "100%", background: "#0a0a0a", color: "rgba(255,255,255,0.4)",
+              display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12,
             }}>
-              Error
+              Couldn't load this pocket
             </div>
           )}
 
           {srcdoc && (
             <iframe
               key={compiledBundleUrl}
-              title={`pocket-${_id}`}
+              ref={iframeRef}
+              title={`pocket-${brandName || _id}`}
               srcDoc={srcdoc}
               sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
-              style={{
-                flex: 1,
-                width: "100%",
-                border: "none",
-                display: "block",
-              }}
+              referrerPolicy="no-referrer"
+              style={{ flex: 1, width: "100%", border: "none", display: "block" }}
             />
-
           )}
         </div>
       </div>

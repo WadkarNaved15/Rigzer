@@ -3,7 +3,10 @@ import Pocket          from "../models/Pocket.js";
 import PocketFeedEntry from "../models/PocketFeedEntry.js";
 import User            from "../models/User.js";
 import { compilePocketBundle } from "../services/pocketCompiler.service.js";
-import { uploadBundleToCDN, deleteBundleFromCDN, invalidateCDNPath } from "../services/pocketCDN.service.js";
+import { uploadBundleToCDN, deleteBundleFromCDN } from "../services/pocketCDN.service.js";
+import { isHtmlSource, buildHtmlDocument } from "../services/pocketCompiler.service.js";
+
+const POCKET_HEIGHT = 550;
 
 /* ─────────────────────────────────────────────────────────────────────────────
    POST /api/pockets/eligibility/:userId   (admin only)
@@ -35,12 +38,10 @@ export const setPocketEligibility = async (req, res) => {
 ───────────────────────────────────────────────────────────────────────────── */
 export const getPendingPockets = async (req, res) => {
   try {
-    console.log("Admin requested pending pockets for review");
     const pockets = await Pocket.find({ status: "pending_review" })
       .populate("owner", "username avatar email")
       .sort({ updatedAt: -1 })
       .lean();
-    console.log(`Fetched ${pockets.length} pending pockets for review`);
     return res.status(200).json({ pockets });
   } catch (err) {
     console.error("getPendingPockets:", err);
@@ -54,7 +55,6 @@ export const getMyPockets = async (req, res) => {
     const pockets = await Pocket.find({ owner: req.user.id })
       .sort({ updatedAt: -1 })
       .lean();
-
     return res.status(200).json({ pockets });
   } catch (err) {
     console.error("getMyPockets:", err);
@@ -73,7 +73,6 @@ export const getPocketById = async (req, res) => {
     if (!pocket) {
       return res.status(404).json({ message: "Pocket not found" });
     }
-
     return res.status(200).json({ pocket });
   } catch (err) {
     if (err.name === "CastError") {
@@ -90,9 +89,7 @@ export const createPocket = async (req, res) => {
     const { brandName, tagline = "", sourceCode } = req.body;
 
     if (!brandName?.trim() || !sourceCode?.trim()) {
-      return res.status(400).json({
-        message: "brandName and sourceCode are required",
-      });
+      return res.status(400).json({ message: "brandName and sourceCode are required" });
     }
 
     const pocket = await Pocket.create({
@@ -116,9 +113,7 @@ export const updatePocket = async (req, res) => {
     const { brandName, tagline = "", sourceCode } = req.body;
 
     if (!brandName?.trim() || !sourceCode?.trim()) {
-      return res.status(400).json({
-        message: "brandName and sourceCode are required",
-      });
+      return res.status(400).json({ message: "brandName and sourceCode are required" });
     }
 
     const pocket = await Pocket.findOne({
@@ -131,17 +126,13 @@ export const updatePocket = async (req, res) => {
     }
 
     if (pocket.status === "pending_review") {
-      return res.status(400).json({
-        message: "This Pocket is under review and cannot be edited.",
-      });
+      return res.status(400).json({ message: "This Pocket is under review and cannot be edited." });
     }
 
-    pocket.brandName = brandName.trim();
-    pocket.tagline = tagline.trim();
+    pocket.brandName  = brandName.trim();
+    pocket.tagline    = tagline.trim();
     pocket.sourceCode = sourceCode;
-
-    // Keep the existing review/publish lifecycle.
-    pocket.status = "draft";
+    pocket.status     = "draft";
     pocket.reviewNote = null;
 
     await pocket.save();
@@ -173,25 +164,18 @@ export const submitForReview = async (req, res) => {
     }
 
     if (!["draft", "rejected", "live"].includes(pocket.status)) {
-      return res.status(400).json({
-        message: "Save new code before resubmitting.",
-      });
+      return res.status(400).json({ message: "Save new code before resubmitting." });
     }
 
-    pocket.status = "pending_review";
+    pocket.status     = "pending_review";
     pocket.reviewNote = null;
-
     await pocket.save();
 
-    return res.status(200).json({
-      message: "Submitted for review",
-      pocket,
-    });
+    return res.status(200).json({ message: "Submitted for review", pocket });
   } catch (err) {
     if (err.name === "CastError") {
       return res.status(400).json({ message: "Invalid Pocket ID" });
     }
-
     console.error("submitForReview:", err);
     return res.status(500).json({ message: "Failed to submit" });
   }
@@ -202,10 +186,10 @@ export const submitForReview = async (req, res) => {
    Body: { action: "approve" | "reject", note?: string }
 
    On approve:
-   - Bundle uploaded to a versioned S3 key — CloudFront never serves stale.
-   - PocketFeedEntry upserted in place (stable _id) with publishedAt = now,
-     so it sorts to the top of the feed on every approval without losing
-     its analytics/likes reference or risking a delete+insert race condition.
+   - HTML sources are wrapped with the CSP and uploaded as .html (no Babel).
+   - JSX sources are compiled with Babel and uploaded as .js.
+   - Bundle goes to a versioned S3 key, so CloudFront never serves stale.
+   - PocketFeedEntry is upserted in place (stable _id) with publishedAt = now.
 ───────────────────────────────────────────────────────────────────────────── */
 export const reviewPocket = async (req, res) => {
   try {
@@ -228,39 +212,41 @@ export const reviewPocket = async (req, res) => {
     }
 
     // ── Approve ─────────────────────────────────────────────────────────────
-    let compiledCode;
-    try {
-      compiledCode = await compilePocketBundle(pocket.sourceCode);
-    } catch (compileErr) {
-      pocket.status     = "rejected";
-      pocket.reviewNote = `Compilation failed: ${compileErr.message}`;
-      await pocket.save();
-      return res.status(422).json({ message: "Compilation failed", error: compileErr.message });
+    const sourceType = isHtmlSource(pocket.sourceCode) ? "html" : "jsx";
+    let payload;
+
+    if (sourceType === "html") {
+      payload = buildHtmlDocument(pocket.sourceCode, POCKET_HEIGHT);
+    } else {
+      try {
+        payload = await compilePocketBundle(pocket.sourceCode);
+      } catch (compileErr) {
+        pocket.status     = "rejected";
+        pocket.reviewNote = `Compilation failed: ${compileErr.message}`;
+        await pocket.save();
+        return res.status(422).json({ message: "Compilation failed", error: compileErr.message });
+      }
     }
 
-    // Save old bundle URL before overwriting so we can delete it after upload
+    // Save old bundle URL so it can be deleted after the new one is live
     const oldBundleUrl = pocket.compiledBundleUrl ?? null;
 
-    const version   = Date.now();
-    const s3Key     = `pockets/${pocket._id}/bundle-${version}.js`;
-    const bundleUrl = await uploadBundleToCDN(compiledCode, s3Key);
+    const version     = Date.now();
+    const ext         = sourceType === "html" ? "html" : "js";
+    const contentType = sourceType === "html"
+      ? "text/html; charset=utf-8"
+      : "application/javascript";
+    const s3Key       = `pockets/${pocket._id}/bundle-${version}.${ext}`;
+
+    const bundleUrl = await uploadBundleToCDN(payload, s3Key, contentType);
 
     pocket.status            = "live";
+    pocket.sourceType        = sourceType;
     pocket.compiledBundleUrl = bundleUrl;
     pocket.reviewNote        = null;
     await pocket.save();
 
-    // Delete old bundle immediately now that new one is live
-    if (oldBundleUrl) {
-      const CDN_BASE = process.env.GAMES_STORAGE_PRIVATE_CLOUDFRONT;
-      const oldKey   = CDN_BASE ? oldBundleUrl.replace(`${CDN_BASE}/`, "") : null;
-      if (oldKey) await deleteBundleFromCDN(oldKey);
-    }
-
-    // Upsert the PocketFeedEntry in place — stable _id preserves all
-    // analytics/likes references. publishedAt = now floats it to the top
-    // of the feed on every approval. Counters reset because each approval
-    // is a fresh post from the audience's perspective.
+    // Upsert the feed entry first, so the feed never points at a deleted bundle.
     const publishedAt = new Date();
     await PocketFeedEntry.findOneAndUpdate(
       { pocket: pocket._id },
@@ -270,16 +256,26 @@ export const reviewPocket = async (req, res) => {
           brandName:         pocket.brandName,
           tagline:           pocket.tagline,
           compiledBundleUrl: bundleUrl,
+          sourceType,
           publishedAt,
           likesCount:        0,
           commentsCount:     0,
         },
-        $setOnInsert: {
-          pocket: pocket._id,
-        },
+        $setOnInsert: { pocket: pocket._id },
       },
       { upsert: true, new: true }
     );
+
+    // Delete the old bundle last. A failure here must not fail the approval.
+    if (oldBundleUrl) {
+      try {
+        const CDN_BASE = process.env.GAMES_STORAGE_PRIVATE_CLOUDFRONT;
+        const oldKey   = CDN_BASE ? oldBundleUrl.replace(`${CDN_BASE}/`, "") : null;
+        if (oldKey) await deleteBundleFromCDN(oldKey);
+      } catch (cleanupErr) {
+        console.warn("reviewPocket: old bundle cleanup failed:", cleanupErr.message);
+      }
+    }
 
     return res.status(200).json({ message: "Approved and published", pocket });
   } catch (err) {
@@ -298,8 +294,8 @@ export const trackAnalytics = async (req, res) => {
     if (!entry) return res.status(404).json({ message: "Entry not found" });
 
     const inc = {};
-    if (event === "impression") inc["analytics.impressions"]            = 1;
-    if (event === "click")      inc["analytics.clicks"]                 = 1;
+    if (event === "impression") inc["analytics.impressions"] = 1;
+    if (event === "click")      inc["analytics.clicks"]      = 1;
     if (event === "engagement" && typeof seconds === "number") {
       inc["analytics.totalEngagementSeconds"] = Math.max(0, Math.floor(seconds));
     }

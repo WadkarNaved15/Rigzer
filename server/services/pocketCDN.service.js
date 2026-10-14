@@ -9,7 +9,7 @@ import {
   CreateInvalidationCommand,
 } from "@aws-sdk/client-cloudfront";
 
-const s3 = new S3Client({ region: "ap-south-1", });
+const s3 = new S3Client({ region: "ap-south-1" });
 const cf = new CloudFrontClient({ region: "us-east-1" }); // CloudFront is global, always us-east-1
 
 const BUCKET           = process.env.AWS_BUCKET_NAME;
@@ -17,17 +17,20 @@ const CDN_BASE         = process.env.GAMES_STORAGE_PRIVATE_CLOUDFRONT;
 const CF_DISTRIBUTION  = process.env.CLOUDFRONT_DISTRIBUTION_ID; // optional — only needed for manual invalidations
 
 /**
- * Upload a compiled JS bundle to S3 and return its CloudFront URL.
+ * Upload a pocket bundle to S3 and return its CloudFront URL.
+ *  - JSX pockets:  compiled JS,  contentType "application/javascript" (.js)
+ *  - HTML pockets: full document, contentType "text/html; charset=utf-8" (.html)
  *
- * Key design: the caller passes a VERSIONED key, e.g.
- *   pockets/<pocketId>/bundle-<timestamp>.js
- * This means every approval writes a brand-new S3 object.
- * CloudFront never serves a stale response because the URL itself changes.
- * No invalidation is needed — old versioned objects are simply orphaned.
- * Add an S3 lifecycle rule to expire pockets/<id>/bundle-*.js after 30 days
- * if you want automatic cleanup of superseded bundles.
+ * The caller passes a VERSIONED key, e.g. pockets/<pocketId>/bundle-<timestamp>.<ext>
+ * so every approval writes a brand-new object and CloudFront never serves stale
+ * content. No invalidation is needed. Consider an S3 lifecycle rule to expire
+ * superseded pockets/<id>/bundle-* objects.
  */
-export async function uploadBundleToCDN(code, s3Key) {
+export async function uploadBundleToCDN(
+  code,
+  s3Key,
+  contentType = "application/javascript"
+) {
   if (!BUCKET)    throw new Error("AWS_BUCKET_NAME env var is not set");
   if (!CDN_BASE)  throw new Error("GAMES_STORAGE_PRIVATE_CLOUDFRONT env var is not set");
 
@@ -35,7 +38,7 @@ export async function uploadBundleToCDN(code, s3Key) {
     Bucket:       BUCKET,
     Key:          s3Key,
     Body:         code,
-    ContentType:  "application/javascript",
+    ContentType:  contentType,
     CacheControl: "public, max-age=31536000, immutable",
     // No ACL — bucket has ACLs disabled; access is via CloudFront OAC
   }));
@@ -55,11 +58,8 @@ export async function deleteBundleFromCDN(s3Key) {
 
 /**
  * Manually invalidate a CloudFront path.
- * Not needed when using versioned keys — kept here for operational convenience
+ * Not needed with versioned keys — kept for operational convenience
  * (e.g. emergency takedowns, admin tooling).
- *
- * Requires CLOUDFRONT_DISTRIBUTION_ID to be set.
- * CloudFront charges $0.005 per invalidation path after the first 1,000/month.
  */
 export async function invalidateCDNPath(s3Key) {
   if (!CF_DISTRIBUTION) {

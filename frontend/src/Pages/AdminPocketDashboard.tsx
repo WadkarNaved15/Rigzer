@@ -122,20 +122,68 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
 }
 
-// ─── Preview iframe ────────────────────────────────────────────────────────────
-// No CSP meta (it blocks unpkg CDN scripts). UMD React loaded via <script src>,
-// not type="module", so window.React/ReactDOM are available to eval'd code.
-// Regex-strip imports + sourceType:"script" — no registerPlugin needed.
+function secureFullHtmlPreview(html: string): string {
+  const csp = [
+    "default-src 'none'",
+    "script-src 'unsafe-inline'",
+    "style-src 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src https://fonts.gstatic.com data:",
+    "img-src data: https: blob:",
+    "media-src data: https: blob:",
+    "connect-src 'none'",
+    "frame-src 'none'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+  ].join("; ");
+
+  const cspTag =
+    `<meta http-equiv="Content-Security-Policy" content="${csp}">`;
+
+  // Remove an existing CSP to avoid conflicting policies.
+  const cleanHtml = html.replace(
+    /<meta\b[^>]*http-equiv\s*=\s*["']?Content-Security-Policy["']?[^>]*>/gi,
+    ""
+  );
+
+  if (/<head(?:\s[^>]*)?>/i.test(cleanHtml)) {
+    return cleanHtml.replace(
+      /<head(?:\s[^>]*)?>/i,
+      (head) => `${head}\n${cspTag}`
+    );
+  }
+
+  if (/<html(?:\s[^>]*)?>/i.test(cleanHtml)) {
+    return cleanHtml.replace(
+      /<html(?:\s[^>]*)?>/i,
+      (tag) => `${tag}\n<head>${cspTag}</head>`
+    );
+  }
+
+  return cleanHtml;
+}
+
+
 function buildPreviewDoc(jsx: string, height: number): string {
+const source = jsx.trim()
+  .replace(/^```(?:html)?\s*/i, "")
+  .replace(/\s*```$/, "")
+  .trim();
+
+if (/<(?:!doctype\s+html|html|head|body)\b/i.test(source)) {
+  return secureFullHtmlPreview(source);
+}
+
+  // JSX/React preview.
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <style>
-    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    html,body{width:100%;height:${height}px;overflow:hidden;background:transparent}
-    #root{width:100%;height:${height}px;overflow:hidden}
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { width: 100%; height: ${height}px; margin: 0; overflow: hidden; background: transparent; }
+    #root { width: 100%; height: ${height}px; overflow: hidden; }
   </style>
 </head>
 <body>
@@ -145,35 +193,48 @@ function buildPreviewDoc(jsx: string, height: number): string {
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script>
     (function run() {
-      if (!window.React || !window.ReactDOM || !window.Babel) return setTimeout(run, 50);
-      var src = ${JSON.stringify(jsx)};
-      try {
-        // Strip import/export lines before Babel parses — more reliable than registerPlugin
-        var stripped = src
-          .replace(/^\\s*import\\s+.*?from\\s+['"][^'"]*['"]\\s*;?\\s*$/gm, '')
-          .replace(/^\\s*import\\s+['"][^'"]*['"]\\s*;?\\s*$/gm, '')
-          .replace(/^\\s*export\\s+default\\s+/gm, '')
-          .replace(/^\\s*export\\s+\\{[^}]*\\}\\s*;?\\s*$/gm, '')
-          .replace(/^\\s*export\\s+(const|let|var|function|class)\\s+/gm, '$1 ');
+      if (!window.React || !window.ReactDOM || !window.Babel) {
+        return setTimeout(run, 50);
+      }
 
-        // sourceType:"script" tells Babel this is not an ES module
-        var compiled = window.Babel.transform(stripped, {
-          presets: [["react", {"runtime":"classic"}]],
-          sourceType: "script"
+      var src = ${JSON.stringify(jsx)};
+
+      try {
+        window.Babel.registerPlugin('strip-imports', function() {
+          return {
+            visitor: {
+              ImportDeclaration: function(path) { path.remove(); },
+              ExportDefaultDeclaration: function(path) { path.remove(); },
+              ExportNamedDeclaration: function(path) { path.remove(); },
+              ExportAllDeclaration: function(path) { path.remove(); }
+            }
+          };
+        });
+
+        var compiled = window.Babel.transform(src, {
+          presets: [["react", { runtime: "classic" }]],
+          plugins: ["strip-imports"]
         }).code;
 
-        var wrapped = compiled + "\\n;if(typeof PocketApp!=='undefined'){window.PocketApp=PocketApp;}";
+        var wrapped = compiled +
+          "\\n;if(typeof PocketApp!=='undefined'){window.PocketApp=PocketApp;}";
+
         (0, eval)(wrapped);
 
         var App = window.PocketApp;
         if (typeof App !== "function") {
-          throw new Error("No PocketApp found. Declare 'const PocketApp = () => { ... }'");
+          throw new Error(
+            "No PocketApp function found. Declare const PocketApp = () => { ... }"
+          );
         }
-        window.ReactDOM.createRoot(document.getElementById("root")).render(window.React.createElement(App));
+
+        window.ReactDOM.createRoot(document.getElementById("root"))
+          .render(window.React.createElement(App));
       } catch (err) {
         document.getElementById("root").innerHTML =
-          '<div style="color:#f87171;padding:12px;font-size:13px;font-family:monospace;white-space:pre-wrap;height:100%;overflow:auto">' +
-          '<strong>Babel Error:</strong><br/><br/>' + err.message + '</div>';
+          '<pre style="color:#f87171;padding:12px;white-space:pre-wrap;">' +
+          String(err.message).replace(/</g, "&lt;") +
+          '</pre>';
       }
     })();
   </script>
@@ -503,9 +564,11 @@ function ReviewTab({ showToast }: { showToast: (msg: string, ok: boolean)=>void 
     finally { setActionLoading(false); }
   };
 
-  const previewSrc = selected
-    ? `data:text/html;charset=utf-8,${encodeURIComponent(buildPreviewDoc(selected.sourceCode, POCKET_HEIGHT))}`
-    : "";
+
+  const previewHtml = useMemo(
+  () => (selected ? buildPreviewDoc(selected.sourceCode, POCKET_HEIGHT) : ""),
+  [selected]
+);
 
   const DETAIL_TABS = selected ? [
     { id:"security" as DetailTab, icon:<Shield size={12}/>,   label:"Security",
@@ -629,11 +692,10 @@ function ReviewTab({ showToast }: { showToast: (msg: string, ok: boolean)=>void 
                   <iframe
                     key={selected._id}
                     title="pocket-preview"
-                    src={previewSrc}
-                    sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
+                    srcDoc={previewHtml}
+                    sandbox="allow-scripts allow-popups"
                     referrerPolicy="no-referrer"
-                    style={{width:"100%",height:`${POCKET_HEIGHT}px`,border:"none",display:"block"}}
-                    loading="lazy"
+                    style={{ width: "100%", height: `${POCKET_HEIGHT}px`, border: "none", display: "block" }}
                   />
                 </div>
                 {secReport && secReport.findings.filter(f=>f.severity==="critical").length>0 && (

@@ -22,6 +22,7 @@ const PocketSchema = new mongoose.Schema(
     tagline:    { type: String, trim: true, maxlength: 160, default: "" },
 
     sourceCode: { type: String, required: true},
+    sourceType: { type: String, enum: ["jsx", "html"], default: "jsx" },
 
     // Workflow state for the current code
     status: {
