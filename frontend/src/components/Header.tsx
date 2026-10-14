@@ -79,85 +79,99 @@ export function Header() {
         {/* Changed flex to grid with 3 columns */}
         <div className="grid grid-cols-3 items-center h-full">
 
-          {/* 1. Left Section - Empty or placeholder to balance the grid */}
-          <div className="flex items-center">
-            {/* You can put a menu icon here later if needed */}
-          </div>
+          {/* Left spacer */}
+          <div />
 
-          {/* 2. Center Section - Logo */}
-          <div className="flex justify-center items-center">
-            {/* <Link
-              to="/"
-              className="text-3xl dark:text-[#3D7A6E] tracking-wide"
-              style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                letterSpacing: "0.05em",
-              }}
-              onClick={() =>
-                window.scrollTo({ top: 0, behavior: "smooth" })
-              }
-            >
-              RIGZER
-            </Link> */}
-            {/* <Link
-              to="/"
-              className="flex items-center justify-center"
-              onClick={() =>
-                window.scrollTo({ top: 0, behavior: "smooth" })
-              }
-            >
-              <img
-                src={logo}
-                alt="Rigzer Logo"
-                className="h-12 w-auto object-contain"
-              />
-            </Link> */}
+          {/* Center: Logo + Search */}
+          <div className="flex items-center gap-3">
+
+            {/* Logo */}
             <Link
               to="/"
               replace
-              className="group relative flex items-center justify-center"
+              className="group relative flex items-center justify-center shrink-0"
+              onClick={() =>
+                window.scrollTo({ top: 0, behavior: "smooth" })
+              }
             >
               <Logo
-                className="h-12 w-auto transition-all duration-300 hover:-translate-y-[1px] text-[#469D84]" />
+                className="h-8 w-8 transition-all duration-300 
+                hover:-translate-y-[1px] text-[#469D84]"
+              />
             </Link>
-          </div>
 
-          {/* 3. Right Section - Search & Theme */}
-          <div className="flex items-center justify-end space-x-4">
-            {/* Ads Campaign */}
-            {/* Ads Campaign */}
-            {/* <button
-              onClick={handleAdsClick}
-              className="flex items-center justify-center p-1.5 rounded-md text-white hover:text-white/80 transition-all mt-1"
-            >
-              <ExternalLinkIcon className="h-7 w-auto" />
-            </button> */}
             {/* Search Bar */}
-            <form onSubmit={handleSearch} className="relative hidden md:block w-full max-w-[250px]">
+            <form
+              onSubmit={handleSearch}
+              className="relative hidden md:block w-[320px] lg:w-[400px]"
+            >
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <Search
+                  className="absolute left-3 top-1/2 -translate-y-1/2 
+                  text-gray-400 h-4 w-4"
+                />
+
                 <input
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search"
-                  className="w-full pl-9 pr-4 py-1.5 text-sm rounded-full bg-gray-100 dark:bg-[#191716] dark:text-white border-none focus:ring-2 focus:ring-purple-500"
+                  placeholder="Search..."
+                  className="
+                    w-full
+                    pl-9
+                    pr-4
+                    py-2
+                    text-sm
+                    rounded-full
+                    bg-gray-100
+                    dark:bg-[#191716]
+                    dark:text-white
+                    border
+                    border-gray-200
+                    dark:border-white/10
+                    outline-none
+                    focus:ring-2
+                    focus:ring-white/50
+                  "
                 />
 
-                {/* Suggestions dropdown (restored logic) */}
+                {/* Suggestions dropdown */}
                 {suggestions.length > 0 && (
-                  <ul className="absolute z-10 mt-2 w-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                  <ul
+                    className="
+                      absolute
+                      z-50
+                      mt-2
+                      w-full
+                      bg-white
+                      dark:bg-gray-900
+                      border
+                      border-gray-200
+                      dark:border-gray-700
+                      rounded-lg
+                      shadow-xl
+                      max-h-60
+                      overflow-y-auto
+                    "
+                  >
                     {suggestions.map((user: User) => (
                       <Link
                         key={user._id}
                         to={`/profile/${user.username}`}
                         onClick={() => setSuggestions([])}
-                        className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+                        className="
+                          flex items-center gap-3
+                          px-4 py-2
+                          hover:bg-gray-100
+                          dark:hover:bg-gray-800
+                        "
                       >
                         <img
                           src={user.avatar || "/default_avatar.png"}
                           className="w-8 h-8 rounded-full object-cover"
+                          alt=""
                         />
+
                         <div className="flex flex-col min-w-0">
                           <span className="text-sm font-medium truncate">
                             {user.displayName}
@@ -173,19 +187,11 @@ export function Header() {
                 )}
               </div>
             </form>
-
-            {/* <button
-              onClick={toggleTheme}
-              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
-              aria-label="Toggle Theme"
-            >
-              {isDark ? (
-                <Sun className="h-5 w-5 text-gray-600 dark:text-white" />
-              ) : (
-                <Moon className="h-5 w-5 text-gray-600 dark:text-white" />
-              )}
-            </button> */}
           </div>
+
+          {/* Right spacer */}
+          <div />
+
         </div>
       </div>
     </header>
