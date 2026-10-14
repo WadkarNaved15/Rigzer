@@ -330,7 +330,7 @@ const ProfilePage: React.FC = () => {
                   <div className="relative group shrink-0">
                     <img
                       src={profileUser?.avatar || "/default_avatar.png"}
-                      className="relative w-24 h-24 md:w-36 md:h-36 rounded-full object-cover border-4 md:border-[6px] border-white/20 shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer"
+                      className="relative w-24 h-24 md:w-36 md:h-36 rounded-full object-cover p-2 shadow-2xl hover:scale-105 transition-transform duration-300 cursor-pointer"
                       alt="Avatar"
                     />
                   </div>

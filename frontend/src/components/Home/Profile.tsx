@@ -8,14 +8,318 @@ import { useNotification } from "../../context/Notifications";
 
 interface ProfileCoverProps {
   onOpenWishlist: () => void;
+  isToggled: boolean;
+  onToggle: () => void;
 }
 
-export default function ProfileCover({ onOpenWishlist }: ProfileCoverProps) {
+function SciFiFrame() {
+  return (
+    <svg
+      className="absolute inset-0 w-full h-full pointer-events-none z-50"
+      viewBox="0 0 400 450"
+      preserveAspectRatio="none"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <style>
+        {`
+          .draw-path {
+            stroke-dasharray: 2500;
+            stroke-dashoffset: 2500;
+            /* Slowed down from 1.5s to 4s for a long, scanning draw effect */
+            animation: drawLine 4s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+          }
+          
+          .power-up {
+            opacity: 0;
+            /* Extended duration to 2.5s and delayed to 3.8s to wait for the slow draw */
+            animation: flickerOn 2.5s ease-out 3.8s forwards;
+          }
+
+          @keyframes drawLine {
+            to { stroke-dashoffset: 0; }
+          }
+
+          /* A longer, more complex flickering boot sequence */
+          @keyframes flickerOn {
+            0% { opacity: 0; }
+            5% { opacity: 0.6; }
+            10% { opacity: 0; }
+            15% { opacity: 0.8; }
+            25% { opacity: 0.1; }
+            40% { opacity: 0.9; }
+            50% { opacity: 0.3; }
+            65% { opacity: 1; }
+            75% { opacity: 0.6; }
+            85% { opacity: 1; }
+            90% { opacity: 0.8; }
+            100% { opacity: 1; }
+          }
+        `}
+      </style>
+
+      <defs>
+        {/* Intense Neon Glow for Accents */}
+        <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="4" result="blur1" />
+          <feGaussianBlur stdDeviation="10" result="blur2" />
+          <feMerge>
+            <feMergeNode in="blur2" />
+            <feMergeNode in="blur1" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+
+        {/* Ambient Glow for Outer Borders */}
+        <filter id="subtleGlow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="2" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+
+        {/* 3D Metallic Gradients */}
+        <linearGradient id="metalBase" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#1e293b" />
+          <stop offset="50%" stopColor="#0f172a" />
+          <stop offset="100%" stopColor="#020617" />
+        </linearGradient>
+
+        <linearGradient id="metalBevelOuter" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#475569" />
+          <stop offset="20%" stopColor="#1e293b" />
+          <stop offset="80%" stopColor="#0f172a" />
+          <stop offset="100%" stopColor="#334155" />
+        </linearGradient>
+
+        <linearGradient id="metalHighlight" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor="#f8fafc" />
+          <stop offset="15%" stopColor="#94a3b8" />
+          <stop offset="50%" stopColor="#334155" />
+          <stop offset="85%" stopColor="#64748b" />
+          <stop offset="100%" stopColor="#e2e8f0" />
+        </linearGradient>
+
+        {/* Core Geometry Path */}
+        <path
+          id="coreFrame"
+          d="
+            M 34 10
+            H 110
+            L 130 30
+            H 270
+            L 290 10
+            H 366
+            A 24 24 0 0 1 390 34
+            V 416
+            A 24 24 0 0 1 366 440
+            H 34
+            A 24 24 0 0 1 10 416
+            V 34
+            A 24 24 0 0 1 34 10
+            Z
+          "
+        />
+      </defs>
+
+      {/* ======================= */}
+      {/* BASE STRUCTURE (Draws in slowly) */}
+      {/* ======================= */}
+
+      {/* 1. Outer Cyan Ambient Glow Box */}
+      <rect
+        className="draw-path"
+        x="3"
+        y="3"
+        width="394"
+        height="444"
+        rx="27"
+        stroke="#0ea5e9"
+        strokeWidth="1.5"
+        filter="url(#subtleGlow)"
+        opacity="0.3"
+        vectorEffect="non-scaling-stroke"
+      />
+
+      {/* 2. Base Drop Shadow / Outer Dark Casing */}
+      <use
+        className="draw-path"
+        href="#coreFrame"
+        stroke="#000000"
+        strokeWidth="18"
+        opacity="0.6"
+        vectorEffect="non-scaling-stroke"
+      />
+
+      {/* 3. Thick Metal Casing (Base Layer) */}
+      <use
+        className="draw-path"
+        href="#coreFrame"
+        stroke="url(#metalBase)"
+        strokeWidth="16"
+        vectorEffect="non-scaling-stroke"
+      />
+
+      {/* 4. Bevel Slope (Mid Layer for Depth) */}
+      <use
+        className="draw-path"
+        href="#coreFrame"
+        stroke="url(#metalBevelOuter)"
+        strokeWidth="10"
+        vectorEffect="non-scaling-stroke"
+      />
+
+      {/* 5. Sharp Inner Metallic Ridge (Highlight Layer) */}
+      <use
+        className="draw-path"
+        href="#coreFrame"
+        stroke="url(#metalHighlight)"
+        strokeWidth="2.5"
+        vectorEffect="non-scaling-stroke"
+      />
+
+      {/* 5.5 Top Bridging Wire (completes the square over the cutout) */}
+      <path
+        className="draw-path"
+        d="M 110 10 H 290"
+        stroke="url(#metalBase)"
+        strokeWidth="4"
+        vectorEffect="non-scaling-stroke"
+      />
+      <path
+        className="draw-path"
+        d="M 110 10 H 290"
+        stroke="url(#metalHighlight)"
+        strokeWidth="1.5"
+        vectorEffect="non-scaling-stroke"
+      />
+
+      {/* 6. Deep Inner Shadow (Simulates the drop-off to the content) */}
+      <path
+        className="draw-path"
+        d="
+          M 36 18
+          H 107
+          L 127 38
+          H 273
+          L 293 18
+          H 364
+          A 18 18 0 0 1 382 36
+          V 414
+          A 18 18 0 0 1 364 432
+          H 36
+          A 18 18 0 0 1 18 414
+          V 36
+          A 18 18 0 0 1 36 18
+          Z
+        "
+        stroke="#020617"
+        strokeWidth="4"
+        opacity="0.8"
+        vectorEffect="non-scaling-stroke"
+      />
+
+      {/* ======================= */}
+      {/* HUD & NEON (Powers up after drawing) */}
+      {/* ======================= */}
+      <g className="power-up">
+        
+        {/* Top Outer Rim Edge Highlight */}
+        <path
+          d="M 10 40 A 24 24 0 0 1 34 10 H 110"
+          stroke="#0ea5e9"
+          strokeWidth="1.5"
+          filter="url(#subtleGlow)"
+          opacity="0.7"
+          vectorEffect="non-scaling-stroke"
+          fill="none"
+        />
+        <path
+          d="M 290 10 H 366 A 24 24 0 0 1 390 40"
+          stroke="#0ea5e9"
+          strokeWidth="1.5"
+          filter="url(#subtleGlow)"
+          opacity="0.7"
+          vectorEffect="non-scaling-stroke"
+          fill="none"
+        />
+
+        {/* Recessed Center Slit Glow */}
+        <path
+          d="M 140 28 H 260"
+          stroke="#22d3ee"
+          strokeWidth="4"
+          filter="url(#neonGlow)"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+        <path
+          d="M 155 28 H 245"
+          stroke="#ffffff"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+        />
+
+        {/* Top Left Decorative HUD Lines */}
+        <g stroke="#0ea5e9" strokeWidth="1.5" fill="none" opacity="0.8" vectorEffect="non-scaling-stroke">
+          <rect x="50" y="24" width="8" height="8" />
+          <path d="M 64 24 V 44" />
+        </g>
+
+        {/* Subtle Side Cyber-Accents (Left & Right) */}
+        <path
+          d="M 10 150 V 220"
+          stroke="#0ea5e9"
+          strokeWidth="2"
+          filter="url(#subtleGlow)"
+          vectorEffect="non-scaling-stroke"
+        />
+        <path
+          d="M 10 150 V 220"
+          stroke="#ffffff"
+          strokeWidth="1"
+          opacity="0.8"
+          vectorEffect="non-scaling-stroke"
+        />
+
+        <path
+          d="M 390 150 V 220"
+          stroke="#0ea5e9"
+          strokeWidth="2"
+          filter="url(#subtleGlow)"
+          vectorEffect="non-scaling-stroke"
+        />
+        <path
+          d="M 390 150 V 220"
+          stroke="#ffffff"
+          strokeWidth="1"
+          opacity="0.8"
+          vectorEffect="non-scaling-stroke"
+        />
+
+        {/* Bottom Stabilization Glow */}
+        <path
+          d="M 160 440 H 240"
+          stroke="#0ea5e9"
+          strokeWidth="2"
+          filter="url(#subtleGlow)"
+          vectorEffect="non-scaling-stroke"
+          strokeLinecap="round"
+        />
+      </g>
+    </svg>
+  );
+}
+
+
+export default function ProfileCover({ onOpenWishlist, isToggled, onToggle }: ProfileCoverProps) {
   const [bioExpanded, setBioExpanded] = useState(false);
   const navigate = useNavigate();
   const { unreadCount } = useNotification();
   const { user, logout } = useUser();
-  
+
   const userBio = user?.bio || "Bio goes here...";
   const isBioLong = userBio.length > 40;
   const avatarRef = useRef<HTMLImageElement>(null);
@@ -123,7 +427,7 @@ export default function ProfileCover({ onOpenWishlist }: ProfileCoverProps) {
     // Prevent outer containers from hijacking the click
     e.preventDefault();
     e.stopPropagation();
-    
+
     // Ensure user has a username before routing
     if (user.username) {
       navigate(`/profile/${user.username}`);
@@ -132,6 +436,7 @@ export default function ProfileCover({ onOpenWishlist }: ProfileCoverProps) {
 
   return (
     <div className="max-w-3xl mx-auto">
+
       <div
         className="
           relative overflow-hidden
@@ -152,6 +457,7 @@ export default function ProfileCover({ onOpenWishlist }: ProfileCoverProps) {
           before:to-transparent
         "
       >
+        {isToggled && <SciFiFrame />}
         <div
           className="
             absolute
@@ -217,17 +523,47 @@ export default function ProfileCover({ onOpenWishlist }: ProfileCoverProps) {
         </div>
 
         {/* Content */}
-        <div className="mt-10 px-4 pb-8 flex flex-col items-start relative z-10">
-          {/* Display Name */}
-          <h4 className="text-md font-bold text-gray-900 dark:text-gray-100 leading-tight">
-            {user?.displayName || user?.username || ""}
-          </h4>
+        <div className="mt-10 px-4 pb-8 flex items-center justify-between w-full relative z-10">
+          {/* User Info (Left Side) */}
+          <div className="flex flex-col items-start">
+            {/* Display Name */}
+            <h4 className="text-md font-bold text-gray-900 dark:text-gray-100 leading-tight">
+              {user?.displayName || user?.username || ""}
+            </h4>
 
-          {/* Username Handle */}
-          <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-0.5 lowercase">
-            @{user?.username?.replace(/\s+/g, "") || ""}
-          </p>
+            {/* Username Handle */}
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-0.5 lowercase">
+              @{user?.username?.replace(/\s+/g, "") || ""}
+            </p>
+          </div>
+
+          {/* Vertical Transparent Toggle Button (Right Side) */}
+          {/* <button
+            type="button"
+            role="switch"
+            aria-checked={isToggled}
+            onClick={onToggle}
+            className={`
+              relative w-6 h-12 rounded-full p-1
+              border border-white/20
+              transition-colors duration-300 ease-in-out
+              flex flex-col justify-between items-center
+              focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30
+          `}
+          >
+            <span
+              className={`
+                w-4 h-4 rounded-full shadow-md
+                transition-all duration-300 ease-in-out
+                ${isToggled
+                  ? "translate-y-[20px] bg-blue-500 shadow-blue-500/50"
+                  : "translate-y-0 bg-white"
+                }
+              `}
+            />
+          </button> */}
         </div>
+
 
         {accountOverlayOpen && (
           <AccountSwitcherOverlay

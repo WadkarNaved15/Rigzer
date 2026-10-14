@@ -48,69 +48,150 @@ export const getPendingPockets = async (req, res) => {
   }
 };
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   GET /api/pockets/mine
-───────────────────────────────────────────────────────────────────────────── */
-export const getMyPocket = async (req, res) => {
+// GET /api/pockets/mine
+export const getMyPockets = async (req, res) => {
   try {
-    const pocket = await Pocket.findOne({ owner: req.user.id }).lean();
-    return res.status(200).json({ pocket: pocket ?? null });
+    const pockets = await Pocket.find({ owner: req.user.id })
+      .sort({ updatedAt: -1 })
+      .lean();
+
+    return res.status(200).json({ pockets });
   } catch (err) {
-    console.error("getMyPocket:", err);
-    return res.status(500).json({ message: "Failed to fetch pocket" });
+    console.error("getMyPockets:", err);
+    return res.status(500).json({ message: "Failed to fetch pockets" });
   }
 };
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   POST /api/pockets   —   upsert draft
-───────────────────────────────────────────────────────────────────────────── */
-export const upsertPocket = async (req, res) => {
+// GET /api/pockets/:pocketId
+export const getPocketById = async (req, res) => {
   try {
-    const { brandName, tagline, sourceCode } = req.body;
+    const pocket = await Pocket.findOne({
+      _id: req.params.pocketId,
+      owner: req.user.id,
+    }).lean();
+
+    if (!pocket) {
+      return res.status(404).json({ message: "Pocket not found" });
+    }
+
+    return res.status(200).json({ pocket });
+  } catch (err) {
+    if (err.name === "CastError") {
+      return res.status(400).json({ message: "Invalid Pocket ID" });
+    }
+    console.error("getPocketById:", err);
+    return res.status(500).json({ message: "Failed to fetch Pocket" });
+  }
+};
+
+// POST /api/pockets — create a new Pocket
+export const createPocket = async (req, res) => {
+  try {
+    const { brandName, tagline = "", sourceCode } = req.body;
+
     if (!brandName?.trim() || !sourceCode?.trim()) {
-      return res.status(400).json({ message: "brandName and sourceCode are required" });
-    }
-    if (sourceCode.length > 60_000) {
-      return res.status(400).json({ message: "sourceCode exceeds 60,000 character limit" });
-    }
-    const existing = await Pocket.findOne({ owner: req.user.id }, "status").lean();
-    if (existing?.status === "pending_review") {
       return res.status(400).json({
-        message: "Your pocket is under review. Wait for the result before saving new code.",
+        message: "brandName and sourceCode are required",
       });
     }
-    const pocket = await Pocket.findOneAndUpdate(
-      { owner: req.user.id },
-      {
-        $set: { brandName: brandName.trim(), tagline: tagline?.trim() ?? "", sourceCode, status: "draft", reviewNote: null },
-        $setOnInsert: { owner: req.user.id },
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
-    return res.status(200).json({ message: "Pocket saved", pocket });
+
+    const pocket = await Pocket.create({
+      owner: req.user.id,
+      brandName: brandName.trim(),
+      tagline: tagline.trim(),
+      sourceCode,
+      status: "draft",
+    });
+
+    return res.status(201).json({ message: "Pocket created", pocket });
   } catch (err) {
-    if (err.code === 11000) return res.status(409).json({ message: "Pocket already exists for this account" });
-    console.error("upsertPocket:", err);
-    return res.status(500).json({ message: "Failed to save pocket" });
+    console.error("createPocket:", err);
+    return res.status(500).json({ message: "Failed to create Pocket" });
   }
 };
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   POST /api/pockets/submit
-───────────────────────────────────────────────────────────────────────────── */
+// PATCH /api/pockets/:pocketId — update one Pocket
+export const updatePocket = async (req, res) => {
+  try {
+    const { brandName, tagline = "", sourceCode } = req.body;
+
+    if (!brandName?.trim() || !sourceCode?.trim()) {
+      return res.status(400).json({
+        message: "brandName and sourceCode are required",
+      });
+    }
+
+    const pocket = await Pocket.findOne({
+      _id: req.params.pocketId,
+      owner: req.user.id,
+    });
+
+    if (!pocket) {
+      return res.status(404).json({ message: "Pocket not found" });
+    }
+
+    if (pocket.status === "pending_review") {
+      return res.status(400).json({
+        message: "This Pocket is under review and cannot be edited.",
+      });
+    }
+
+    pocket.brandName = brandName.trim();
+    pocket.tagline = tagline.trim();
+    pocket.sourceCode = sourceCode;
+
+    // Keep the existing review/publish lifecycle.
+    pocket.status = "draft";
+    pocket.reviewNote = null;
+
+    await pocket.save();
+
+    return res.status(200).json({ message: "Pocket saved", pocket });
+  } catch (err) {
+    if (err.name === "CastError") {
+      return res.status(400).json({ message: "Invalid Pocket ID" });
+    }
+    console.error("updatePocket:", err);
+    return res.status(500).json({ message: "Failed to save Pocket" });
+  }
+};
+
+// POST /api/pockets/:pocketId/submit
 export const submitForReview = async (req, res) => {
   try {
-    const pocket = await Pocket.findOne({ owner: req.user.id });
-    if (!pocket) return res.status(404).json({ message: "No pocket found. Save a draft first." });
-    if (pocket.status === "pending_review") return res.status(400).json({ message: "Already under review." });
-    if (!["draft", "rejected", "live"].includes(pocket.status)) {
-      return res.status(400).json({ message: "Save new code before resubmitting." });
+    const pocket = await Pocket.findOne({
+      _id: req.params.pocketId,
+      owner: req.user.id,
+    });
+
+    if (!pocket) {
+      return res.status(404).json({ message: "Pocket not found" });
     }
-    pocket.status     = "pending_review";
+
+    if (pocket.status === "pending_review") {
+      return res.status(400).json({ message: "Already under review." });
+    }
+
+    if (!["draft", "rejected", "live"].includes(pocket.status)) {
+      return res.status(400).json({
+        message: "Save new code before resubmitting.",
+      });
+    }
+
+    pocket.status = "pending_review";
     pocket.reviewNote = null;
+
     await pocket.save();
-    return res.status(200).json({ message: "Submitted for review", pocket });
+
+    return res.status(200).json({
+      message: "Submitted for review",
+      pocket,
+    });
   } catch (err) {
+    if (err.name === "CastError") {
+      return res.status(400).json({ message: "Invalid Pocket ID" });
+    }
+
     console.error("submitForReview:", err);
     return res.status(500).json({ message: "Failed to submit" });
   }

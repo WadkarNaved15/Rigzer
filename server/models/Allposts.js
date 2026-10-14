@@ -194,6 +194,45 @@ const NormalPostSchema = new mongoose.Schema(
           type: Date,
           default: null,
         },
+        semanticTagging: {
+          status: {
+            type: String,
+            enum: ["pending", "processing", "completed", "failed"],
+            default: "pending",
+          },
+
+          contentVersion: {
+            type: Number,
+            default: 1,
+          },
+
+          signals: [
+            {
+              name: {
+                type: String,
+                required: true,
+              },
+              rank: {
+                type: Number,
+                required: true,
+              },
+              score: {
+                type: Number,
+                required: true,
+              },
+            },
+          ],
+
+          processedAt: {
+            type: Date,
+            default: null,
+          },
+
+          error: {
+            type: String,
+            default: null,
+          },
+        }
       },
     ],
   },
@@ -394,6 +433,95 @@ const GamePostSchema = new mongoose.Schema(
         required: true,
       },
     },
+
+// ── Prepared game snapshots ─────────────────────────────
+snapshot: {
+  status: {
+    type: String,
+    enum: [
+      "pending",
+      "provisioning",
+      "snapshotting",
+      "replicating",
+      "ready",
+      "failed",
+    ],
+    default: "pending",
+    index: true,
+  },
+
+  sourceRegion: {
+    type: String,
+    default: "ap-south-1",
+  },
+
+  sourceSnapshotId: {
+    type: String,
+    default: null,
+  },
+
+  // Temporary builder volume.
+  // This should be cleared after cleanup.
+  sourceVolumeId: {
+    type: String,
+    default: null,
+  },
+
+  regions: [{
+    _id: false,
+
+    region: {
+      type: String,
+      required: true,
+    },
+
+    snapshotId: {
+      type: String,
+      default: null,
+    },
+
+    status: {
+      type: String,
+      enum: [
+        "pending",
+        "copying",
+        "ready",
+        "failed",
+      ],
+      default: "pending",
+    },
+
+    error: {
+      type: String,
+      default: null,
+    },
+
+    createdAt: {
+      type: Date,
+      default: null,
+    },
+
+    completedAt: {
+      type: Date,
+      default: null,
+    },
+  }],
+
+  error: {
+    type: String,
+    default: null,
+  },
+
+  createdAt: {
+    type: Date,
+    default: null,
+  },
+
+  completedAt: {
+    type: Date,
+    default: null,
+  },
+},
     gameMetrics: {
       totalSessions: {
         type: Number,

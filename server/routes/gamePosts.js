@@ -28,6 +28,7 @@ import CreditPurchase from "../models/CreditPurchase.js";
 import CreditAudit from "../models/CreditAudit.js";
 import AllPost from "../models/Allposts.js";
 import { publishGameQueue } from "../queues/publishGameQueue.js";
+import { gameSnapshotQueue } from "../queues/gameSnapshotQueue.js";
 import { onPostCreated } from "../services/gorse.hooks.js";
 import { videoProcessingQueue } from "../queues/videoQueue.js";
 import {
@@ -38,6 +39,7 @@ import DemoConsumption from "../models/DemoConsumption.js";
 import { sendEventToQueue } from "../utils/sendEventToQueue.js";
 import PostAnalytics from "../models/postAnalytics.js";
 import { deleteDraftAndAssets } from "../services/deletePost.js";
+import { GAME_SNAPSHOT_SOURCE_REGION, GAME_SNAPSHOT_REGIONS } from "../config/gameSnapshotConfig.js";
 
 const router = express.Router();
 
@@ -142,6 +144,33 @@ const isSponsoredFlow =
             status: "active",
             lastCreditAddedAt: new Date(),
           },
+          snapshot: {
+            status: "pending",
+
+            sourceRegion:
+              GAME_SNAPSHOT_SOURCE_REGION,
+
+            sourceSnapshotId: null,
+
+            sourceVolumeId: null,
+
+            regions: GAME_SNAPSHOT_REGIONS.map(
+              (region) => ({
+                region,
+                snapshotId: null,
+                status: "pending",
+                error: null,
+                createdAt: null,
+                completedAt: null,
+              })
+            ),
+
+            error: null,
+
+            createdAt: new Date(),
+
+            completedAt: null,
+          },
           verification: {
             status: "pending",
             error: null,
@@ -209,6 +238,182 @@ const isSponsoredFlow =
   );
 
   return post;
+}
+
+
+/**
+ * Publish job — runs the Mongo transaction.
+ * Called by setImmediate (or BullMQ worker).
+ *
+ * @param {ObjectId|string} draftId
+ * @param {ObjectId|string} creditPurchaseId
+ */
+export async function runPublishJob(draftId, creditPurchaseId) {
+  console.log(`Publishing draft in runPublishJob: ${draftId}`);
+  const lockedDraft = await GamePostDraft.findOneAndUpdate(
+    {
+      _id: draftId,
+      status: {
+        $in: ["payment_completed", "failed"],
+      },
+    },
+    {
+      $set: {
+        status: "publishing",
+        fulfillmentStatus: "processing",
+        failureReason: null,
+      },
+    },
+    {
+      new: true,
+    }
+  );
+
+  if (!lockedDraft) {
+    console.log(`Draft ${draftId} already processing`);
+    return;
+  }
+
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    let creditPurchase = null;
+
+    // Paid publish only
+    if (creditPurchaseId) {
+      await CreditPurchase.updateOne(
+        { _id: creditPurchaseId },
+        {
+          $set: {
+            fulfillmentStatus: "processing",
+          },
+          $inc: {
+            fulfillmentAttempts: 1,
+          },
+        },
+        { session }
+      );
+
+      creditPurchase = await CreditPurchase.findById(
+        creditPurchaseId
+      ).session(session);
+
+      if (!creditPurchase) {
+        throw new Error("CreditPurchase not found");
+      }
+    }
+
+    const draft = await GamePostDraft.findById(draftId).session(session);
+
+    if (!draft) {
+      throw new Error("Draft not found inside transaction");
+    }
+
+    // Paid games require a CreditPurchase.
+    // Sponsored and Test games do not.
+    if (!draft.game.sponsorship.enabled && !draft.game.isTestUpload && !creditPurchase) {
+      throw new Error(
+        "Paid publish requires a CreditPurchase"
+      );
+    }
+
+    const post = await runPublishTransaction(
+      draft,
+      creditPurchase,
+      session
+    );
+
+    await session.commitTransaction();
+
+    console.log(
+      "[GORSE] Publishing game post:",
+      post._id.toString()
+    );
+
+    onPostCreated(post);
+
+    // ─────────────────────────────────────────────
+    // Queue game snapshot preparation
+    // ─────────────────────────────────────────────
+
+await gameSnapshotQueue.add(
+  "prepareGameSnapshot",
+  {
+    gamePostId: post._id.toString(),
+
+    gameId: post.gamePost.gameName,
+
+    buildId: post._id.toString(),
+    startPath: post.gamePost.startPath,
+
+    s3Key: post.gamePost.file.key,
+    s3Url: post.gamePost.file.url,
+
+    format: post.gamePost.file.format,
+    buildSize: post.gamePost.file.size,
+
+    sourceRegion: GAME_SNAPSHOT_SOURCE_REGION,
+    targetRegions: GAME_SNAPSHOT_REGIONS,
+  },
+  {
+    jobId: `snapshot-${post._id}`,
+    attempts: 3,
+
+    backoff: {
+      type: "exponential",
+      delay: 10000,
+    },
+
+    removeOnComplete: 500,
+    removeOnFail: 500,
+  }
+);
+
+    console.log(
+      `[publishJob] Snapshot preparation queued for game post ${post._id}`
+    );
+
+    console.log(
+      `[publishJob] Game post published for draft ${draftId}`
+    );
+
+} catch (err) {
+  await session.abortTransaction();
+
+  console.error(
+    `[publishJob] Transaction failed for draft ${draftId}:`,
+    err
+  );
+
+  await GamePostDraft.updateOne(
+    { _id: draftId },
+    {
+      $set: {
+        status: "failed",
+        fulfillmentStatus: "failed",
+        failureReason: err.message,
+      },
+    }
+  );
+
+  if (creditPurchaseId) {
+    await CreditPurchase.updateOne(
+      { _id: creditPurchaseId },
+      {
+        $set: {
+          fulfillmentStatus: "failed",
+          fulfillmentError: err.message,
+        },
+      }
+    );
+  }
+
+  throw err;
+} finally {
+    await session.endSession();
+  }
 }
 
 // ── Routes ───────────────────────────────────────────────────────────────────
@@ -583,138 +788,6 @@ router.post(
   }
 );
 
-/**
- * Publish job — runs the Mongo transaction.
- * Called by setImmediate (or BullMQ worker).
- *
- * @param {ObjectId|string} draftId
- * @param {ObjectId|string} creditPurchaseId
- */
-export async function runPublishJob(draftId, creditPurchaseId) {
-  console.log(`Publishing draft in runPublishJob: ${draftId}`);
-  const lockedDraft = await GamePostDraft.findOneAndUpdate(
-    {
-      _id: draftId,
-      status: {
-        $in: ["payment_completed", "failed"],
-      },
-    },
-    {
-      $set: {
-        status: "publishing",
-        fulfillmentStatus: "processing",
-        failureReason: null,
-      },
-    },
-    {
-      new: true,
-    }
-  );
-
-  if (!lockedDraft) {
-    console.log(`Draft ${draftId} already processing`);
-    return;
-  }
-
-  const session = await mongoose.startSession();
-
-  try {
-    session.startTransaction();
-
-    let creditPurchase = null;
-
-    // Paid publish only
-    if (creditPurchaseId) {
-      await CreditPurchase.updateOne(
-        { _id: creditPurchaseId },
-        {
-          $set: {
-            fulfillmentStatus: "processing",
-          },
-          $inc: {
-            fulfillmentAttempts: 1,
-          },
-        },
-        { session }
-      );
-
-      creditPurchase = await CreditPurchase.findById(
-        creditPurchaseId
-      ).session(session);
-
-      if (!creditPurchase) {
-        throw new Error("CreditPurchase not found");
-      }
-    }
-
-    const draft = await GamePostDraft.findById(draftId).session(session);
-
-    if (!draft) {
-      throw new Error("Draft not found inside transaction");
-    }
-
-    // Paid games require a CreditPurchase.
-    // Sponsored and Test games do not.
-    if (!draft.game.sponsorship.enabled && !draft.game.isTestUpload && !creditPurchase) {
-      throw new Error(
-        "Paid publish requires a CreditPurchase"
-      );
-    }
-
-    const post = await runPublishTransaction(
-      draft,
-      creditPurchase,
-      session
-    );
-
-    await session.commitTransaction();
-
-    console.log(
-      "[GORSE] Publishing game post:",
-      post._id.toString()
-    );
-
-    onPostCreated(post);
-
-    console.log(
-      `[publishJob] Game post published for draft ${draftId}`
-    );
-  } catch (err) {
-    await session.abortTransaction();
-
-    console.error(
-      `[publishJob] Transaction failed for draft ${draftId}:`,
-      err
-    );
-
-    // Reset draft so it can be retried
-    await GamePostDraft.updateOne(
-      { _id: draftId },
-      {
-        $set: {
-          status: "failed",
-          fulfillmentStatus: "failed",
-          failureReason: err.message,
-        },
-      }
-    );
-
-    // Only update CreditPurchase for paid publishes
-    if (creditPurchaseId) {
-      await CreditPurchase.updateOne(
-        { _id: creditPurchaseId },
-        {
-          $set: {
-            fulfillmentStatus: "failed",
-            fulfillmentError: err.message,
-          },
-        }
-      );
-    }
-  } finally {
-    await session.endSession();
-  }
-}
 
 /**
  * POST /game-posts/draft/:draftId/publish-test

@@ -24,6 +24,15 @@ interface UploadingFile {
   error?:   string;
 }
 
+interface Pocket {
+  _id: string;
+  brandName: string;
+  tagline?: string;
+  sourceCode?: string;
+  status: string;
+  reviewNote?: string | null;
+}
+
 const POCKET_HEIGHT = 550;
 const MAX_MEDIA     = 20;
 const ACCEPTED      = "image/jpeg,image/png,image/gif,image/webp,image/svg+xml,video/mp4,video/webm";
@@ -237,33 +246,88 @@ const PocketApp = () => {
 };`;
 
 // ─── Preview iframe document ──────────────────────────────────────────────────
+
+
+
+function secureFullHtmlPreview(html: string): string {
+  const csp = [
+    "default-src 'none'",
+    "script-src 'unsafe-inline'",
+    "style-src 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src https://fonts.gstatic.com data:",
+    "img-src data: https: blob:",
+    "media-src data: https: blob:",
+    "connect-src 'none'",
+    "frame-src 'none'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+  ].join("; ");
+
+  const cspTag =
+    `<meta http-equiv="Content-Security-Policy" content="${csp}">`;
+
+  // Remove an existing CSP to avoid conflicting policies.
+  const cleanHtml = html.replace(
+    /<meta\b[^>]*http-equiv\s*=\s*["']?Content-Security-Policy["']?[^>]*>/gi,
+    ""
+  );
+
+  if (/<head(?:\s[^>]*)?>/i.test(cleanHtml)) {
+    return cleanHtml.replace(
+      /<head(?:\s[^>]*)?>/i,
+      (head) => `${head}\n${cspTag}`
+    );
+  }
+
+  if (/<html(?:\s[^>]*)?>/i.test(cleanHtml)) {
+    return cleanHtml.replace(
+      /<html(?:\s[^>]*)?>/i,
+      (tag) => `${tag}\n<head>${cspTag}</head>`
+    );
+  }
+
+  return cleanHtml;
+}
+
+
 function buildPreviewDoc(jsx: string, height: number): string {
+const source = jsx.trim()
+  .replace(/^```(?:html)?\s*/i, "")
+  .replace(/\s*```$/, "")
+  .trim();
+
+if (/<(?:!doctype\s+html|html|head|body)\b/i.test(source)) {
+  console.warn("Full HTML detected in PocketEditor source code. Using secure CSP wrapper.");
+  return secureFullHtmlPreview(source);
+}
+
+  // JSX/React preview.
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { width: 100%; height: ${height}px; overflow: hidden; background: transparent; }
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { width: 100%; height: ${height}px; margin: 0; overflow: hidden; background: transparent; }
     #root { width: 100%; height: ${height}px; overflow: hidden; }
   </style>
 </head>
 <body>
   <div id="root"></div>
-
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
   <script>
     (function run() {
-      if (!window.React || !window.ReactDOM || !window.Babel) return setTimeout(run, 50);
+      if (!window.React || !window.ReactDOM || !window.Babel) {
+        return setTimeout(run, 50);
+      }
 
       var src = ${JSON.stringify(jsx)};
 
       try {
-        // Register plugin to strip imports/exports
         window.Babel.registerPlugin('strip-imports', function() {
           return {
             visitor: {
@@ -275,36 +339,37 @@ function buildPreviewDoc(jsx: string, height: number): string {
           };
         });
 
-        // FORCE "classic" runtime to stop the _jsxs error
-        var compiled = window.Babel.transform(src, { 
-          presets: [
-            ["react", { "runtime": "classic" }] 
-          ],
-          plugins: ["strip-imports"] 
+        var compiled = window.Babel.transform(src, {
+          presets: [["react", { runtime: "classic" }]],
+          plugins: ["strip-imports"]
         }).code;
-        
-        var wrapped = compiled + "\\n;if(typeof PocketApp!=='undefined'){window.PocketApp=PocketApp;}";
-        
+
+        var wrapped = compiled +
+          "\\n;if(typeof PocketApp!=='undefined'){window.PocketApp=PocketApp;}";
+
         (0, eval)(wrapped);
-        
+
         var App = window.PocketApp;
         if (typeof App !== "function") {
-          throw new Error("No PocketApp function found. Ensure you declare 'const PocketApp = () => { ... }'");
+          throw new Error(
+            "No PocketApp function found. Declare const PocketApp = () => { ... }"
+          );
         }
 
-        window.ReactDOM.createRoot(document.getElementById("root")).render(window.React.createElement(App));
-        
+        window.ReactDOM.createRoot(document.getElementById("root"))
+          .render(window.React.createElement(App));
       } catch (err) {
         document.getElementById("root").innerHTML =
-          '<div style="color:#f87171;padding:12px;font-size:13px;font-family:monospace;white-space:pre-wrap;height:100%;overflow:auto;">' +
-          '<strong>Babel Error:</strong><br/><br/>' +
-          err.message + '</div>';
+          '<pre style="color:#f87171;padding:12px;white-space:pre-wrap;">' +
+          String(err.message).replace(/</g, "&lt;") +
+          '</pre>';
       }
     })();
   </script>
 </body>
 </html>`;
 }
+
 // ─── Status config ────────────────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { label: string; color: string; bannerBg?: string; bannerBorder?: string }> = {
   draft:          { label: "Draft",     color: "text-gray-400" },
@@ -331,10 +396,15 @@ function insertAtCursor(
   snippet: string, savedPos?: { start: number; end: number }
 ) {
   const ta = ref.current;
-  if (!ta) { setCode((code + "\n" + snippet).slice(0, 60_000)); return; }
-  const s    = savedPos?.start ?? ta.selectionStart;
-  const e    = savedPos?.end   ?? ta.selectionEnd;
-  const next = (code.slice(0, s) + snippet + code.slice(e)).slice(0, 60_000);
+  if (!ta) {
+    setCode(code + "\n" + snippet);
+    return;
+  }
+
+  const s = savedPos?.start ?? ta.selectionStart;
+  const e = savedPos?.end ?? ta.selectionEnd;
+  const next = code.slice(0, s) + snippet + code.slice(e);
+
   setCode(next);
   requestAnimationFrame(() => { ta.selectionStart = ta.selectionEnd = s + snippet.length; ta.focus(); });
 }
@@ -355,6 +425,11 @@ const PocketEditor: React.FC<PocketEditorProps> = ({ onCancel: _onCancel }) => {
   const [successMsg, setSuccessMsg]     = useState<string | null>(null);
   const [showTips, setShowTips]         = useState(false);
 
+  const [pockets, setPockets] = useState<Pocket[]>([]);
+  const [selectedPocketId, setSelectedPocketId] = useState<string | null>(null);
+  const [isCreatingPocket, setIsCreatingPocket] = useState(false);
+  const [isSwitchingPocket, setIsSwitchingPocket] = useState(false);
+
   // Media
   const [mediaFiles, setMediaFiles]       = useState<MediaFile[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState<UploadingFile[]>([]);
@@ -363,55 +438,158 @@ const PocketEditor: React.FC<PocketEditorProps> = ({ onCancel: _onCancel }) => {
 
   const textareaRef   = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef  = useRef<HTMLInputElement>(null);
+  const previewIframeRef = useRef<HTMLIFrameElement | null>(null);
   const lastCursorPos = useRef<{ start: number; end: number }>({ start: 0, end: 0 });
   const dragCounter   = useRef(0);
   const BACKEND_URL   = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
   const navigate = useNavigate();
 
-    useEffect(() => {
-      const handlePocketNavigation = (event: MessageEvent) => {
-        const data = event.data;
-        console.log("Received message from Pocket iframe:", data);
-  
-        if (!data || data.type !== "RIGZER_NAVIGATE") return;
-  
-        if (typeof data.path !== "string") return;
-  
-        // Only allow internal routes
-        if (!data.path.startsWith("/")) return;
-  
-        navigate(data.path);
-      };
-  
-      window.addEventListener("message", handlePocketNavigation);
-  
-      return () => {
-        window.removeEventListener("message", handlePocketNavigation);
-      };
-    }, [navigate]);
 
-  // ── Mount ─────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    (async () => {
-      try {
-        const [pr, mr] = await Promise.all([
-          fetch(`${BACKEND_URL}/api/pockets/mine`,  { credentials: "include" }),
-          fetch(`${BACKEND_URL}/api/pockets/media`, { credentials: "include" }),
-        ]);
-        const pd = await pr.json();
-        const md = await mr.json();
-        if (pd.pocket) {
-          setBrandName(pd.pocket.brandName ?? "");
-          setTagline(pd.pocket.tagline ?? "");
-          setStatus(pd.pocket.status ?? "draft");
-          setReviewNote(pd.pocket.reviewNote ?? null);
-          if (pd.pocket.sourceCode) { setSourceCode(pd.pocket.sourceCode); setSavedSourceCode(pd.pocket.sourceCode); }
-        }
-        if (md.files) setMediaFiles(md.files);
-      } catch { /* first-time */ } finally { setIsLoading(false); }
-    })();
-  }, [BACKEND_URL]);
+useEffect(() => {
+  const handlePocketNavigation = (event: MessageEvent) => {
+    // Only accept messages from this editor's preview iframe.
+    if (event.source !== previewIframeRef.current?.contentWindow) {
+      return;
+    }
+
+    const data = event.data;
+
+    if (!data || data.type !== "RIGZER_NAVIGATE") return;
+    if (typeof data.path !== "string") return;
+
+    // Only allow same-origin internal URLs.
+    let target: URL;
+
+    try {
+      target = new URL(data.path, window.location.origin);
+    } catch {
+      return;
+    }
+
+    if (target.origin !== window.location.origin) return;
+    if (!data.path.startsWith("/") || data.path.startsWith("//")) return;
+    if (data.path.includes("\\")) return;
+
+    navigate(target.pathname + target.search + target.hash);
+  };
+
+  window.addEventListener("message", handlePocketNavigation);
+
+  return () => {
+    window.removeEventListener("message", handlePocketNavigation);
+  };
+}, [navigate]);
+
+
+const loadPocket = useCallback(
+  async (pocketId: string | null) => {
+    setIsSwitchingPocket(true);
+    setError(null);
+    setSuccessMsg(null);
+
+    try {
+      if (!pocketId) {
+        // A new, unsaved Pocket.
+        setSelectedPocketId(null);
+        setIsCreatingPocket(true);
+
+        setBrandName("");
+        setTagline("");
+        setSourceCode(STARTER_CODE);
+        setSavedSourceCode(STARTER_CODE);
+        setStatus("draft");
+        setReviewNote(null);
+        setMediaFiles([]);
+        setUploadingFiles([]);
+
+        return;
+      }
+
+      const [pocketRes, mediaRes] = await Promise.all([
+        fetch(`${BACKEND_URL}/api/pockets/${pocketId}`, {
+          credentials: "include",
+        }),
+        fetch(`${BACKEND_URL}/api/pockets/${pocketId}/media`, {
+          credentials: "include",
+        }),
+      ]);
+
+      const pocketData = await pocketRes.json();
+
+      if (!pocketRes.ok) {
+        throw new Error(pocketData.message || "Failed to load Pocket");
+      }
+
+      const pocket: Pocket = pocketData.pocket;
+
+      if (!pocket?._id) {
+        throw new Error("Pocket not found");
+      }
+
+      const mediaData = mediaRes.ok ? await mediaRes.json() : null;
+
+      setSelectedPocketId(pocket._id);
+      setIsCreatingPocket(false);
+
+      setBrandName(pocket.brandName ?? "");
+      setTagline(pocket.tagline ?? "");
+      setStatus(pocket.status ?? "draft");
+      setReviewNote(pocket.reviewNote ?? null);
+
+      const code = pocket.sourceCode || STARTER_CODE;
+      setSourceCode(code);
+      setSavedSourceCode(code);
+
+      setMediaFiles(mediaData?.files ?? []);
+      setUploadingFiles([]);
+      setDeletingKey(null);
+      setTab("code");
+    } catch (err: unknown) {
+      flashError(
+        err instanceof Error ? err.message : "Failed to load Pocket"
+      );
+    } finally {
+      setIsSwitchingPocket(false);
+    }
+  },
+  [BACKEND_URL]
+);
+
+const loadPockets = useCallback(async () => {
+  setIsLoading(true);
+
+  try {
+    const res = await fetch(`${BACKEND_URL}/api/pockets/mine`, {
+      credentials: "include",
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || "Failed to load Pockets");
+    }
+
+    const list: Pocket[] = data.pockets ?? [];
+    setPockets(list);
+
+    if (list.length > 0) {
+      await loadPocket(list[0]._id);
+    } else {
+      await loadPocket(null);
+    }
+  } catch (err: unknown) {
+    flashError(
+      err instanceof Error ? err.message : "Failed to load Pockets"
+    );
+  } finally {
+    setIsLoading(false);
+  }
+}, [BACKEND_URL, loadPocket]);
+
+useEffect(() => {
+  void loadPockets();
+}, [loadPockets]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key !== "Tab") return;
@@ -427,47 +605,116 @@ const PocketEditor: React.FC<PocketEditorProps> = ({ onCancel: _onCancel }) => {
   const flashError   = (msg: string) => { setError(msg);      setTimeout(() => setError(null), 5000); };
 
   // ── Save ──────────────────────────────────────────────────────────────────
-  const handleSave = async (): Promise<boolean> => {
-    if (isSaving || !brandName.trim() || status === "pending_review") return false;
-    setIsSaving(true);
-    try {
-      const res  = await fetch(`${BACKEND_URL}/api/pockets`, {
-        method: "POST", credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brandName, tagline, sourceCode }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      setStatus(data.pocket.status);
-      setSavedSourceCode(sourceCode);
-      flashSuccess("Draft saved ✓");
-      return true;
-    } catch (err: unknown) {
-      flashError(err instanceof Error ? err.message : "Save failed");
-      return false;
-    } finally { setIsSaving(false); }
-  };
+const handleSave = async (): Promise<string | null> => {
+  if (
+    isSaving ||
+    !brandName.trim() ||
+    status === "pending_review"
+  ) {
+    return null;
+  }
+
+  setIsSaving(true);
+
+  try {
+    const isNew = !selectedPocketId;
+
+    const url = isNew
+      ? `${BACKEND_URL}/api/pockets`
+      : `${BACKEND_URL}/api/pockets/${selectedPocketId}`;
+
+    const res = await fetch(url, {
+      method: isNew ? "POST" : "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ brandName, tagline, sourceCode }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || "Save failed");
+    }
+
+    const pocket: Pocket = data.pocket;
+
+    if (!pocket?._id) {
+      throw new Error("The server did not return the saved Pocket");
+    }
+
+    setSelectedPocketId(pocket._id);
+    setIsCreatingPocket(false);
+    setStatus(pocket.status);
+    setReviewNote(pocket.reviewNote ?? null);
+    setSavedSourceCode(sourceCode);
+
+    setPockets((prev) => {
+      const withoutSaved = prev.filter((p) => p._id !== pocket._id);
+      return [pocket, ...withoutSaved];
+    });
+
+    flashSuccess(isNew ? "Pocket created ✓" : "Draft saved ✓");
+     return pocket._id;
+  } catch (err: unknown) {
+    flashError(err instanceof Error ? err.message : "Save failed");
+    return null;
+  } finally {
+    setIsSaving(false);
+  }
+};
+
 
   // ── Submit ────────────────────────────────────────────────────────────────
-  const handleSubmit = async () => {
-    if (isSubmitting) return;
-    const saved = await handleSave();
-    if (!saved) return;
-    setIsSubmitting(true);
-    try {
-      const res  = await fetch(`${BACKEND_URL}/api/pockets/submit`, { method: "POST", credentials: "include" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-      setStatus("pending_review");
-      flashSuccess("Submitted for review ✓");
-    } catch (err: unknown) {
-      flashError(err instanceof Error ? err.message : "Submit failed");
-    } finally { setIsSubmitting(false); }
-  };
+const handleSubmit = async () => {
+  if (isSubmitting || isSwitchingPocket) return;
+
+  const pocketId = await handleSave();
+  if (!pocketId) return;
+
+  setIsSubmitting(true);
+
+  try {
+    const res = await fetch(
+      `${BACKEND_URL}/api/pockets/${pocketId}/submit`,
+      {
+        method: "POST",
+        credentials: "include",
+      }
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || "Submit failed");
+    }
+
+    setStatus(data.pocket.status);
+
+    setPockets((prev) =>
+      prev.map((p) =>
+        p._id === pocketId
+          ? { ...p, status: data.pocket.status }
+          : p
+      )
+    );
+
+    flashSuccess("Submitted for review ✓");
+  } catch (err: unknown) {
+    flashError(
+      err instanceof Error ? err.message : "Submit failed"
+    );
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   // ── Upload (multi-file) ───────────────────────────────────────────────────
   const uploadFiles = useCallback(async (files: File[]) => {
     if (!files.length) return;
+      if (!selectedPocketId) {
+        flashError("Save the Pocket before uploading media.");
+        return;
+      }
 
     const slotsLeft = MAX_MEDIA - mediaFiles.length;
     const toUpload  = files.slice(0, slotsLeft);
@@ -484,9 +731,14 @@ const PocketEditor: React.FC<PocketEditorProps> = ({ onCancel: _onCancel }) => {
     toUpload.forEach(f => fd.append("files", f));
 
     try {
-      const res  = await fetch(`${BACKEND_URL}/api/pockets/media/upload`, {
-        method: "POST", credentials: "include", body: fd,
-      });
+      const res = await fetch(
+        `${BACKEND_URL}/api/pockets/${selectedPocketId}/media/upload`,
+        {
+          method: "POST",
+          credentials: "include",
+          body: fd,
+        }
+      );
       const data = await res.json();
 
       if (!res.ok) throw new Error(data.message ?? "Upload failed");
@@ -520,7 +772,7 @@ const PocketEditor: React.FC<PocketEditorProps> = ({ onCancel: _onCancel }) => {
       ));
       flashError(err instanceof Error ? err.message : "Upload failed");
     }
-  }, [mediaFiles.length, BACKEND_URL]);
+}, [mediaFiles.length, BACKEND_URL, selectedPocketId]);
 
   const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -552,11 +804,20 @@ const PocketEditor: React.FC<PocketEditorProps> = ({ onCancel: _onCancel }) => {
   const handleDelete = async (s3Key: string) => {
     setDeletingKey(s3Key);
     try {
-      const res = await fetch(`${BACKEND_URL}/api/pockets/media`, {
-        method: "DELETE", credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ s3Key }),
-      });
+      if (!selectedPocketId) {
+        flashError("Select a Pocket before deleting media.");
+        return;
+      }
+
+      const res = await fetch(
+        `${BACKEND_URL}/api/pockets/${selectedPocketId}/media`,
+        {
+          method: "DELETE",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ s3Key }),
+        }
+      );
       if (!res.ok) throw new Error((await res.json()).message);
       setMediaFiles(prev => prev.filter(f => f.s3Key !== s3Key));
     } catch (err: unknown) {
@@ -580,7 +841,7 @@ const PocketEditor: React.FC<PocketEditorProps> = ({ onCancel: _onCancel }) => {
   };
 
   // ── Derived ───────────────────────────────────────────────────────────────
-  const previewSrc  = `data:text/html;charset=utf-8,${encodeURIComponent(buildPreviewDoc(sourceCode, POCKET_HEIGHT))}`;
+const previewHtml = buildPreviewDoc(sourceCode, POCKET_HEIGHT);
   const statusCfg   = STATUS_CONFIG[status] ?? STATUS_CONFIG.draft;
   const isDirty     = sourceCode !== savedSourceCode || status === "draft" || status === "rejected";
   const canSubmit   = !["pending_review"].includes(status) && !!brandName.trim() && !isSaving && !isSubmitting && (isDirty || status !== "live");
@@ -597,31 +858,121 @@ const PocketEditor: React.FC<PocketEditorProps> = ({ onCancel: _onCancel }) => {
     );
   }
 
+
   return (
     <div className="w-full max-w-3xl mx-auto bg-white dark:bg-black/20 backdrop-blur-2xl min-h-[85vh] max-h-[95vh] rounded-3xl border border-gray-200 dark:border-white/[0.06] flex flex-col overflow-hidden shadow-2xl">
 
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-white/[0.06] bg-transparent sticky top-0 z-30">
-        <div>
-          <h2 className="text-xl font-bold text-black dark:text-white flex items-center gap-2">
-            <Sparkles size={18} className="text-[#3D7A6E]" />
-            Sponsored Pocket
-          </h2>
-          <span className={`text-xs font-bold uppercase tracking-wider ${statusCfg.color}`}>{statusCfg.label}</span>
+      <div className="relative z-30 border-b border-gray-200/70 dark:border-white/[0.07] bg-white/80 dark:bg-[#0b0c0d]/90 backdrop-blur-xl">
+
+        {/* Title row */}
+        <div className="flex items-center justify-between gap-4 px-5 sm:px-7 pt-5 pb-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#3D7A6E]/10 border border-[#3D7A6E]/20">
+                <Sparkles size={17} className="text-[#3D7A6E]" />
+              </div>
+
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-xl font-bold tracking-tight text-gray-950 dark:text-white">
+                  Sponsored Pocket
+                </h2>
+                <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+                  Create and manage your sponsored content
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <span
+            className={`shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider border ${
+              status === "live"
+                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+                : status === "pending_review"
+                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                : status === "rejected"
+                ? "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20"
+                : "bg-gray-100 dark:bg-white/[0.05] text-gray-500 dark:text-gray-400 border-gray-200 dark:border-white/[0.08]"
+            }`}
+          >
+            {statusCfg.label}
+          </span>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={handleSave} disabled={!canSave}
-            className="px-4 py-2 rounded-full border border-gray-200 dark:border-white/[0.1] text-sm font-bold text-gray-600 dark:text-gray-300 hover:border-[#3D7A6E] hover:text-[#3D7A6E] disabled:opacity-40 disabled:cursor-not-allowed transition">
-            {isSaving ? "Saving…" : "Save Draft"}
-          </button>
-          <button onClick={handleSubmit} disabled={!canSubmit}
-            className="flex items-center gap-2 bg-[#3D7A6E] hover:bg-[#2F5E55] disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold px-5 py-2 rounded-full transition shadow-md shadow-[#3D7A6E]/20">
-            <Send size={14} />
-            {isSubmitting ? "Submitting…" : "Submit for Review"}
-          </button>
+
+        {/* Pocket selector and actions */}
+        <div className="flex flex-col gap-3 px-5 sm:px-7 pb-5 lg:flex-row lg:items-center lg:justify-between">
+
+          {/* Pocket management */}
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <div className="relative min-w-0 flex-1 sm:max-w-xs">
+              <select
+                value={selectedPocketId ?? ""}
+                disabled={isSwitchingPocket || isSaving || isSubmitting}
+                onChange={(e) => {
+                  void loadPocket(e.target.value || null);
+                }}
+                className="w-full appearance-none rounded-xl border border-gray-200 bg-gray-50 px-3.5 py-2.5 pr-9 text-sm font-medium text-gray-800 outline-none transition focus:border-[#3D7A6E] focus:ring-2 focus:ring-[#3D7A6E]/15 dark:border-white/[0.09] dark:bg-white/[0.035] dark:text-gray-100 disabled:opacity-50"
+              >
+                {pockets.map((pocket) => (
+                  <option key={pocket._id} value={pocket._id}>
+                    {pocket.brandName || "Untitled Pocket"} · {pocket.status.replace("_", " ")}
+                  </option>
+                ))}
+
+                {pockets.length === 0 && (
+                  <option value="">No Pockets yet</option>
+                )}
+              </select>
+
+              <ChevronDown
+                size={15}
+                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+            </div>
+
+            <button
+              type="button"
+              disabled={isSaving || isSubmitting || isSwitchingPocket}
+              onClick={() => void loadPocket(null)}
+              className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#3D7A6E]/30 bg-[#3D7A6E]/[0.06] px-3.5 py-2.5 text-sm font-semibold text-[#3D7A6E] transition hover:border-[#3D7A6E]/60 hover:bg-[#3D7A6E]/10 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <span className="text-lg leading-none">+</span>
+              <span>New</span>
+            </button>
+          </div>
+
+          {/* Primary actions */}
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
+            <button
+              type="button"
+              onClick={() => void handleSave()}
+              disabled={!canSave || isSwitchingPocket}
+              className="inline-flex min-h-10 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:border-[#3D7A6E]/50 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/[0.1] dark:bg-white/[0.035] dark:text-gray-200 dark:hover:bg-white/[0.07]"
+            >
+              {isSaving ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <Check size={15} />
+              )}
+              {isSaving ? "Saving…" : "Save Draft"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void handleSubmit()}
+              disabled={!canSubmit || isSwitchingPocket}
+              className="inline-flex min-h-10 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-[#3D7A6E] px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-[#3D7A6E]/20 transition hover:bg-[#32665b] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {isSubmitting ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <Send size={14} />
+              )}
+              {isSubmitting ? "Submitting…" : "Submit for Review"}
+            </button>
+          </div>
         </div>
       </div>
-
       {/* Body */}
       <div className="flex-1 overflow-y-auto custom-scrollbar">
 
@@ -676,32 +1027,37 @@ const PocketEditor: React.FC<PocketEditorProps> = ({ onCancel: _onCancel }) => {
                 {t === "code"    && <Code2  size={14} />}
                 {t === "media"   && <Images size={14} />}
                 {t === "preview" && <Eye    size={14} />}
-                {t === "code" ? "JSX Editor" : t === "media" ? `Media${mediaFiles.length > 0 ? ` (${mediaFiles.length})` : ""}` : "Preview"}
+                {t === "code" ? "HTML / JSX Editor" : t === "media" ? `Media${mediaFiles.length > 0 ? ` (${mediaFiles.length})` : ""}` : "Preview"}
               </button>
             ))}
-            {tab === "code" && (
+            {/* {tab === "code" && (
               <span className={`ml-auto text-xs font-bold ${sourceCode.length > 55_000 ? "text-red-500" : "text-gray-400"}`}>
                 {sourceCode.length.toLocaleString()} / 60,000
               </span>
-            )}
+            )} */}
           </div>
 
           {/* ── Code tab ──────────────────────────────────────────────────── */}
           {tab === "code" && (
             <textarea ref={textareaRef} value={sourceCode}
-              onChange={e => setSourceCode(e.target.value.slice(0, 60_000))}
+              onChange={e => setSourceCode(e.target.value)}
               onKeyUp={e   => { const t = e.currentTarget; lastCursorPos.current = { start: t.selectionStart, end: t.selectionEnd }; }}
               onMouseUp={e => { const t = e.currentTarget; lastCursorPos.current = { start: t.selectionStart, end: t.selectionEnd }; }}
               onBlur={e    => { const t = e.currentTarget; lastCursorPos.current = { start: t.selectionStart, end: t.selectionEnd }; }}
               onKeyDown={handleKeyDown} spellCheck={false} disabled={isLocked}
               className="w-full min-h-[420px] bg-gray-950 dark:bg-black/40 text-green-400 font-mono text-xs p-4 rounded-xl border border-gray-200 dark:border-white/[0.06] focus:border-[#3D7A6E] focus:ring-1 focus:ring-[#3D7A6E] outline-none resize-y leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed shadow-inner"
-              placeholder="// Write your PocketApp React component here"
+              placeholder="Paste a complete HTML document or write a PocketApp React JSX component here"
             />
           )}
 
           {/* ── Media tab ─────────────────────────────────────────────────── */}
           {tab === "media" && (
             <div className="space-y-4 pb-2">
+              {!selectedPocketId && (
+                <p className="text-sm text-amber-600">
+                  Save this Pocket first to upload media.
+                </p>
+              )}
 
               {/* Drop zone */}
               <div
@@ -818,12 +1174,22 @@ const PocketEditor: React.FC<PocketEditorProps> = ({ onCancel: _onCancel }) => {
                 <span className="text-[10px]">overflow: hidden</span>
               </div>
               <div className="w-full rounded-2xl overflow-hidden border-2 border-dashed border-[#3D7A6E]/40 dark:border-[#3D7A6E]/60" style={{ height: `${POCKET_HEIGHT}px` }}>
-                <iframe key={sourceCode} title="pocket-preview" src={previewSrc}
-                  sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
-                  referrerPolicy="no-referrer"
-                  style={{ width: "100%", height: `${POCKET_HEIGHT}px`, border: "none", display: "block" }}
-                  loading="lazy"
-                />
+
+              <iframe
+                key={sourceCode}
+                ref={previewIframeRef}
+                title="pocket-preview"
+                srcDoc={previewHtml}
+                sandbox="allow-scripts allow-popups"
+                referrerPolicy="no-referrer"
+                style={{
+                  width: "100%",
+                  height: `${POCKET_HEIGHT}px`,
+                  border: "none",
+                  display: "block",
+                }}
+              />
+
               </div>
               <p className="text-[10px] text-center text-gray-400 dark:text-gray-500">
                 The dashed border shows the exact space your pocket occupies in the feed.
@@ -842,51 +1208,92 @@ const PocketEditor: React.FC<PocketEditorProps> = ({ onCancel: _onCancel }) => {
           </button>
           {showTips && (
             <div className="mt-3 space-y-3 text-xs leading-relaxed">
-              <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-800">
-                <p className="font-black text-red-600 dark:text-red-400 uppercase tracking-wider mb-2">🚨 Required — preview & live will break without these</p>
-                <div className="space-y-2 text-red-700 dark:text-red-300">
-                  <p><strong>1. Component must be named exactly <code className="bg-red-100 dark:bg-red-900 px-1.5 py-0.5 rounded font-mono">PocketApp</code></strong><br/><span className="opacity-70">The sandbox looks for <code className="font-mono">window.PocketApp</code> by name.</span></p>
-                  <p><strong>2. Use <code className="bg-red-100 dark:bg-red-900 px-1.5 py-0.5 rounded font-mono">React.useState</code>, <code className="bg-red-100 dark:bg-red-900 px-1.5 py-0.5 rounded font-mono">React.useEffect</code>, etc.</strong><br/><span className="opacity-70">React is only available as the global <code className="font-mono">React</code> object — no imports.</span></p>
-                  <p><strong>3. No <code className="bg-red-100 dark:bg-red-900 px-1.5 py-0.5 rounded font-mono">import</code> or <code className="bg-red-100 dark:bg-red-900 px-1.5 py-0.5 rounded font-mono">export</code> statements</strong><br/><span className="opacity-70">Plain script context — any import/export causes a syntax error.</span></p>
-                  <p><strong>4. Inline styles only — no Tailwind, no CSS classes</strong><br/><span className="opacity-70">Use <code className="font-mono">{"style={{ color: 'red' }}"}</code> on every element.</span></p>
-                  <p><strong>5. Fixed {POCKET_HEIGHT}px height</strong><br/><span className="opacity-70">Hard-clipped canvas. Set <code className="font-mono">{"height: '100%'"}</code> on your root and design within this space.</span></p>
+              <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800">
+                <p className="font-black text-blue-700 dark:text-blue-400 uppercase tracking-wider mb-2">
+                  HTML & React JSX are supported
+                </p>
+
+                <div className="space-y-2 text-blue-800 dark:text-blue-300">
+                  <p>
+                    <strong>1. Standalone HTML</strong><br />
+                    <span className="opacity-80">
+                      Paste a complete HTML document containing HTML, CSS, and inline JavaScript.
+                      You do not need to declare PocketApp or use React in HTML mode.
+                    </span>
+                  </p>
+
+                  <p>
+                    <strong>2. React JSX</strong><br />
+                    <span className="opacity-80">
+                      Declare your component as <code className="font-mono">const PocketApp = () =&gt; ...</code>.
+                      React is available through the global <code className="font-mono">React</code> object.
+                      Do not use import or export statements.
+                    </span>
+                  </p>
+
+                  <p>
+                    <strong>3. Fixed canvas height</strong><br />
+                    <span className="opacity-80">
+                      The preview is {POCKET_HEIGHT}px tall with overflow clipped.
+                      Design your content to fit this area.
+                    </span>
+                  </p>
+
+                  <p>
+                    <strong>4. Sandbox restrictions</strong><br />
+                    <span className="opacity-80">
+                      HTML runs in a sandboxed iframe. Network requests, embedded frames,
+                      plugins, and external JavaScript libraries are restricted. Inline scripts
+                      and styles are supported, subject to the preview security policy.
+                    </span>
+                  </p>
                 </div>
               </div>
               <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800">
-                <p className="font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-2">✅ What you can use</p>
+                <p className="font-black text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-2">
+                  Supported in the preview
+                </p>
+
                 <div className="space-y-1.5 text-emerald-800 dark:text-emerald-300">
-                  <p><code className="bg-emerald-100 dark:bg-emerald-900 px-1 rounded font-mono">React.useState / useEffect / useRef / useMemo / useCallback</code></p>
-                  <p>Inline styles · uploaded media URLs · external <code className="font-mono">https://</code> images & videos</p>
-                  <p>setTimeout / setInterval / requestAnimationFrame · Math, Date, JSON</p>
+                  <p>HTML mode: standard HTML elements, CSS, and inline JavaScript.</p>
+                  <p>JSX mode: React components and hooks such as useState, useEffect, useRef, useMemo, and useCallback.</p>
+                  <p>Uploaded media URLs and HTTPS images or videos, subject to sandbox restrictions.</p>
+                  <p>JavaScript utilities such as Math, Date, JSON, setTimeout, and setInterval.</p>
                 </div>
               </div>
               <div className="p-4 rounded-xl bg-gray-50 dark:bg-white/[0.04] border border-gray-200 dark:border-white/[0.08]">
-                <p className="font-black text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">❌ What is blocked</p>
+                <p className="font-black text-gray-600 dark:text-gray-400 uppercase tracking-wider mb-2">
+                  Sandbox restrictions
+                </p>
+
                 <div className="space-y-1.5 text-gray-600 dark:text-gray-400">
-                  <p><code className="bg-gray-200 dark:bg-white/[0.1] px-1 rounded font-mono">fetch()</code> / XHR / WebSocket · localStorage / sessionStorage</p>
-                  <p>Third-party libraries · Tailwind / CSS modules</p>
+                  <p>Network requests such as fetch(), XHR, and WebSocket are blocked.</p>
+                  <p>Embedded frames, plugins, and form submissions are restricted.</p>
+                  <p>External JavaScript libraries and scripts are not allowed in standalone HTML mode.</p>
+                  <p>localStorage and sessionStorage are not supported as a reliable persistence mechanism.</p>
+                  <p>Tailwind CSS and CSS modules are not configured automatically for JSX mode.</p>
                 </div>
               </div>
               <div className="p-4 rounded-xl bg-[#3D7A6E]/10 dark:bg-[#3D7A6E]/20 border border-[#3D7A6E]/20 dark:border-[#3D7A6E]/40">
                 <p className="font-black text-[#2F5E55] dark:text-[#4A9384] uppercase tracking-wider mb-2">💡 Quick-start template</p>
                 <pre className="text-[#1B3832] dark:text-[#A5C9C1] font-mono text-[10px] leading-relaxed whitespace-pre-wrap bg-[#3D7A6E]/20 dark:bg-[#3D7A6E]/30 p-3 rounded-lg">{`const PocketApp = () => {
-  const [count, setCount] = React.useState(0);
-  return (
-    <div style={{ width: "100%", height: "100%",
-                  display: "flex", alignItems: "center",
-                  justifyContent: "center",
-                  background: "#0f0f0f", color: "#fff" }}>
-      <button
-        onClick={() => setCount(c => c + 1)}
-        style={{ padding: "12px 28px", borderRadius: 8,
-                 background: "#3D7A6E", color: "#fff",
-                 border: "none", cursor: "pointer",
-                 fontSize: 16, fontWeight: 700 }}>
-        Clicked {count} times
-      </button>
-    </div>
-  );
-};`}</pre>
+                  const [count, setCount] = React.useState(0);
+                  return (
+                    <div style={{ width: "100%", height: "100%",
+                                  display: "flex", alignItems: "center",
+                                  justifyContent: "center",
+                                  background: "#0f0f0f", color: "#fff" }}>
+                      <button
+                        onClick={() => setCount(c => c + 1)}
+                        style={{ padding: "12px 28px", borderRadius: 8,
+                                background: "#3D7A6E", color: "#fff",
+                                border: "none", cursor: "pointer",
+                                fontSize: 16, fontWeight: 700 }}>
+                        Clicked {count} times
+                      </button>
+                    </div>
+                  );
+                };`}</pre>
               </div>
               <p className="text-amber-500 text-center">⚠ Every submission goes through admin review before going live.</p>
             </div>

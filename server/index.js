@@ -22,6 +22,9 @@ import { initializeSessionPubSub } from "./services/sessionPubSub.js";
 import { initGeoService } from "./services/geoService.js";
 import { sendEventToQueue } from "./utils/sendEventToQueue.js";
 import cacheService from "./services/cacheService.js";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 // ✅ Import your existing Redis client
 import redisClient from "./config/redis.js";
@@ -85,6 +88,88 @@ import RazorpayWebhookRouter from "./routes/razorpayWebhook.js";
 import adminRouter from "./routes/admin.js"
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const LOG_DIR = path.join(__dirname, "logs");
+
+if (!fs.existsSync(LOG_DIR)) {
+  fs.mkdirSync(LOG_DIR, { recursive: true });
+}
+
+function getLogFilePath() {
+  const date = new Date().toISOString().slice(0, 10);
+
+  return path.join(
+    LOG_DIR,
+    `backend-${date}.log`
+  );
+}
+
+function formatLogArgument(arg) {
+  if (typeof arg === "string") {
+    return arg;
+  }
+
+  if (arg instanceof Error) {
+    return arg.stack || arg.message;
+  }
+
+  try {
+    return JSON.stringify(arg, null, 2);
+  } catch {
+    return String(arg);
+  }
+}
+
+function writeToLogFile(level, args) {
+  try {
+    const timestamp = new Date().toISOString();
+    const message = args
+      .map(formatLogArgument)
+      .join(" ");
+
+    const instanceId =
+      process.env.INSTANCE_ID || "unknown-instance";
+
+    const line =
+      `[${timestamp}] [${level}] [instance=${instanceId}] ${message}\n`;
+
+    fs.appendFileSync(
+      getLogFilePath(),
+      line,
+      "utf8"
+    );
+  } catch (error) {
+    process.stderr.write(
+      `[LOGGER ERROR] ${error.message}\n`
+    );
+  }
+}
+
+const originalConsoleLog = console.log;
+const originalConsoleWarn = console.warn;
+const originalConsoleError = console.error;
+
+console.log = (...args) => {
+  originalConsoleLog(...args);
+  writeToLogFile("INFO", args);
+};
+
+console.warn = (...args) => {
+  originalConsoleWarn(...args);
+  writeToLogFile("WARN", args);
+};
+
+console.error = (...args) => {
+  originalConsoleError(...args);
+  writeToLogFile("ERROR", args);
+};
+
+console.log(
+  `File logging initialized: ${getLogFilePath()}`
+);
 
 const app = express();
 const PORT = process.env.PORT || 5000;

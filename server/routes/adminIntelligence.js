@@ -29,8 +29,12 @@ import {
   listGames,
   listModels,
 } from "../services/adminList.js";
+import {
+  retryFailedGameSnapshots, createGameSnapshots
+} from "../services/gameSnapshotRecovery.js";
 import verifyToken       from "../middlewares/authMiddleware.js";
 import requireAdmin      from "../middlewares/adminMiddleware.js";
+
 
 
 const router = express.Router();
@@ -143,6 +147,77 @@ router.get("/games", async (req, res) => {
     }));
   } catch (e) { fail(res, e); }
 });
+
+
+router.post(
+  "/games/:postId/create-snapshots",
+  async (req, res) => {
+    try {
+      const result =
+        await createGameSnapshots(
+          req.params.postId
+        );
+
+      return res.json({
+        success: true,
+        message:
+          result.mode === "already_ready"
+            ? "Game snapshots are already ready"
+            : result.mode === "already_in_progress"
+              ? "Game snapshot preparation is already in progress"
+              : "Game snapshot preparation queued",
+        data: result,
+      });
+    } catch (error) {
+      console.error(
+        "[Admin] Failed to create game snapshots:",
+        error
+      );
+
+      return res.status(
+        error.statusCode || 500
+      ).json({
+        success: false,
+        message:
+          error.message ||
+          "Failed to create game snapshots",
+      });
+    }
+  }
+);
+
+// ── Game Snapshot Recovery ───────────────────────────────────────────────────
+
+/**
+ * POST /api/admin/intelligence/games/:postId/retry-snapshots
+ *
+ * Admin-only recovery of failed regional game snapshots.
+ *
+ * Only regions that are not READY are retried.
+ */
+router.post(
+  "/games/:postId/retry-snapshots",
+  async (req, res) => {
+    try {
+      const result =
+        await retryFailedGameSnapshots(
+          req.params.postId
+        );
+
+      return res.json({
+        success: true,
+        message: "Snapshot recovery queued",
+        data: result,
+      });
+    } catch (e) {
+      return fail(
+        res,
+        e,
+        e.statusCode || 500
+      );
+    }
+  }
+);
 
 // ── Models ────────────────────────────────────────────────────────────────────
 

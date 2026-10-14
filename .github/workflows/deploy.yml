@@ -65,6 +65,9 @@ jobs:
             pm2 reload view-worker-dev || \
               pm2 start deploy/workers/ecosystem.workers.staging.config.cjs --only view-worker-dev
 
+            pm2 reload snapshot-worker-dev || \
+              pm2 start deploy/workers/ecosystem.workers.staging.config.cjs --only snapshot-worker-dev
+
             echo "======================================"
             echo "Deploying Gorse"
             echo "======================================"

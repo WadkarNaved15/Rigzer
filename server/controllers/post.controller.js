@@ -12,6 +12,7 @@ import { videoProcessingQueue } from "../queues/videoQueue.js";
 import { deletePostAndAssets } from "../services/deletePost.js";
 import { parseMentions } from "../utils/mentions.js";
 import { sendEventToQueue } from "../utils/sendEventToQueue.js";
+import { enqueueSemanticTaggingJob } from "../services/semanticTaggingQueue.js";
 
 function deriveBuildType(fileFormat) {
   if (fileFormat === "exe") return "executable";
@@ -87,6 +88,18 @@ export const createPost = async (req, res) => {
             attempts: 3
           });
         }
+
+        if (asset.type === "image" || asset.type === "video") {
+          await enqueueSemanticTaggingJob({
+            postId: post._id.toString(),
+            bucket: process.env.AWS_BUCKET_NAME,
+            key: asset.key,
+            mediaType: asset.type,
+            operation: "semantic_tagging",
+            contentVersion:
+              asset.semanticTagging?.contentVersion || 1,
+          });
+        }
       }
 
       sendEventToQueue({
@@ -143,7 +156,7 @@ export const createPost = async (req, res) => {
           },
           sizeMB: Number(metadata.fileSizeMB),
           optimization: { status: "pending" },
-          
+
           metadata: {
             fileName: metadata.fileName,
             downloadSizeMB: Number(metadata.fileSizeMB),
