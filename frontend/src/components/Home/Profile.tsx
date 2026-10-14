@@ -457,7 +457,7 @@ export default function ProfileCover({ onOpenWishlist, isToggled, onToggle }: Pr
           before:to-transparent
         "
       >
-        <SciFiFrame />
+        {isToggled && <SciFiFrame />}
         <div
           className="
             absolute
@@ -538,16 +538,14 @@ export default function ProfileCover({ onOpenWishlist, isToggled, onToggle }: Pr
           </div>
 
           {/* Vertical Transparent Toggle Button (Right Side) */}
-          <button
+          {/* <button
             type="button"
             role="switch"
             aria-checked={isToggled}
             onClick={onToggle}
             className={`
-              relative w-6 h-10 rounded-full p-1
+              relative w-6 h-12 rounded-full p-1
               border border-white/20
-              bg-white/10 dark:bg-white/5
-              backdrop-blur-md
               transition-colors duration-300 ease-in-out
               flex flex-col justify-between items-center
               focus:outline-none focus-visible:ring-2 focus-visible:ring-white/30
@@ -558,12 +556,12 @@ export default function ProfileCover({ onOpenWishlist, isToggled, onToggle }: Pr
                 w-4 h-4 rounded-full shadow-md
                 transition-all duration-300 ease-in-out
                 ${isToggled
-                  ? "translate-y-[16px] bg-blue-500 shadow-blue-500/50"
+                  ? "translate-y-[20px] bg-blue-500 shadow-blue-500/50"
                   : "translate-y-0 bg-white"
                 }
               `}
             />
-          </button>
+          </button> */}
         </div>
 
 

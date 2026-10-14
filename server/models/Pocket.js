@@ -16,16 +16,12 @@ const PocketSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      unique: true,
-      index: true,
     },
 
     brandName:  { type: String, trim: true, maxlength: 80,  required: true },
     tagline:    { type: String, trim: true, maxlength: 160, default: "" },
 
-    // The single source-of-truth for the creator's JSX.
-    // Overwritten on every save — no history kept (per spec).
-    sourceCode: { type: String, required: true, maxlength: 60_000 },
+    sourceCode: { type: String, required: true},
 
     // Workflow state for the current code
     status: {
@@ -46,5 +42,7 @@ const PocketSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+PocketSchema.index({ owner: 1, updatedAt: -1 });
 
 export default mongoose.model("Pocket", PocketSchema);

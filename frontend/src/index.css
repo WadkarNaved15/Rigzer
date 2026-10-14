@@ -588,3 +588,92 @@ body {
     transform: translateX(100%);
   }
 }
+
+@keyframes gameLibraryEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(28px) scale(0.97);
+    filter: blur(4px);
+  }
+
+  55% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.002);
+    filter: blur(0);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.game-library-enter {
+  animation: gameLibraryEnter 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+
+@keyframes gameTileEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(22px) scale(0.94);
+  }
+
+  70% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.005);
+  }
+
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.game-tile-enter {
+  min-width: 0;
+  min-height: 0;
+
+  animation:
+    gameTileEnter
+    500ms
+    cubic-bezier(0.16, 1, 0.3, 1)
+    both;
+}
+
+
+
+@keyframes tile-in {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes twinkle {
+  0%, 100% { opacity: 0.1; }
+  50%      { opacity: 0.95; }
+}
+
+.game-tile-enter { animation: tile-in 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.hero-fade       { animation: fade-in 700ms ease both; }
+.modal-in        { animation: modal-in 220ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+.scrim-in        { animation: fade-in 180ms ease both; }
+.ember           { animation: twinkle 4.4s ease-in-out infinite; }
+
+.no-scrollbar { scrollbar-width: none; }
+.no-scrollbar::-webkit-scrollbar { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .game-tile-enter,
+  .hero-fade,
+  .modal-in,
+  .scrim-in,
+  .ember { animation: none; }
+}

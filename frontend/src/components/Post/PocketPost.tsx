@@ -22,36 +22,120 @@ async function fetchBundleText(url: string): Promise<string> {
 }
 
 function buildSrcdoc(bundleCode: string): string {
-  const safeCode = bundleCode.replace(/<\/script>/gi, "<\\/script>");
+  const source = bundleCode.trim();
+
+  // Detect standalone HTML documents.
+  if (/<(?:!doctype\s+html|html|head|body)\b/i.test(source)) {
+    const csp = [
+      "default-src 'none'",
+      "script-src 'unsafe-inline'",
+      "style-src 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src https://fonts.gstatic.com data:",
+      "img-src data: https: blob:",
+      "media-src data: https: blob:",
+      "connect-src 'none'",
+      "frame-src 'none'",
+      "object-src 'none'",
+      "base-uri 'none'",
+      "form-action 'none'",
+    ].join("; ");
+
+    const cspTag =
+      `<meta http-equiv="Content-Security-Policy" content="${csp}">`;
+
+    // Remove existing CSP declarations to avoid conflicting policies.
+    let html = source.replace(
+      /<meta\b[^>]*http-equiv\s*=\s*["']?Content-Security-Policy["']?[^>]*>/gi,
+      ""
+    );
+
+    // Inject security policy and fixed-height styles.
+    const headContent = `
+      ${cspTag}
+      <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        html, body {
+          width: 100%;
+          height: ${POCKET_HEIGHT}px;
+          margin: 0;
+          overflow: hidden;
+          background: transparent;
+        }
+      </style>
+    `;
+
+    if (/<head(?:\s[^>]*)?>/i.test(html)) {
+      html = html.replace(
+        /<head(?:\s[^>]*)?>/i,
+        (head) => `${head}${headContent}`
+      );
+    } else if (/<html(?:\s[^>]*)?>/i.test(html)) {
+      html = html.replace(
+        /<html(?:\s[^>]*)?>/i,
+        (tag) => `${tag}<head>${headContent}</head>`
+      );
+    } else {
+      html = `<!DOCTYPE html><html><head>${headContent}</head><body>${html}</body></html>`;
+    }
+
+    return html;
+  }
+
+  // Existing compiled React/JSX bundle handling.
+  const safeCode = source.replace(/<\/script/gi, "<\\/script>");
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' https://esm.sh; style-src 'unsafe-inline'; img-src https: data: blob:; media-src https: blob:; connect-src 'none';"/>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html,body{width:100%;height:${POCKET_HEIGHT}px;overflow:hidden;background:transparent}
-#root{width:100%;height:${POCKET_HEIGHT}px;overflow:hidden}
-</style>
+  <meta charset="UTF-8"/>
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' https://esm.sh; style-src 'unsafe-inline'; img-src https: data: blob:; media-src https: blob:; connect-src 'none';"/>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html, body {
+      width: 100%;
+      height: ${POCKET_HEIGHT}px;
+      overflow: hidden;
+      background: transparent;
+    }
+    #root {
+      width: 100%;
+      height: ${POCKET_HEIGHT}px;
+      overflow: hidden;
+    }
+  </style>
 </head>
 <body>
-<div id="root"></div>
-<script type="module">
-import React    from "https://esm.sh/react@18";
-import ReactDOM from "https://esm.sh/react-dom@18/client";
-window.React    = React;
-window.ReactDOM = ReactDOM;
-</script>
-<script>
-window.addEventListener('error', function(e) {
-  var r = document.getElementById('root');
-  if (r) r.innerHTML =
-    '<div style="padding:14px;font-family:monospace;font-size:11px;color:#f87171;background:#0a0a0a;height:100%;box-sizing:border-box;overflow:auto">' +
-    '<b>Runtime error:</b><br/><br/>' + String(e.message||'').replace(/</g,'&lt;') +
-    (e.lineno ? '<br/><span style="opacity:.4">line '+e.lineno+'</span>' : '') + '</div>';
-});
-${safeCode}
-</script>
+  <div id="root"></div>
+
+  <script type="module">
+    import React from "https://esm.sh/react@18";
+    import ReactDOM from "https://esm.sh/react-dom@18/client";
+
+    window.React = React;
+    window.ReactDOM = ReactDOM;
+  </script>
+
+  <script>
+    window.addEventListener("error", function (e) {
+      var root = document.getElementById("root");
+
+      if (root) {
+        root.innerHTML =
+          '<div style="padding:14px;font-family:monospace;font-size:11px;color:#f87171;background:#0a0a0a;height:100%;box-sizing:border-box;overflow:auto">' +
+          '<b>Runtime error:</b><br/><br/>' +
+          String(e.message || "").replace(/</g, "&lt;") +
+          (e.lineno ? '<br/><span style="opacity:.4">line ' + e.lineno + '</span>' : '') +
+          '</div>';
+      }
+    });
+  </script>
+
+  ${safeCode}
 </body>
 </html>`;
 }
