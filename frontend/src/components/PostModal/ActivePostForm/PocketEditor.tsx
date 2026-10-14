@@ -298,7 +298,6 @@ const source = jsx.trim()
   .trim();
 
 if (/<(?:!doctype\s+html|html|head|body)\b/i.test(source)) {
-  console.warn("Full HTML detected in PocketEditor source code. Using secure CSP wrapper.");
   return secureFullHtmlPreview(source);
 }
 
