@@ -13,6 +13,7 @@ import { deletePostAndAssets } from "../services/deletePost.js";
 import { parseMentions } from "../utils/mentions.js";
 import { sendEventToQueue } from "../utils/sendEventToQueue.js";
 import { enqueueSemanticTaggingJob } from "../services/semanticTaggingQueue.js";
+import { enqueueNudenetModerationJob } from "../services/nudenetModerationQueue.js";
 
 function deriveBuildType(fileFormat) {
   if (fileFormat === "exe") return "executable";
@@ -69,7 +70,15 @@ export const createPost = async (req, res) => {
               url: asset.url,
               key: asset.key,
               type: asset.type,
-              ...(isVideo && { processingStatus: "pending" }) // Set initial status
+              ...(isVideo && { processingStatus: "pending" }), // Set initial status
+              
+              ...(asset.type === "image" && {
+                nsfw: null,
+                imageModeration: {
+                  status: "pending",
+                  decision: "pending",
+                },
+              }),
             };
           }),
         },
@@ -99,6 +108,36 @@ export const createPost = async (req, res) => {
             contentVersion:
               asset.semanticTagging?.contentVersion || 1,
           });
+        }
+
+        if (asset.type === "image") {
+          try {
+            await enqueueNudenetModerationJob({
+              postId: post._id.toString(),
+              assetKey: asset.key,
+            });
+          } catch (error) {
+            console.error("Failed to enqueue NudeNet moderation job:", {
+              postId: post._id.toString(),
+              assetKey: asset.key,
+              error: error.message,
+            });
+
+            await AllPost.updateOne(
+              {
+                _id: post._id,
+                type: "normal_post",
+                "normalPost.assets.key": asset.key,
+              },
+              {
+                $set: {
+                  "normalPost.assets.$.imageModeration.status": "failed",
+                  "normalPost.assets.$.imageModeration.decision": "pending",
+                  "normalPost.assets.$.imageModeration.errorType": "enqueue_failed",
+                },
+              }
+            );
+          }
         }
       }
 

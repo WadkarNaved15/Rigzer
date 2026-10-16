@@ -147,6 +147,53 @@ const ModelPostSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const ImageModerationSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: ["pending", "completed", "failed"],
+      default: "pending",
+    },
+
+    decision: {
+      type: String,
+      enum: ["pending", "flagged", "review", "no_match"],
+      default: "pending",
+    },
+
+    jobId: {
+      type: String,
+      default: null,
+    },
+
+    threshold: {
+      type: Number,
+      default: null,
+    },
+
+    detections: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: [],
+    },
+
+    matchingDetections: {
+      type: [mongoose.Schema.Types.Mixed],
+      default: [],
+    },
+
+    processedAt: {
+      type: Date,
+      default: null,
+    },
+
+    errorType: {
+      type: String,
+      default: null,
+    },
+  },
+  { _id: false }
+);
+
 const NormalPostSchema = new mongoose.Schema(
   {
     assets: [
@@ -194,6 +241,17 @@ const NormalPostSchema = new mongoose.Schema(
           type: Date,
           default: null,
         },
+
+        nsfw: {
+          type: Boolean,
+          default: null,
+        },
+
+        imageModeration: {
+          type: ImageModerationSchema,
+          default: undefined,
+        },
+        
         semanticTagging: {
           status: {
             type: String,
