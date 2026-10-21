@@ -60,7 +60,7 @@ export default function Launcher() {
   const totalHours = useMemo(() => LIBRARY_GAMES.reduce((sum, g) => sum + g.hoursPlayed, 0), []);
 
   return (
-    <div className="min-h-screen bg-[#0b0d13] text-white antialiased selection:bg-[#ecc98c]/30">
+    <div className="min-h-screen text-white antialiased selection:bg-[#ecc98c]/30">
       {game ? (
         // key resets per-game UI state (play button, tabs, modals) when switching
         <GameDetail
