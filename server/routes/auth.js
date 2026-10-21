@@ -10,6 +10,11 @@ import User, {
   calculateAge,
   MIN_AGE,
 } from "../models/User.js";
+import {
+  createAccessToken,
+  createRefreshToken,
+  hashRefreshToken,
+} from "../utils/authToken.js";
 import PendingRegistration from "../models/PendingRegistration.js";
 import passport from "passport";
 import { sendResetEmail } from "../services/sendResetEmail.js";
@@ -27,13 +32,12 @@ const verifyLimiter = ipRateLimiter(10, 60);
 // Generous but abuse-resistant limit for live typing checks
 const usernameCheckLimiter = ipRateLimiter(30, 60);
 
-const cookieOptions = {
+const authCookieOptions = {
   httpOnly: true,
   secure: isProduction, // only true in production
   sameSite: isProduction ? "none" : "lax",
   ...(isProduction && { domain: ".rigzer.com" }), // only add in production
   path: "/",
-  maxAge: 30 * 24 * 60 * 60 * 1000
 };
 
 const clearCookieOptions = {
@@ -63,31 +67,53 @@ router.get(
           process.env.JWT_SECRET,
           { expiresIn: "1h" }
         );
-        
+
         // 2. UPDATE NEW USER REDIRECT
         const redirectUrl = new URL(`${url}/auth`);
         redirectUrl.searchParams.set("googleSetup", "true");
         redirectUrl.searchParams.set("tempToken", tempToken);
         redirectUrl.searchParams.set("name", encodeURIComponent(req.user.googleProfile.displayName));
-        
+
         return res.redirect(redirectUrl.toString());
       }
 
-      // Existing user continues login...
-      const { user, token } = req.user;
-      const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+      // Existing Google user continues login with access + refresh tokens.
+      const { user } = req.user;
+
+      const accessToken = createAccessToken(user._id);
+      const refreshToken = createRefreshToken();
+
+      const tokenHash = crypto
+        .createHash("sha256")
+        .update(accessToken)
+        .digest("hex");
+
+      const refreshTokenExpiresAt = new Date(
+        Date.now() + 30 * 24 * 60 * 60 * 1000
+      );
 
       await Session.create({
         userId: user._id,
         deviceId: req.deviceId,
         tokenHash,
+        refreshTokenHash: hashRefreshToken(refreshToken),
+        refreshTokenExpiresAt,
         userAgent: req.headers["user-agent"],
-        ip: req.ip
+        ip: req.ip,
       });
-      console.log("Session created for userId", user._id);
-      res.cookie("token", token, cookieOptions);
-      res.redirect(`${url}/`);
 
+      res.cookie("token", accessToken, {
+        ...authCookieOptions,
+        maxAge: 15 * 60 * 1000,
+      });
+
+      res.cookie("refreshToken", refreshToken, {
+        ...authCookieOptions,
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      });
+
+      res.redirect(`${url}/`);
     } catch (err) {
       console.error("Google login error:", err);
       // 3. UPDATE ERROR REDIRECT
@@ -144,43 +170,64 @@ router.post("/google-complete", authLimiter, async (req, res) => {
     });
 
     // Create session / token
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "30d" });
-    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+
+    const accessToken = createAccessToken(user._id);
+    const refreshToken = createRefreshToken();
+
+    const tokenHash = crypto
+      .createHash("sha256")
+      .update(accessToken)
+      .digest("hex");
+
+    const refreshTokenExpiresAt = new Date(
+      Date.now() + 30 * 24 * 60 * 60 * 1000
+    );
 
     await Session.create({
       userId: user._id,
       deviceId: req.deviceId,
       tokenHash,
+      refreshTokenHash: hashRefreshToken(refreshToken),
+      refreshTokenExpiresAt,
       userAgent: req.headers["user-agent"],
-      ip: req.ip
+      ip: req.ip,
     });
 
     onUserCreated(user._id.toString());
-    res.cookie("token", token, cookieOptions);
+
+    res.cookie("token", accessToken, {
+      ...authCookieOptions,
+      maxAge: 15 * 60 * 1000,
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      ...authCookieOptions,
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
 
     return res.status(200).json({
       message: "Account created successfully",
-      token,
       user,
     });
-// Inside /google-complete route in auth.js
-} catch (error) {
-  console.error("Error finalizing Google setup:", error);
 
-  // ADD THIS: Explicitly check for Mongoose Validation Errors
-  if (error.name === 'ValidationError') {
-    // Get the first error message from the validation object
-    const firstError = Object.values(error.errors)[0]?.message || "Invalid input";
-    return res.status(400).json({ error: firstError });
+    // Inside /google-complete route in auth.js
+  } catch (error) {
+    console.error("Error finalizing Google setup:", error);
+
+    // ADD THIS: Explicitly check for Mongoose Validation Errors
+    if (error.name === 'ValidationError') {
+      // Get the first error message from the validation object
+      const firstError = Object.values(error.errors)[0]?.message || "Invalid input";
+      return res.status(400).json({ error: firstError });
+    }
+
+    // Handle MongoDB duplicate key errors (code 11000)
+    if (error.code === 11000) {
+      return res.status(400).json({ error: "Username or email is already taken." });
+    }
+
+    res.status(500).json({ error: "Failed to create account. Please try again." });
   }
-
-  // Handle MongoDB duplicate key errors (code 11000)
-  if (error.code === 11000) {
-    return res.status(400).json({ error: "Username or email is already taken." });
-  }
-
-  res.status(500).json({ error: "Failed to create account. Please try again." });
-}
 });
 
 
@@ -256,32 +303,32 @@ router.post("/register", authLimiter, async (req, res) => {
 
     // Check if user already exists
     const [
-        emailExists,
-        usernameExists,
-      ] = await Promise.all([
-        User.findOne({ email }),
-        User.findOne({ username }),
-      ]);
+      emailExists,
+      usernameExists,
+    ] = await Promise.all([
+      User.findOne({ email }),
+      User.findOne({ username }),
+    ]);
 
-      if (emailExists) {
-        return res.status(400).json({
-          error: "Email already in use",
-        });
-      }
-
-      if (usernameExists) {
-        return res.status(400).json({
-          error: "Username already taken",
-        });
-      }
-
-
-      await PendingRegistration.deleteMany({
-        $or: [
-          { email },
-          { username },
-        ],
+    if (emailExists) {
+      return res.status(400).json({
+        error: "Email already in use",
       });
+    }
+
+    if (usernameExists) {
+      return res.status(400).json({
+        error: "Username already taken",
+      });
+    }
+
+
+    await PendingRegistration.deleteMany({
+      $or: [
+        { email },
+        { username },
+      ],
+    });
 
     // Hash the password
     const salt = await bcrypt.genSalt(10);
@@ -295,26 +342,26 @@ router.post("/register", authLimiter, async (req, res) => {
       .digest("hex");
     // Create user in PendingRegistration
 
-const pending = new PendingRegistration({
-  username,
-  displayName: displayName.trim(),
-  email,
-  password: hashedPassword,
-  birthdate: parsedBirthdate,
-  emailVerificationOTP: hashedOTP,
-  emailVerificationExpires: Date.now() + 10 * 60 * 1000,
-  expiresAt: Date.now() + 10 * 60 * 1000,
-});
+    const pending = new PendingRegistration({
+      username,
+      displayName: displayName.trim(),
+      email,
+      password: hashedPassword,
+      birthdate: parsedBirthdate,
+      emailVerificationOTP: hashedOTP,
+      emailVerificationExpires: Date.now() + 10 * 60 * 1000,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    });
 
-await pending.save();
+    await pending.save();
 
-await sendVerificationEmail(email, otp);
+    await sendVerificationEmail(email, otp);
 
-return res.status(200).json({
-  message: "OTP sent",
-  requiresVerification: true,
-  email,
-});
+    return res.status(200).json({
+      message: "OTP sent",
+      requiresVerification: true,
+      email,
+    });
   } catch (error) {
     console.error("Error in registration:", error);
     if (error.name === "ValidationError") {
@@ -360,29 +407,45 @@ router.post("/verify-email", verifyLimiter, async (req, res) => {
     });
 
     // 🔥 Now create session (ONLY AFTER VERIFY)
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: "30d" }
-    );
 
-    const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
+    const accessToken = createAccessToken(user._id);
+    const refreshToken = createRefreshToken();
+
+    const tokenHash = crypto
+      .createHash("sha256")
+      .update(accessToken)
+      .digest("hex");
+
+    const refreshTokenExpiresAt = new Date(
+      Date.now() + 30 * 24 * 60 * 60 * 1000
+    );
 
     await Session.create({
       userId: user._id,
       deviceId: req.deviceId,
       tokenHash,
+      refreshTokenHash: hashRefreshToken(refreshToken),
+      refreshTokenExpiresAt,
       userAgent: req.headers["user-agent"],
       ip: req.ip
     });
-    onUserCreated(user._id.toString());
-    res.cookie("token", token, cookieOptions);
 
-    res.json({
+    onUserCreated(user._id.toString());
+
+    res.cookie("token", accessToken, {
+      ...authCookieOptions,
+      maxAge: 15 * 60 * 1000,
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      ...authCookieOptions,
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.json({
       message: "Email verified successfully",
       user
     });
-
   } catch (err) {
     res.status(500).json({ error: "Verification failed" });
   }
@@ -417,21 +480,24 @@ router.post("/login", authLimiter, async (req, res) => {
       });
     }
 
-    const token = jwt.sign(
-      { id: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: "30d" }
-    );
+    const accessToken = createAccessToken(user._id);
+    const refreshToken = createRefreshToken();
 
     const tokenHash = crypto
       .createHash("sha256")
-      .update(token)
+      .update(accessToken)
       .digest("hex");
+
+    const refreshTokenExpiresAt = new Date(
+      Date.now() + 30 * 24 * 60 * 60 * 1000
+    );
 
     await Session.create({
       userId: user._id,
       deviceId: req.deviceId,
       tokenHash,
+      refreshTokenHash: hashRefreshToken(refreshToken),
+      refreshTokenExpiresAt,
       userAgent: req.headers["user-agent"],
       ip: req.ip,
     });
@@ -441,15 +507,18 @@ router.post("/login", authLimiter, async (req, res) => {
       user._id
     );
 
-    res.cookie(
-      "token",
-      token,
-      cookieOptions
-    );
+    res.cookie("token", accessToken, {
+      ...authCookieOptions,
+      maxAge: 15 * 60 * 1000,
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      ...authCookieOptions,
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
 
     return res.status(200).json({
       message: "Login successful",
-      token,
       user,
     });
 
@@ -467,18 +536,218 @@ router.get("/verify", verifyToken, (req, res) => {
   res.status(200).json({ message: "Token is valid", user: req.user });
 });
 
+
+router.post("/refresh", async (req, res) => {
+  try {
+    const refreshToken = req.cookies?.refreshToken;
+    const deviceId = req.deviceId;
+
+    if (!refreshToken || !deviceId) {
+      res.clearCookie("token", clearCookieOptions);
+      res.clearCookie("refreshToken", clearCookieOptions);
+
+      return res.status(401).json({
+        message: "Refresh token is missing or invalid.",
+      });
+    }
+
+    const oldRefreshTokenHash = hashRefreshToken(refreshToken);
+    const now = new Date();
+
+    // Find the current session associated with this refresh token.
+    const session = await Session.findOne({
+      refreshTokenHash: oldRefreshTokenHash,
+      deviceId,
+      refreshTokenExpiresAt: { $gt: now },
+    });
+
+    if (!session) {
+      // A concurrent request may already have rotated this token.
+      // Avoid clearing cookies until we distinguish that case.
+
+      const accessToken = req.cookies.token;
+      let accessPayload = null;
+
+      // Verify the access token's signature, but allow it to be expired.
+      // The token is used only to identify the account for race detection.
+      if (accessToken) {
+        const secrets = [
+          process.env.ACCESS_TOKEN_SECRET,
+          process.env.JWT_SECRET,
+        ].filter(Boolean);
+
+        for (const secret of [...new Set(secrets)]) {
+          try {
+            accessPayload = jwt.verify(accessToken, secret, {
+              ignoreExpiration: true,
+            });
+            break;
+          } catch(err) {
+            console.error("Access token verification failed", err);
+          }
+        }
+      }
+
+      const activeDeviceSession = accessPayload?.id
+        ? await Session.exists({
+          userId: accessPayload.id,
+          deviceId,
+          refreshTokenExpiresAt: { $gt: now },
+        })
+        : null;
+
+      if (activeDeviceSession) {
+        return res.status(409).json({
+          message: "Session credentials changed. Please retry the request.",
+        });
+      }
+
+
+      res.clearCookie("token", clearCookieOptions);
+      res.clearCookie("refreshToken", clearCookieOptions);
+
+      return res.status(401).json({
+        message: "Session expired. Please log in again.",
+      });
+    }
+
+    const newAccessToken = createAccessToken(session.userId);
+    const newRefreshToken = createRefreshToken();
+
+    const newAccessTokenHash = crypto
+      .createHash("sha256")
+      .update(newAccessToken)
+      .digest("hex");
+
+    const newRefreshTokenHash = hashRefreshToken(newRefreshToken);
+
+    // Atomically rotate only if the old refresh token is still current.
+    const updatedSession = await Session.findOneAndUpdate(
+      {
+        _id: session._id,
+        refreshTokenHash: oldRefreshTokenHash,
+        deviceId,
+        refreshTokenExpiresAt: { $gt: new Date() },
+      },
+      {
+        $set: {
+          tokenHash: newAccessTokenHash,
+          refreshTokenHash: newRefreshTokenHash,
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
+
+    if (!updatedSession) {
+      // Another request may have won the rotation race.
+      // Do not clear cookies that the winning request may be updating.
+      return res.status(409).json({
+        message: "Session credentials changed. Please retry the request.",
+      });
+    }
+
+    const remainingRefreshTime =
+      updatedSession.refreshTokenExpiresAt.getTime() - Date.now();
+
+    if (remainingRefreshTime <= 0) {
+      await Session.deleteOne({ _id: updatedSession._id });
+
+      res.clearCookie("token", clearCookieOptions);
+      res.clearCookie("refreshToken", clearCookieOptions);
+
+      return res.status(401).json({
+        message: "Session expired. Please log in again.",
+      });
+    }
+
+    res.cookie("token", newAccessToken, {
+      ...authCookieOptions,
+      maxAge: 15 * 60 * 1000,
+    });
+
+    res.cookie("refreshToken", newRefreshToken, {
+      ...authCookieOptions,
+      maxAge: remainingRefreshTime,
+    });
+
+    return res.status(200).json({
+      message: "Session refreshed successfully.",
+    });
+  } catch (error) {
+    console.error("Refresh token error:", error);
+
+    return res.status(500).json({
+      message: "Unable to refresh session.",
+    });
+  }
+});
+
+
 // Logout Route
-router.post("/logout", verifyToken, async (req, res) => {
-  const userId = req.user._id;
-  const deviceId = req.deviceId;
+router.post("/logout", async (req, res) => {
+  try {
+    const deviceId = req.deviceId;
+    const accessToken = req.cookies?.token;
+    const refreshToken = req.cookies?.refreshToken;
 
-  await Session.deleteMany({
-    userId,
-    deviceId
-  });
+    const tokenHashes = [];
 
-  res.clearCookie("token", clearCookieOptions);
-  res.json({ message: "Logged out successfully" });
+    if (accessToken) {
+      tokenHashes.push(
+        crypto.createHash("sha256").update(accessToken).digest("hex")
+      );
+    }
+
+    if (refreshToken) {
+      tokenHashes.push(hashRefreshToken(refreshToken));
+    }
+
+    // Find the current session using either credential.
+    // This also works when the access JWT has expired.
+    if (deviceId && tokenHashes.length > 0) {
+      const session = await Session.findOne({
+        deviceId,
+        $or: [
+          ...(accessToken
+            ? [{
+              tokenHash: crypto
+                .createHash("sha256")
+                .update(accessToken)
+                .digest("hex"),
+            }]
+            : []),
+          ...(refreshToken
+            ? [{ refreshTokenHash: hashRefreshToken(refreshToken) }]
+            : []),
+        ],
+      }).select("+refreshTokenHash");
+
+      if (session) {
+        // Preserve existing behavior: log out this account
+        // from this device, including its other sessions here.
+        await Session.deleteMany({
+          userId: session.userId,
+          deviceId,
+        });
+      }
+    }
+
+    res.clearCookie("token", clearCookieOptions);
+    res.clearCookie("refreshToken", clearCookieOptions);
+
+    return res.status(200).json({
+      message: "Logged out successfully",
+    });
+  } catch (error) {
+    console.error("Logout error:", error);
+
+    return res.status(500).json({
+      error: "Logout failed",
+    });
+  }
 });
 
 router.post("/forgot-password", authLimiter, async (req, res) => {
@@ -542,9 +811,20 @@ router.post("/reset-password", authLimiter, async (req, res) => {
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
 
+
     await user.save();
+
+    // Revoke all sessions across all devices.
     await Session.deleteMany({ userId: user._id });
-    res.json({ message: "Password reset successful. Please login again." });
+
+    // Clear authentication cookies on the browser performing the reset.
+    res.clearCookie("token", clearCookieOptions);
+    res.clearCookie("refreshToken", clearCookieOptions);
+
+    return res.json({
+      message: "Password reset successful. Please login again."
+    });
+
 
   } catch (err) {
     res.status(500).json({ error: "Reset failed" });
@@ -567,27 +847,38 @@ router.post("/switch-account", authLimiter, async (req, res) => {
     }
 
     // 3️⃣ Issue new token for target user
-    const newToken = jwt.sign(
-      { id: userId },
-      process.env.JWT_SECRET,
-      { expiresIn: "30d" }
-    );
 
-    const newHash = crypto
+    const accessToken = createAccessToken(userId);
+    const refreshToken = createRefreshToken();
+
+    const tokenHash = crypto
       .createHash("sha256")
-      .update(newToken)
+      .update(accessToken)
       .digest("hex");
+
+    const refreshTokenExpiresAt = new Date(
+      Date.now() + 30 * 24 * 60 * 60 * 1000
+    );
 
     await Session.create({
       userId,
       deviceId,
-      tokenHash: newHash,
+      tokenHash,
+      refreshTokenHash: hashRefreshToken(refreshToken),
+      refreshTokenExpiresAt,
       userAgent: req.headers["user-agent"],
       ip: req.ip
     });
 
-    // 4️⃣ Set cookie
-    res.cookie("token", newToken, cookieOptions);
+    res.cookie("token", accessToken, {
+      ...authCookieOptions,
+      maxAge: 15 * 60 * 1000,
+    });
+
+    res.cookie("refreshToken", refreshToken, {
+      ...authCookieOptions,
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    });
 
     const user = await User.findById(userId).select("-password");
     console.log("Switched account:", user);
