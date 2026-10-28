@@ -1,67 +1,53 @@
-import { useState } from "react";
-import axios from "axios";
 import { usePosts } from "../context/PostContext";
+import api from "../utils/api";
+import { togglePostState } from "../utils/postToggleQueue";
 
-export function useLikes(
-  postId: string,
-  BACKEND_URL: string
-) {
+export function useLikes(postId: string, BACKEND_URL: string) {
   const { postsById, updatePost } = usePosts();
-
-  const [loading, setLoading] = useState(false);
-
   const currentPost = postsById[postId];
-  const handleLike = async () => {
-    if (!currentPost || loading) return;
 
-    setLoading(true);
+  const handleLike = () => {
+    if (!currentPost) return;
 
-    const previousLiked = currentPost.isLiked;
+    togglePostState({
+      key: `like:${postId}`,
+      initialActive: currentPost.isLiked ?? false,
+      initialCount: currentPost.likesCount ?? 0,
 
-    updatePost(postId, {
-      isLiked: !previousLiked,
-      likesCount: previousLiked
-        ? (currentPost.likesCount ?? 0) - 1
-        : (currentPost.likesCount ?? 0) + 1,
-    });
+      update: (isLiked, likesCount) => {
+        updatePost(postId, {
+          isLiked,
+          likesCount,
+        });
+      },
 
-    try {
-      if (!previousLiked) {
-        await axios.post(
-          `${BACKEND_URL}/api/likes`,
-          { postId },
-          { withCredentials: true }
-        );
-      } else {
-        await axios.delete(
+      send: async (isLiked) => {
+        if (isLiked) {
+          const response = await api.post(
+            `${BACKEND_URL}/api/likes`,
+            { postId },
+            { withCredentials: true }
+          );
+
+          return response.data.likesCount;
+        }
+
+        const response = await api.delete(
           `${BACKEND_URL}/api/likes`,
           {
             data: { postId },
             withCredentials: true,
           }
         );
-      }
-    } catch (err) {
-      // Check if it's an Axios error and has a response from the server
-      if (axios.isAxiosError(err) && err.response) {
-        console.error("Backend Error Response:", err.response.data);
-      } else {
-        console.error("An unexpected error occurred:", err);
-      }
 
-      // Your existing rollback state logic
-      updatePost(postId, {
-        isLiked: previousLiked,
-        likesCount: currentPost.likesCount,
-      });
-    } finally {
-      setLoading(false);
-    }
+        return response.data.likesCount;
+      },
+    });
   };
 
   return {
-    likesCount: currentPost?.likesCount || 0,
-    isLiked: currentPost?.isLiked || false,
+    likesCount: currentPost?.likesCount ?? 0,
+    isLiked: currentPost?.isLiked ?? false,
     handleLike,
   };
 }

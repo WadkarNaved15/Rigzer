@@ -1,58 +1,44 @@
-import { useState } from "react";
-import axios from "axios";
 import { usePosts } from "../context/PostContext";
 import api from "../utils/api";
+import { togglePostState } from "../utils/postToggleQueue";
 
-export function useWishlist(
-  postId: string,
-  BACKEND_URL: string
-) {
+export function useWishlist(postId: string, BACKEND_URL: string) {
   const { postsById, updatePost } = usePosts();
-
-  const [loading, setLoading] = useState(false);
-
   const currentPost = postsById[postId];
 
-  const handleWishlist = async () => {
-    if (!currentPost || loading) return;
+  const handleWishlist = () => {
+    if (!currentPost) return;
 
-    setLoading(true);
+    togglePostState({
+      key: `wishlist:${postId}`,
+      initialActive: currentPost.isWishlisted ?? false,
 
-    const previous = currentPost.isWishlisted;
+      update: (isWishlisted) => {
+        updatePost(postId, { isWishlisted });
+      },
 
-    updatePost(postId, {
-      isWishlisted: !previous,
+      send: async (isWishlisted) => {
+        if (isWishlisted) {
+          await api.post(
+            `${BACKEND_URL}/api/wishlist`,
+            { postId },
+            { withCredentials: true }
+          );
+        } else {
+          await api.delete(
+            `${BACKEND_URL}/api/wishlist`,
+            {
+              data: { postId },
+              withCredentials: true,
+            }
+          );
+        }
+      },
     });
-
-    try {
-      if (!previous) {
-        await api.post(
-          `${BACKEND_URL}/api/wishlist`,
-          { postId },
-          { withCredentials: true }
-        );
-      } else {
-        await api.delete(
-          `${BACKEND_URL}/api/wishlist`,
-          {
-            data: { postId },
-            withCredentials: true,
-          }
-        );
-      }
-    } catch (err) {
-      console.error(err);
-
-      updatePost(postId, {
-        isWishlisted: previous,
-      });
-    } finally {
-      setLoading(false);
-    }
   };
 
   return {
-    isWishlisted: currentPost?.isWishlisted || false,
+    isWishlisted: currentPost?.isWishlisted ?? false,
     handleWishlist,
   };
 }
