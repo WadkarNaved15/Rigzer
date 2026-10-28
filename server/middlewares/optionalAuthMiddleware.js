@@ -1,3 +1,4 @@
+
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import Session from "../models/Session.js";
@@ -7,11 +8,20 @@ const optionalAuthMiddleware = async (req, res, next) => {
   const token = req.cookies?.token;
 
   if (!token) {
-    return next(); // no token → guest
+    return next();
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    let decoded;
+
+    try {
+      // Match verifyToken: support the current access token.
+      decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+    } catch {
+      // Preserve compatibility with legacy JWTs.
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    }
+
     const tokenHash = crypto
       .createHash("sha256")
       .update(token)
@@ -23,23 +33,26 @@ const optionalAuthMiddleware = async (req, res, next) => {
     });
 
     if (!session) {
-      return next(); // invalid session → treat as guest
+      return next();
     }
 
     const user = await User.findById(decoded.id).select("-password");
+
     if (!user) {
-      return next(); // user not found → guest
+      return next();
     }
 
     session.lastUsed = new Date();
     await session.save();
 
-    req.user = user; // attach user if valid
+    req.user = user;
   } catch (err) {
-    // If token invalid → treat as guest
+    // Invalid or expired token: preserve the existing guest fallback.
+    console.debug("Optional auth token verification failed:", err.message);
+
   }
 
-  next();
+  return next();
 };
 
 export default optionalAuthMiddleware;
