@@ -98,47 +98,47 @@ export const createPost = async (req, res) => {
           });
         }
 
-        if (asset.type === "image" || asset.type === "video") {
-          await enqueueSemanticTaggingJob({
-            postId: post._id.toString(),
-            bucket: process.env.AWS_BUCKET_NAME,
-            key: asset.key,
-            mediaType: asset.type,
-            operation: "semantic_tagging",
-            contentVersion:
-              asset.semanticTagging?.contentVersion || 1,
-          });
-        }
+        // if (asset.type === "image" || asset.type === "video") {
+        //   await enqueueSemanticTaggingJob({
+        //     postId: post._id.toString(),
+        //     bucket: process.env.AWS_BUCKET_NAME,
+        //     key: asset.key,
+        //     mediaType: asset.type,
+        //     operation: "semantic_tagging",
+        //     contentVersion:
+        //       asset.semanticTagging?.contentVersion || 1,
+        //   });
+        // }
 
-        if (asset.type === "image") {
-          try {
-            await enqueueNudenetModerationJob({
-              postId: post._id.toString(),
-              assetKey: asset.key,
-            });
-          } catch (error) {
-            console.error("Failed to enqueue NudeNet moderation job:", {
-              postId: post._id.toString(),
-              assetKey: asset.key,
-              error: error.message,
-            });
+        // if (asset.type === "image") {
+        //   try {
+        //     await enqueueNudenetModerationJob({
+        //       postId: post._id.toString(),
+        //       assetKey: asset.key,
+        //     });
+        //   } catch (error) {
+        //     console.error("Failed to enqueue NudeNet moderation job:", {
+        //       postId: post._id.toString(),
+        //       assetKey: asset.key,
+        //       error: error.message,
+        //     });
 
-            await AllPost.updateOne(
-              {
-                _id: post._id,
-                type: "normal_post",
-                "normalPost.assets.key": asset.key,
-              },
-              {
-                $set: {
-                  "normalPost.assets.$.imageModeration.status": "failed",
-                  "normalPost.assets.$.imageModeration.decision": "pending",
-                  "normalPost.assets.$.imageModeration.errorType": "enqueue_failed",
-                },
-              }
-            );
-          }
-        }
+        //     await AllPost.updateOne(
+        //       {
+        //         _id: post._id,
+        //         type: "normal_post",
+        //         "normalPost.assets.key": asset.key,
+        //       },
+        //       {
+        //         $set: {
+        //           "normalPost.assets.$.imageModeration.status": "failed",
+        //           "normalPost.assets.$.imageModeration.decision": "pending",
+        //           "normalPost.assets.$.imageModeration.errorType": "enqueue_failed",
+        //         },
+        //       }
+        //     );
+        //   }
+        // }
       }
 
       sendEventToQueue({
