@@ -32,11 +32,11 @@ const verifyLimiter = ipRateLimiter(10, 60);
 // Generous but abuse-resistant limit for live typing checks
 const usernameCheckLimiter = ipRateLimiter(30, 60);
 
+
 const authCookieOptions = {
   httpOnly: true,
-  secure: isProduction, // only true in production
+  secure: isProduction,
   sameSite: isProduction ? "none" : "lax",
-  ...(isProduction && { domain: ".rigzer.com" }), // only add in production
   path: "/",
 };
 
@@ -44,9 +44,33 @@ const clearCookieOptions = {
   httpOnly: true,
   secure: isProduction,
   sameSite: isProduction ? "none" : "lax",
-  ...(isProduction && { domain: ".rigzer.com" }),
   path: "/",
 };
+
+// Legacy cookie cleanup.
+// These cookies were previously created with Domain=.rigzer.com.
+const legacyCookieClearOptions = {
+  httpOnly: true,
+  secure: true,
+  sameSite: "none",
+  domain: ".rigzer.com",
+  path: "/",
+};
+
+const clearLegacyAuthCookies = (res) => {
+  res.clearCookie("token", legacyCookieClearOptions);
+  res.clearCookie("refreshToken", legacyCookieClearOptions);
+};
+
+const clearAllAuthCookies = (res) => {
+  // Current host-only cookies
+  res.clearCookie("token", clearCookieOptions);
+  res.clearCookie("refreshToken", clearCookieOptions);
+
+  // Legacy parent-domain cookies
+  clearLegacyAuthCookies(res);
+};
+
 
 // Google OAuth
 router.get("/google", passport.authenticate("google", { scope: ["profile", "email"] }));
@@ -102,6 +126,8 @@ router.get(
         userAgent: req.headers["user-agent"],
         ip: req.ip,
       });
+
+      clearLegacyAuthCookies(res);
 
       res.cookie("token", accessToken, {
         ...authCookieOptions,
@@ -194,6 +220,8 @@ router.post("/google-complete", authLimiter, async (req, res) => {
     });
 
     onUserCreated(user._id.toString());
+
+    clearLegacyAuthCookies(res);
 
     res.cookie("token", accessToken, {
       ...authCookieOptions,
@@ -432,6 +460,8 @@ router.post("/verify-email", verifyLimiter, async (req, res) => {
 
     onUserCreated(user._id.toString());
 
+    clearLegacyAuthCookies(res);
+
     res.cookie("token", accessToken, {
       ...authCookieOptions,
       maxAge: 15 * 60 * 1000,
@@ -507,6 +537,8 @@ router.post("/login", authLimiter, async (req, res) => {
       user._id
     );
 
+    clearLegacyAuthCookies(res);
+
     res.cookie("token", accessToken, {
       ...authCookieOptions,
       maxAge: 15 * 60 * 1000,
@@ -543,8 +575,7 @@ router.post("/refresh", async (req, res) => {
     const deviceId = req.deviceId;
 
     if (!refreshToken || !deviceId) {
-      res.clearCookie("token", clearCookieOptions);
-      res.clearCookie("refreshToken", clearCookieOptions);
+      clearAllAuthCookies(res);
 
       return res.status(401).json({
         message: "Refresh token is missing or invalid.",
@@ -602,9 +633,7 @@ router.post("/refresh", async (req, res) => {
         });
       }
 
-
-      res.clearCookie("token", clearCookieOptions);
-      res.clearCookie("refreshToken", clearCookieOptions);
+      clearAllAuthCookies(res);
 
       return res.status(401).json({
         message: "Session expired. Please log in again.",
@@ -655,13 +684,14 @@ router.post("/refresh", async (req, res) => {
     if (remainingRefreshTime <= 0) {
       await Session.deleteOne({ _id: updatedSession._id });
 
-      res.clearCookie("token", clearCookieOptions);
-      res.clearCookie("refreshToken", clearCookieOptions);
+      clearAllAuthCookies(res);
 
       return res.status(401).json({
         message: "Session expired. Please log in again.",
       });
     }
+
+    clearLegacyAuthCookies(res);
 
     res.cookie("token", newAccessToken, {
       ...authCookieOptions,
@@ -735,8 +765,7 @@ router.post("/logout", async (req, res) => {
       }
     }
 
-    res.clearCookie("token", clearCookieOptions);
-    res.clearCookie("refreshToken", clearCookieOptions);
+    clearAllAuthCookies(res);
 
     return res.status(200).json({
       message: "Logged out successfully",
@@ -818,8 +847,7 @@ router.post("/reset-password", authLimiter, async (req, res) => {
     await Session.deleteMany({ userId: user._id });
 
     // Clear authentication cookies on the browser performing the reset.
-    res.clearCookie("token", clearCookieOptions);
-    res.clearCookie("refreshToken", clearCookieOptions);
+    clearAllAuthCookies(res);
 
     return res.json({
       message: "Password reset successful. Please login again."
@@ -870,6 +898,8 @@ router.post("/switch-account", authLimiter, async (req, res) => {
       ip: req.ip
     });
 
+    clearLegacyAuthCookies(res);
+    
     res.cookie("token", accessToken, {
       ...authCookieOptions,
       maxAge: 15 * 60 * 1000,
