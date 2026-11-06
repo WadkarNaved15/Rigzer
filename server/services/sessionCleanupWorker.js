@@ -16,13 +16,15 @@ import GameSession from "../models/GameSession.js";
 import { finalizeSession } from "../helper/session.js";
 import { deleteSessionStorage } from "./sessionStorage.js";
 import { ALLOCATION_GRACE_MS } from "../helper/session.js";
+import { forceTerminateInstance } from "../services/instanceAllocator.js";
 
 dotenv.config();
 
 const LOCK_KEY = "cleanup:lock";
 const LOCK_TTL = 120; // seconds
-const CLEANUP_INTERVAL = 60_000; // 60 seconds
+const CLEANUP_INTERVAL = 10_000; // 60 seconds
 const ENDING_TIMEOUT_MS = 3 * 60_000; // 3 minutes
+const FORCE_TERMINATE_AFTER_MS = 10 * 60_000; // 10 minutes
 
 // Allow Launch requests a small amount of time
 // to reach the backend after the allocation expires.
@@ -154,18 +156,14 @@ async function recoverStuckEndingSessions() {
 
     const sessions = await GameSession.find({
       status: "ending",
-      endingAt: {
-        $lte: cutoff,
-      },
+      endingAt: { $lte: cutoff },
     })
       .select(
         "_id instanceId instanceIp instanceRegion leaseToken exitReason endingAt"
       )
       .limit(50);
 
-    if (sessions.length === 0) {
-      return;
-    }
+    if (sessions.length === 0) return;
 
     console.log(
       `[Cleanup] Found ${sessions.length} stuck ending session(s)`
@@ -173,58 +171,134 @@ async function recoverStuckEndingSessions() {
 
     for (const session of sessions) {
       try {
-        /*
-         * Give Rust another chance to complete the normal
-         * shutdown -> dismount -> ended_and_ready flow.
-         */
+        const sessionId = session._id.toString();
+        const endingAgeMs = session.endingAt
+          ? Date.now() - new Date(session.endingAt).getTime()
+          : 0;
+
+        // STEP 1: Always attempt graceful shutdown first.
         if (session.instanceIp) {
           try {
-            await fetch(
+            const response = await fetch(
               `http://${session.instanceIp}:4443/stop-session`,
               {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
+                  "X-Session-Id": sessionId,
                 },
                 body: JSON.stringify({
-                  session_id: session._id.toString(),
+                  session_id: sessionId,
                 }),
                 timeout: 5000,
               }
             );
 
-            console.log(
-              `[Cleanup] Retried stop for stuck session ${session._id}`
-            );
+            const responseBody = await response.text();
 
-            /*
-             * Controller responded, so leave the session alone.
-             *
-             * Rust should finish the shutdown and send
-             * ended_and_ready.
-             */
-            continue;
+            console.log("[Cleanup] Stop retry result", {
+              sessionId,
+              status: response.status,
+              ok: response.ok,
+              body: responseBody.slice(0, 500),
+            });
           } catch (err) {
             console.warn(
-              `[Cleanup] Controller unreachable for stuck session ` +
-              `${session._id}: ${err.message}`
+              `[Cleanup] Stop request failed for ${sessionId}:`,
+              err.message
             );
           }
         }
 
-        /*
-         * IMPORTANT:
-         *
-         * Do not release the GPU merely because the HTTP request
-         * failed. A network failure does not prove the EC2 worker
-         * is dead.
-         *
-         * The confirmed-dead-worker recovery should be handled
-         * using the worker heartbeat/DynamoDB state.
-         */
+        // STEP 2: Allow the normal controller flow time to finish.
+        if (endingAgeMs < FORCE_TERMINATE_AFTER_MS) {
+          console.log(
+            `[Cleanup] Session ${sessionId} remains ending; ` +
+              `age=${Math.round(endingAgeMs / 60000)}m. ` +
+              `Will retry before forced recovery.`
+          );
+          continue;
+        }
+
+        // STEP 3: We need the exact lease to safely terminate the worker.
+        if (
+          !session.instanceId ||
+          !session.instanceRegion ||
+          !session.leaseToken
+        ) {
+          console.error(
+            `[Cleanup] Cannot force-terminate session ${sessionId}: ` +
+              "missing instanceId, instanceRegion or leaseToken"
+          );
+          continue;
+        }
+
         console.warn(
-          `[Cleanup] Stuck session ${session._id} requires worker-health ` +
-          `verification before GPU release`
+          `[Cleanup] Escalating stuck session ${sessionId} ` +
+            `to forced worker termination`
+        );
+
+        // The Lambda validates the lease before terminating EC2.
+        const result = await forceTerminateInstance(
+          session.instanceId,
+          session.leaseToken,
+          session.instanceRegion
+        );
+
+        if (result.status === "TERMINATING") {
+          console.log(
+            `[Cleanup] Worker ${session.instanceId} is terminating; ` +
+              "will verify again on the next cycle"
+          );
+          continue;
+        }
+
+        if (result.status !== "TERMINATED") {
+          console.error(
+            `[Cleanup] Forced termination not confirmed for ${sessionId}:`,
+            result
+          );
+          continue;
+        }
+
+        // STEP 4: Only finalize after EC2 termination is confirmed.
+        const backendUrl = process.env.BACKEND_PUBLIC_URL;
+        const backendKey = process.env.INSTANCE_BACKEND_KEY;
+
+        if (!backendUrl || !backendKey) {
+          throw new Error(
+            "BACKEND_PUBLIC_URL or INSTANCE_BACKEND_KEY is missing"
+          );
+        }
+
+        const finalizeResponse = await fetch(
+          `${backendUrl.replace(/\/$/, "")}/api/internal/sessions/update`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${backendKey}`,
+            },
+            body: JSON.stringify({
+              sessionId,
+              status: "ended_and_ready",
+            }),
+            timeout: 15000,
+          }
+        );
+
+        const finalizeBody = await finalizeResponse.text();
+
+        if (!finalizeResponse.ok) {
+          throw new Error(
+            `Session finalization returned HTTP ${finalizeResponse.status}: ` +
+              finalizeBody.slice(0, 500)
+          );
+        }
+
+        console.log(
+          `[Cleanup] Forced recovery completed for session ${sessionId}; ` +
+            `worker ${session.instanceId} is terminated`
         );
       } catch (err) {
         console.error(
@@ -240,7 +314,6 @@ async function recoverStuckEndingSessions() {
     );
   }
 }
-
 /**
  * Clean up stale game sessions
  */
@@ -260,7 +333,7 @@ async function cleanupStaleSessions(lockId) {
     await recoverStuckEndingSessions();
 
     const now = new Date();
-    const staleThreshold = new Date(Date.now() - 90_000);
+    const staleThreshold = new Date(Date.now() - 60_000);
 
     // Cleanup only after the launch grace period has also expired.
     const allocationCleanupCutoff = new Date(now.getTime() - ALLOCATION_GRACE_MS);

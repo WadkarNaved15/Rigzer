@@ -3,6 +3,7 @@ import React, {
   createContext, useContext, useState, useEffect, ReactNode,
 } from "react";
 import { saveAccount, removeAccount } from "../utils/accountRegistry";
+import api from "../utils/api";
 
 type User = {
   _id: string;
@@ -42,7 +43,7 @@ export const useUser = () => {
 };
 
 export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser]       = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
@@ -51,41 +52,95 @@ export const UserProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const isAdmin = user?.role === "admin";
 
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
       try {
-        const res = await fetch(`${BACKEND_URL}/api/auth/verify`, {
-          method: "GET", credentials: "include",
-        });
-        if (res.ok) {
-          const { user } = await res.json();
+        const res = await api.get("/api/auth/verify");
+
+        if (!cancelled) {
+          const user = res.data.user as User;
           setUser(user);
-          saveAccount({ userId: user._id, username: user.username, avatar: user.avatar });
+
+          saveAccount({
+            userId: user._id,
+            username: user.username,
+            avatar: user.avatar,
+          });
         }
       } catch (err) {
-        console.warn("Session check failed:", err);
+        if (!cancelled) {
+          setUser(null);
+          console.warn("Session check failed:", err);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setUser((currentUser) => {
+        if (currentUser) {
+          removeAccount(currentUser._id);
+        }
+
+        return null;
+      });
+    };
+
+    window.addEventListener("rigzer:session-expired", handleSessionExpired);
+
+    return () => {
+      window.removeEventListener(
+        "rigzer:session-expired",
+        handleSessionExpired
+      );
+    };
+  }, []);
+
 
   const refreshUser = async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/auth/verify`, { credentials: "include" });
-      if (res.ok) { const { user } = await res.json(); setUser(user); }
-    } catch (err) { console.error("Failed to refresh user", err); }
+      const res = await api.get("/api/auth/verify");
+      const user = res.data.user as User;
+
+      setUser(user);
+
+      saveAccount({
+        userId: user._id,
+        username: user.username,
+        avatar: user.avatar,
+      });
+    } catch (err) {
+      console.error("Failed to refresh user", err);
+      throw err;
+    }
   };
 
-  const login  = (userData: User) => setUser(userData);
+  const login = (userData: User) => setUser(userData);
 
   const logout = async () => {
-    if (!user) return;
     try {
-      await fetch(`${BACKEND_URL}/api/auth/logout`, { method: "POST", credentials: "include" });
-    } catch (err) { console.warn("Logout request failed", err); }
-    removeAccount(user._id);
-    setUser(null);
-    window.location.href = "/";
+      await api.post("/api/auth/logout");
+    } catch (err) {
+      console.warn("Logout request failed", err);
+    } finally {
+      if (user) {
+        removeAccount(user._id);
+      }
+
+      setUser(null);
+      window.location.href = "/";
+    }
   };
 
   return (

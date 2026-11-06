@@ -470,6 +470,27 @@ export async function leaseSpecificInstance(
   }
 }
 
+
+export async function forceTerminateInstance(
+  workerId,
+  leaseToken,
+  region
+) {
+  if (!workerId || !leaseToken || !region) {
+    return {
+      status: "ERROR",
+      reason: "Missing workerId, leaseToken or region",
+    };
+  }
+
+  return invokeLeaseLambda(region, {
+    action: "FORCE_TERMINATE",
+    preferredRegion: region,
+    workerId,
+    leaseToken,
+  });
+}
+
 /**
  * Release a GPU instance.
  *

@@ -6,21 +6,38 @@ const sessionSchema = new mongoose.Schema({
     ref: "User",
     required: true
   },
+
   deviceId: {
     type: String,
     required: true
   },
+
   tokenHash: {
     type: String,
     required: true
   },
+  // Will be populated when refresh-token authentication is implemented.
+  refreshTokenHash: {
+    type: String,
+    default: null,
+    select: false,
+  },
+
+  // Absolute expiration of the refresh session.
+  refreshTokenExpiresAt: {
+    type: Date,
+    default: null,
+  },
+
   userAgent: String,
   ip: String,
+
   lastUsed: {
     type: Date,
     default: Date.now
   }
 }, { timestamps: true });
+
 sessionSchema.index({ userId: 1, deviceId: 1 });
 sessionSchema.index(
   { createdAt: 1 },

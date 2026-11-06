@@ -137,6 +137,9 @@ function MainLayout() {
         <Header
           isToggled={isToggled}
           onToggle={() => setIsToggled((prev) => !prev)}
+          onOpenFeedback={() => setIsFeedbackOpen(true)}
+          onOpenPrivacy={() => setActiveModal("privacy")}
+          onOpenTerms={() => setActiveModal("terms")}
         />
 
         <main className="w-full px-0 sm:px-4 lg:px-8 2xl:px-16 pt-4">
@@ -210,36 +213,9 @@ function MainLayout() {
                     onUploadClick={handleUploadClick}
                   />
 
-                  <div className="px-2 pt-2 pb-4 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 dark:text-gray-400">
-                    <button
-                      onClick={() => setActiveModal("terms")}
-                      className="hover:text-gray-900 dark:hover:text-gray-200 hover:underline transition-colors"
-                    >
-                      Terms of Service
-                    </button>
-
-                    <span>|</span>
-
-                    <button
-                      onClick={() => setActiveModal("privacy")}
-                      className="hover:text-gray-900 dark:hover:text-gray-200 hover:underline transition-colors"
-                    >
-                      Privacy Policy
-                    </button>
-
-                    <span>|</span>
-
-                    <button
-                      onClick={() => setIsFeedbackOpen(true)}
-                      className="hover:text-gray-900 dark:hover:text-gray-200 hover:underline transition-colors"
-                    >
-                      Feedback
-                    </button>
-
-                    <span className="mt-1">
-                      © {new Date().getFullYear()} Rigzer
-                    </span>
-                  </div>
+                  {/* <div className="px-2 pt-2 pb-4 text-xs text-gray-500 dark:text-gray-400">
+                    © {new Date().getFullYear()} Rigzer
+                  </div> */}
                 </div>
 
               </div>

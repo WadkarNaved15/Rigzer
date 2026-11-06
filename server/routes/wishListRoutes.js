@@ -1,5 +1,6 @@
 // routes/wishListRoutes.js — Gorse save/unsave feedback hooks added
 import express from "express";
+import mongoose from "mongoose";
 import Wishlist from "../models/Wishlist.js";
 import verifyToken from "../middlewares/authMiddleware.js";
 import { insertFeedback, deleteFeedback, fireAndForget } from "../services/gorse.client.js";
@@ -37,67 +38,132 @@ router.get("/mine", verifyToken, async (req, res) => {
 });
 
 // ── Save post ─────────────────────────────────────────────────────────────────
+
 router.post("/", verifyToken, async (req, res) => {
   try {
     const { postId } = req.body;
     const userId = req.user.id;
 
-    await Wishlist.create({ post: postId, user: userId });
+    if (!mongoose.isValidObjectId(postId)) {
+      return res.status(400).json({ message: "Invalid postId" });
+    }
 
-    const sessionId =
-      req.headers["x-session-id"] || null;
-
-    await onSaveAdded(postId);
-
-    await trackEvent({
-      user: userId,
-      sessionId,
-      eventType: "wishlist_add",
-      targetType: "post",
-      targetId: postId,
-      source: "web",
-    });
-
-    // ✅ Gorse: save is the strongest positive signal
-    fireAndForget(() =>
-      insertFeedback({ feedbackType: "save", userId, postId })
+    // Create the wishlist record only if it does not already exist.
+    const result = await Wishlist.updateOne(
+      { post: postId, user: userId },
+      {
+        $setOnInsert: {
+          post: postId,
+          user: userId,
+        },
+      },
+      { upsert: true }
     );
 
-    res.json({ success: true });
+    const inserted =
+      result.upsertedCount === 1 || Boolean(result.upsertedId);
 
+    // Run analytics only when the wishlist record was newly created.
+    if (inserted) {
+      const sessionId = req.headers["x-session-id"] || null;
+
+      void onSaveAdded(postId).catch((err) =>
+        console.error("Wishlist add analytics failed:", err)
+      );
+
+      void trackEvent({
+        user: userId,
+        sessionId,
+        eventType: "wishlist_add",
+        targetType: "post",
+        targetId: postId,
+        source: "web",
+      }).catch((err) =>
+        console.error("Wishlist add event tracking failed:", err)
+      );
+
+      fireAndForget(() =>
+        insertFeedback({
+          feedbackType: "save",
+          userId,
+          postId,
+        })
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      isWishlisted: true,
+    });
   } catch (err) {
-    if (err.code === 11000) return res.json({ message: "Already wishlisted" });
-    res.status(500).json({ message: "Server error" });
+    // A concurrent upsert can still hit the unique index.
+    if (err.code === 11000) {
+      return res.status(200).json({
+        success: true,
+        isWishlisted: true,
+      });
+    }
+
+    console.error("Wishlist add failed:", err);
+    return res.status(500).json({ message: "Server error" });
   }
 });
 
+
 // ── Unsave post ───────────────────────────────────────────────────────────────
+
 router.delete("/", verifyToken, async (req, res) => {
-  const { postId } = req.body;
-  const userId = req.user.id;
+  try {
+    const { postId } = req.body;
+    const userId = req.user.id;
 
-  await Wishlist.deleteOne({ post: postId, user: userId });
+    if (!mongoose.isValidObjectId(postId)) {
+      return res.status(400).json({ message: "Invalid postId" });
+    }
 
-  const sessionId =
-    req.headers["x-session-id"] || null;
+    // Delete only if the record exists.
+    const deleted = await Wishlist.findOneAndDelete({
+      post: postId,
+      user: userId,
+    });
 
-  await onSaveRemoved(postId);
+    // Missing records are already in the desired state.
+    if (deleted) {
+      const sessionId = req.headers["x-session-id"] || null;
 
-  await trackEvent({
-    user: userId,
-    sessionId,
-    eventType: "wishlist_remove",
-    targetType: "post",
-    targetId: postId,
-    source: "web",
-  });
+      void onSaveRemoved(postId).catch((err) =>
+        console.error("Wishlist removal analytics failed:", err)
+      );
 
-  // ✅ Gorse: remove save signal
-  fireAndForget(() =>
-    deleteFeedback({ feedbackType: "save", userId, postId })
-  );
+      void trackEvent({
+        user: userId,
+        sessionId,
+        eventType: "wishlist_remove",
+        targetType: "post",
+        targetId: postId,
+        source: "web",
+      }).catch((err) =>
+        console.error("Wishlist removal event tracking failed:", err)
+      );
 
-  res.json({ success: true });
+      fireAndForget(() =>
+        deleteFeedback({
+          feedbackType: "save",
+          userId,
+          postId,
+        })
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      isWishlisted: false,
+    });
+  } catch (err) {
+    console.error("Wishlist removal failed:", err);
+    return res.status(500).json({ message: "Server error" });
+  }
 });
+
 
 export default router;
