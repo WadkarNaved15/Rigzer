@@ -52,6 +52,48 @@ export default function SidebarNavigation({
 
     const { openAccountSwitcher } = useAccountSwitcherContext();
 
+    const handleAccountSwitcher = () => {
+        let accounts: Array<{ userId: string }> = [];
+
+        try {
+            const stored = JSON.parse(
+                localStorage.getItem("accounts") || "[]"
+            );
+
+            accounts = Array.isArray(stored) ? stored : [];
+        } catch {
+            accounts = [];
+        }
+
+        // No saved accounts at all
+        if (accounts.length === 0) {
+            navigate("/auth");
+            return;
+        }
+
+        // At least one account exists: open the switcher
+        if (logoutButtonRef.current) {
+            openAccountSwitcher(
+                logoutButtonRef.current.getBoundingClientRect()
+            );
+        }
+    };
+
+    const hasSavedAccounts = (() => {
+        try {
+            const accounts = JSON.parse(
+                localStorage.getItem("accounts") || "[]"
+            );
+
+            return (
+                Array.isArray(accounts) &&
+                accounts.some((account) => account?.userId)
+            );
+        } catch {
+            return false;
+        }
+    })();
+
     const items: NavItem[] = [
         {
             icon: Home,
@@ -90,33 +132,35 @@ export default function SidebarNavigation({
             isExpanded: isSettingsExpanded,
             action: () => setIsSettingsExpanded(!isSettingsExpanded),
             subItems: [
-                ...(!user?.isGoogleUser
+                // Only authenticated non-Google users can change password
+                ...(user && !user.isGoogleUser
                     ? [{
                         icon: Key,
                         label: "Change Password",
                         action: () => onOpenSettings("password"),
                     }]
                     : []),
-                                {
-                    icon: LogOut,
-                    label: "Logout/Switch Account",
-                    action: () => {
-                        if (!logoutButtonRef.current) return;
 
-                        openAccountSwitcher(
-                            logoutButtonRef.current.getBoundingClientRect()
-                        );
-                    },
-                },
+                // Always visible for authenticated users and guests
                 {
-                    icon: Trash2,
-                    label: "Delete Account",
-                    action: () => onOpenSettings('delete'),
-                    isDanger: true 
+                    icon: user ? LogOut : LogIn,
+                    label: user ? "Logout/Switch Account" : "Login/Switch Account",
+                    action: handleAccountSwitcher,
                 },
-            ]
+
+                // Only authenticated users can delete their account
+                ...(user
+                    ? [{
+                        icon: Trash2,
+                        label: "Delete Account",
+                        action: () => onOpenSettings("delete"),
+                        isDanger: true,
+                    }]
+                    : []),
+            ],
         },
     ];
+
 
     return (
         <nav className="flex flex-col gap-1">
@@ -172,12 +216,16 @@ export default function SidebarNavigation({
                                         <button
                                             key={sub.label}
                                             // Fixed the label check here so the ref attaches properly
-                                            ref={sub.label === "Logout/Switch Account" ? logoutButtonRef : undefined}
+                                            ref={
+                                                sub.label === "Logout/Switch Account" ||
+                                                sub.label === "Login/Switch Account"
+                                                    ? logoutButtonRef
+                                                    : undefined
+                                            }
                                             onClick={sub.action}
                                             // Added text-left and leading-tight to fix wrapping, items-start to keep icon at the top
-                                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-left leading-tight text-gray-400 hover:bg-white/5 transition-all text-sm font-medium ${
-                                                sub.isDanger ? 'hover:text-red-500' : 'hover:text-[#62D4AE]'
-                                            }`}
+                                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-left leading-tight text-gray-400 hover:bg-white/5 transition-all text-sm font-medium ${sub.isDanger ? 'hover:text-red-500' : 'hover:text-[#62D4AE]'
+                                                }`}
                                         >
                                             {/* Shrink-0 prevents the icon from squishing when text wraps */}
                                             <div className="shrink-0 mt-[2px]">

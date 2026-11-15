@@ -15,14 +15,14 @@ interface AccountSwitcherOverlayProps {
   anchorRect: DOMRect | null;
 }
 
-export default function AccountSwitcherOverlay({ 
-  onClose, 
-  anchorRect 
+export default function AccountSwitcherOverlay({
+  onClose,
+  anchorRect
 }: AccountSwitcherOverlayProps) {
   const navigate = useNavigate();
   const { user, logout } = useUser();
   const { switchAccount } = useAccountSwitch();
-  
+
   if (!anchorRect) return null;
 
   const allAccounts: Account[] = JSON.parse(localStorage.getItem("accounts") || "[]")
@@ -39,8 +39,8 @@ export default function AccountSwitcherOverlay({
 
   if (isSidebarTrigger) {
     // SIDEBAR CONFIG: Shift up and right next to the menu row
-    imgLeft = anchorRect.right-200; 
-    imgTop = anchorRect.top + (anchorRect.height / 2) - (IMAGE_SIZE / 2)-200;
+    imgLeft = anchorRect.right - 200;
+    imgTop = anchorRect.top + (anchorRect.height / 2) - (IMAGE_SIZE / 2) - 200;
     centerX = imgLeft + (IMAGE_SIZE / 2);
   } else {
     // PROFILE COVER CONFIG: Standard perfect mathematical overlap overlay
@@ -52,7 +52,7 @@ export default function AccountSwitcherOverlay({
 
   // Vertical line geometry calculations 
   const startY = imgTop + IMAGE_SIZE;
-  const LINE_DROP = 120; 
+  const LINE_DROP = 120;
   const endY = startY + LINE_DROP;
 
   return createPortal(
@@ -62,63 +62,66 @@ export default function AccountSwitcherOverlay({
         className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
         onClick={onClose}
       />
+      {user && (
+        <>
+          {/* 2. Straight Vertical Line */}
+          <svg className="fixed inset-0 w-full h-full pointer-events-none z-[101] overflow-visible">
+            <line
+              x1={centerX}
+              y1={startY}
+              x2={centerX}
+              y2={endY}
+              stroke="rgba(255, 255, 255, 0.4)"
+              strokeWidth="2"
+              strokeDasharray="4 4"
+            />
+          </svg>
 
-      {/* 2. Straight Vertical Line */}
-      <svg className="fixed inset-0 w-full h-full pointer-events-none z-[101] overflow-visible">
-        <line
-          x1={centerX}
-          y1={startY}
-          x2={centerX}
-          y2={endY}
-          stroke="rgba(255, 255, 255, 0.4)"
-          strokeWidth="2"
-          strokeDasharray="4 4"
-        />
-      </svg>
+          {/* 3. Logout Icon at the end of the straight line */}
+          <div
+            style={{
+              position: "fixed",
+              top: endY,
+              left: centerX - 20,
+              width: 40,
+              height: 40,
+              zIndex: 102,
+            }}
+            className="flex items-center justify-center rounded-full bg-white/10 border border-white/20 text-white shadow-xl backdrop-blur-sm cursor-pointer hover:bg-white/20 transition-all"
+            onClick={() => {
+              logout();
+              onClose();
+            }}
+          >
+            {user ? <LogOut size={20} /> : <LogIn size={20} />}
+          </div>
 
-      {/* 3. Logout Icon at the end of the straight line */}
-      <div 
-        style={{
-          position: "fixed",
-          top: endY,
-          left: centerX - 20, 
-          width: 40,
-          height: 40,
-          zIndex: 102,
-        }}
-        className="flex items-center justify-center rounded-full bg-white/10 border border-white/20 text-white shadow-xl backdrop-blur-sm cursor-pointer hover:bg-white/20 transition-all"
-        onClick={() => {
-            logout();
-            onClose();
-        }}
-      >
-        {user ? <LogOut size={20} /> : <LogIn size={20} />}
-      </div>
-
-      {/* 4. Active Profile Image */}
-      <div 
-        style={{
-          position: "fixed",
-          top: imgTop,
-          left: imgLeft,
-          width: IMAGE_SIZE,
-          height: IMAGE_SIZE,
-          zIndex: 102,
-        }}
-      >
-        <img
-          src={user?.avatar || "./default_avatar.png"}
-          className="w-full h-full rounded-full border-4 border-[#191919] shadow-2xl object-cover cursor-pointer"
-          onClick={onClose}
-          alt="Active Profile"
-        />
-      </div>
+          {/* 4. Active Profile Image */}
+          <div
+            style={{
+              position: "fixed",
+              top: imgTop,
+              left: imgLeft,
+              width: IMAGE_SIZE,
+              height: IMAGE_SIZE,
+              zIndex: 102,
+            }}
+          >
+            <img
+              src={user?.avatar || "./default_avatar.png"}
+              className="w-full h-full rounded-full border-4 border-[#191919] shadow-2xl object-cover cursor-pointer"
+              onClick={onClose}
+              alt="Active Profile"
+            />
+          </div>
+        </>
+      )}
 
       {/* 5. Account Selection Row - Shifted downward subtly (+6px) for pristine visual balance */}
       <div
         style={{
           position: "fixed",
-          top: imgTop + 6, 
+          top: imgTop + 6,
           left: imgLeft + IMAGE_SIZE + 20,
           zIndex: 102,
         }}
