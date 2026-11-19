@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { useSocket } from "./SocketContext";
 import axios from "axios";
 import { useUser } from "./user";
+import { registerAndInitializeE2EE } from "../lib/e2ee/registerDevice";
 
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
@@ -37,6 +38,96 @@ export function UsersProvider({ children }: { children: React.ReactNode }) {
   const socket = useSocket();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [e2eeDeviceId, setE2eeDeviceId] = useState<number | null>(null);
+
+
+  useEffect(() => {
+    const userId = user?._id;
+
+    if (!userId) {
+      setE2eeDeviceId(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const initializeE2EE = async () => {
+      try {
+        const result = await registerAndInitializeE2EE(
+          String(userId)
+        );
+
+        if (cancelled) return;
+
+        setE2eeDeviceId(result.deviceId);
+
+        console.info("[E2EE] Device registration completed.", {
+          deviceId: result.deviceId,
+          registered: result.registered,
+          existing: result.existing,
+        });
+
+        console.info("[E2EE] Local encryption client is ready.");
+      } catch (error) {
+        if (!cancelled) {
+          setE2eeDeviceId(null);
+          console.error("[E2EE] Device initialization failed:", error);
+        }
+      }
+    };
+
+    initializeE2EE();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?._id]);
+
+  useEffect(() => {
+  if (!socket || !user?._id || !e2eeDeviceId) {
+    return;
+  }
+
+  const bindDevice = () => {
+    console.info("[E2EE] Binding socket to device:", e2eeDeviceId);
+
+    socket.emit(
+      "e2ee:bind-device",
+      e2eeDeviceId,
+      (response: {
+        success: boolean;
+        deviceId?: number;
+        message?: string;
+      }) => {
+        if (!response?.success) {
+          console.error(
+            "[E2EE] Socket device binding failed:",
+            response?.message
+          );
+          return;
+        }
+
+        console.info("[E2EE] Socket successfully bound:", {
+          deviceId: response.deviceId,
+          socketId: socket.id,
+        });
+      }
+    );
+  };
+
+  // Handle an already-connected socket.
+  if (socket.connected) {
+    bindDevice();
+  }
+
+  // Handle initial connection and reconnections.
+  socket.on("connect", bindDevice);
+
+  return () => {
+    socket.off("connect", bindDevice);
+  };
+}, [socket, user?._id, e2eeDeviceId]);
+
 
   useEffect(() => {
     if (!user) {

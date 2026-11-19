@@ -22,6 +22,10 @@ export default defineConfig({
       "@kixelated/hang",
       "@ffmpeg/ffmpeg",
       "@ffmpeg/util",
+      "@open-e2ee/signal-protocol-sdk"
+    ],
+    include: [
+      "@open-e2ee/signal-protocol-sdk > async-lock",
     ],
   },
 

@@ -5,28 +5,70 @@ import verifyToken from "../middlewares/authMiddleware.js";
 const router = express.Router();
 
 // Start or get chat between current user & receiver
+
 router.post("/start", verifyToken, async (req, res) => {
   try {
-    const senderId = req.user.id; // from auth middleware
+    const senderId = req.user.id;
     const { receiverId } = req.body;
-    console.log("Chat debug");
-    console.log("Sender ID:", senderId);
-    console.log("Receiver ID:", receiverId);
-    if (senderId === receiverId) {
-      return res.status(400).json({ message: "Cannot chat with yourself" });
+
+    if (!receiverId) {
+      return res.status(400).json({
+        message: "Receiver ID is required",
+      });
     }
-    // ALWAYS sort participants to maintain consistency
-    const participants = [senderId, receiverId].sort();
+
+    if (senderId.toString() === receiverId.toString()) {
+      return res.status(400).json({
+        message: "Cannot chat with yourself",
+      });
+    }
+
+    // Sort participant IDs to generate a consistent chat key.
+    const participants = [senderId.toString(), receiverId.toString()].sort();
     const chatKey = participants.join("_");
-    // Lookup using the indexed string
-    const chat = await Chat.findOne({ chatKey }).lean();
-    console.log("chat", chat);
-    res.json(chat || null);
+
+    // Find an existing chat or create a new pending chat.
+const dbStart = performance.now();
+
+const chat = await Chat.findOneAndUpdate(
+  { chatKey },
+  {
+    $setOnInsert: {
+      participants,
+      chatKey,
+      status: "pending",
+      requestedBy: senderId,
+    },
+  },
+  {
+    new: true,
+    upsert: true,
+    setDefaultsOnInsert: true,
+    runValidators: true,
+  }
+)
+  .select("_id status requestedBy")
+  .lean();
+
+console.log(
+  `[CHAT PERF] Chat database operation: ${
+    (performance.now() - dbStart).toFixed(2)
+  }ms`
+);
+
+return res.status(200).json({
+  success: true,
+  chat,
+});
   } catch (err) {
-    console.error("Chat start error:", err);
-    res.status(500).json({ message: "Failed to start chat" });
+    console.error("[Chat Start Error]:", err);
+
+    return res.status(500).json({
+      message: "Failed to start chat",
+    });
   }
 });
+
 
 router.get("/my-chats", verifyToken, async (req, res) => {
   try {

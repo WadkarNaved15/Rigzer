@@ -5,6 +5,8 @@ import { Message } from "./types";
 
 interface ChatInputProps {
   isMaximized: boolean;
+  isChatInitializing: boolean;
+  currentChatId: string | null;
   message: string;
   onMessageChange: (value: string) => void;
   onSend: () => void;
@@ -25,6 +27,8 @@ const MAX_HEIGHT = 160;
 
 const ChatInput: React.FC<ChatInputProps> = ({
   isMaximized,
+  isChatInitializing,
+  currentChatId,
   message,
   onMessageChange,
   onSend,
@@ -241,7 +245,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
           <button
             type="button"
             onClick={onFileButtonClick}
-            disabled={!canSendMessages}
+            disabled={!canSendMessages || isChatInitializing ||
+  !currentChatId ||
+  !message.trim()}
             className="
               shrink-0
               w-9 h-9

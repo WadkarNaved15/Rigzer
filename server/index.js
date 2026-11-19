@@ -25,6 +25,10 @@ import cacheService from "./services/cacheService.js";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import Session from "./models/Session.js";
+import E2EEDevice from "./models/E2EEDevice.js";
 
 // ✅ Import your existing Redis client
 import redisClient from "./config/redis.js";
@@ -76,6 +80,8 @@ import pocketRoutes from "./routes/pocket.js";
 import creatorAnalyticsRoutes from "./routes/CreatorAnalytics.js";
 import analyticsRoutes from "./routes/analytics.js"
 import gamePostRoutes from "./routes/gamePosts.js"
+import chatEncryptionRoutes from "./routes/chatEncryptionRoutes.js";
+import e2eeRoutes from "./routes/e2eeRoutes.js";
 
 import streamProxyRouter, { handleWsUpgrade } from "./routes/streamProxy.js";
 import adminCreditsRoutes from "./routes/adminCredits.js";
@@ -398,6 +404,8 @@ app.use("/api/pockets", pocketRoutes);
 app.use("/api/creatorAnalytics", creatorAnalyticsRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/gamePosts", gamePostRoutes)
+app.use("/api/chat/encryption", chatEncryptionRoutes);
+app.use("/api/e2ee", e2eeRoutes);
 
 // Admin routes (protected by your isAdmin middleware)
 app.use("/api/admin", adminRouter);
@@ -484,6 +492,89 @@ const io = new Server(server, {
   },
 });
 
+app.set("io", io);
+
+
+function getCookieValue(cookieHeader, name) {
+  if (!cookieHeader) return null;
+
+  const cookie = cookieHeader
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`));
+
+  if (!cookie) return null;
+
+  try {
+    return decodeURIComponent(cookie.substring(name.length + 1));
+  } catch {
+    return null;
+  }
+}
+
+io.use(async (socket, next) => {
+  try {
+    const cookieHeader = socket.handshake.headers.cookie;
+
+    const token = getCookieValue(cookieHeader, "token");
+    const deviceId = getCookieValue(cookieHeader, "device_id");
+
+    if (!token || !deviceId) {
+      return next(new Error("Authentication required"));
+    }
+
+    let decoded;
+
+    try {
+      decoded = jwt.verify(
+        token,
+        process.env.ACCESS_TOKEN_SECRET
+      );
+    } catch {
+      decoded = jwt.verify(
+        token,
+        process.env.JWT_SECRET
+      );
+    }
+
+    const tokenHash = crypto
+      .createHash("sha256")
+      .update(token)
+      .digest("hex");
+
+    const session = await Session.findOne({
+      tokenHash,
+      deviceId,
+    });
+
+    if (!session) {
+      return next(new Error("Session expired"));
+    }
+
+    const user = await User.findById(decoded.id).select("-password");
+
+    if (!user) {
+      return next(new Error("User not found"));
+    }
+
+    session.lastUsed = new Date();
+    await session.save();
+
+    // Identity comes from the verified JWT, never from client input.
+    socket.userId = user._id.toString();
+    socket.data.user = user;
+
+    // Browser installation ID comes from the authenticated cookie.
+    socket.data.browserDeviceId = deviceId;
+
+    next();
+  } catch (err) {
+    console.error("Socket authentication error:", err);
+    next(new Error("Authentication failed"));
+  }
+});
+
+
 // Attach Redis adapter to Socket.IO
 // This makes io.to(chatId).emit() and room membership work across all backends
 io.adapter(createAdapter(redisIoPubClient, redisIoSubClient));
@@ -493,71 +584,385 @@ app.use("/api/internal-notify", internalNotificationRoutes(io));
 // ============================================
 // SOCKET.IO EVENT HANDLERS
 // ============================================
-io.on("connection", (socket) => {
-  console.log("Socket connected:", socket.id);
 
-  // Join user presence
-  socket.on("join", async (userId) => {
-    socket.userId = userId;
-    socket.join(`user-${userId}`);
+io.on("connection", async (socket) => {
+  const senderId = socket.userId;
 
-    // Add to Redis presence set
+  console.log("Authenticated socket connected:", socket.id, senderId);
+
+  // Every authenticated socket automatically joins its own user room.
+  socket.join(`user-${senderId}`);
+
+  // ---------------------------------------
+// Bind authenticated socket to E2EE device
+// ---------------------------------------
+socket.on("e2ee:bind-device", async (requestedDeviceId, ack) => {
+  try {
+    const deviceId = Number(requestedDeviceId);
+
+    if (
+      !Number.isInteger(deviceId) ||
+      deviceId < 1 ||
+      deviceId > 5
+    ) {
+      return ack?.({
+        success: false,
+        message: "Invalid E2EE device ID",
+      });
+    }
+
+    const browserDeviceId = socket.data.browserDeviceId;
+
+    if (!browserDeviceId) {
+      return ack?.({
+        success: false,
+        message: "Browser device authentication missing",
+      });
+    }
+
+    // Verify that this numeric E2EE device belongs to
+    // the authenticated user and this browser installation.
+    const device = await E2EEDevice.findOne({
+      userId: senderId,
+      deviceId,
+      browserDeviceId,
+      enabled: true,
+    })
+      .select("_id deviceId registered")
+      .lean();
+
+    if (!device) {
+      return ack?.({
+        success: false,
+        message: "E2EE device ownership verification failed",
+      });
+    }
+
+    // Remove any previous device-specific room on this socket.
+    const previousDeviceId = socket.data.e2eeDeviceId;
+
+    if (previousDeviceId) {
+      socket.leave(
+        `e2ee-${senderId}-${previousDeviceId}`
+      );
+    }
+
+    const room = `e2ee-${senderId}-${device.deviceId}`;
+
+    socket.join(room);
+
+    socket.data.e2eeDeviceId = device.deviceId;
+
+    console.log("[E2EE] Socket bound to device:", {
+      userId: senderId,
+      deviceId: device.deviceId,
+      socketId: socket.id,
+      registered: device.registered,
+    });
+
+    ack?.({
+      success: true,
+      deviceId: device.deviceId,
+    });
+  } catch (error) {
+    console.error("[E2EE] Device binding failed:", error);
+
+    ack?.({
+      success: false,
+      message: "Unable to bind E2EE device",
+    });
+  }
+});
+
+  // -------------------------------
+  // User presence
+  // -------------------------------
+  try {
+    await redisClient.sAdd("online-users", senderId);
+
+    const onlineUsers = await redisClient.sMembers("online-users");
+
+    io.emit("user-online", senderId);
+    socket.emit("online-users", onlineUsers);
+  } catch (err) {
+    console.error("Presence initialization error:", err);
+  }
+
+  // -------------------------------
+  // Join chat room
+  // -------------------------------
+  socket.on("join_chat", async (chatId, ack) => {
     try {
-      await redisClient.sAdd(`online-users`, userId);
-      const onlineUsers = await redisClient.sMembers(`online-users`);
+      if (!mongoose.isValidObjectId(chatId)) {
+        return ack?.({ success: false, message: "Invalid chat ID" });
+      }
 
-      console.log("User joined:", userId);
+      const chat = await Chat.findById(chatId)
+        .select("participants status")
+        .lean();
 
-      // Emit to everyone that this user is online
-      io.emit("user-online", userId);
+      const isParticipant = chat?.participants?.some(
+        (id) => id.toString() === senderId
+      );
 
-      // Send full list to newly connected socket
-      socket.emit("online-users", onlineUsers);
+      if (!chat || !isParticipant || chat.status === "declined") {
+        return ack?.({
+          success: false,
+          message: "Chat access denied",
+        });
+      }
+
+      socket.join(chatId.toString());
+
+      ack?.({ success: true });
+
     } catch (err) {
-      console.error("Error adding user to presence:", err);
+      console.error("join_chat error:", err);
+      ack?.({ success: false, message: "Unable to join chat" });
     }
   });
 
-  // Join chat room
-  socket.on("join_chat", (chatId) => {
-    socket.join(chatId);
-    console.log("Joined chat room:", chatId);
-  });
-
+  // -------------------------------
   // Leave chat room
-  socket.on("leave_chat", (chatId) => {
-    socket.leave(chatId);
-    console.log("Left chat room:", chatId);
+  // -------------------------------
+  socket.on("leave_chat", async (chatId, ack) => {
+    try {
+      if (!mongoose.isValidObjectId(chatId)) {
+        return ack?.({ success: false, message: "Invalid chat ID" });
+      }
+
+      const chat = await Chat.findById(chatId)
+        .select("participants")
+        .lean();
+
+      const isParticipant = chat?.participants?.some(
+        (id) => id.toString() === senderId
+      );
+
+      if (!chat || !isParticipant) {
+        return ack?.({
+          success: false,
+          message: "Chat access denied",
+        });
+      }
+
+      socket.leave(chatId.toString());
+
+      ack?.({ success: true });
+
+    } catch (err) {
+      console.error("leave_chat error:", err);
+      ack?.({ success: false, message: "Unable to leave chat" });
+    }
   });
 
-  // Send Post
-  socket.on("send_post", async (data) => {
+  // -------------------------------
+  // Send encrypted message
+  // -------------------------------
+  socket.on("send-message", async (msg, ack) => {
     try {
-      const { chatId, senderId, receiverId, postId } = data;
+      if (!msg || typeof msg !== "object") {
+        return ack?.({
+          success: false,
+          message: "Invalid message",
+        });
+      }
 
-      let finalChatId = chatId;
+      const {
+        chatId,
+        receiverId: requestedReceiverId,
+        encryptedPayload,
+        encryption,
+        messageType = "text",
+        mediaUrl = null,
+        mediaType = null,
+        replyTo = null,
+        tempId,
+      } = msg;
+
+      // Never accept plaintext or legacy media keys.
+      if (
+        Object.hasOwn(msg, "text") ||
+        Object.hasOwn(msg, "mediaKey") ||
+        Object.hasOwn(msg, "sharedPostId")
+      ) {
+        return ack?.({
+          success: false,
+          message: "Plaintext messages are not supported",
+        });
+      }
+
+      // Validate Signal envelope.
+      if (
+        encryption?.protocol !== "signal" ||
+        encryption?.version !== 1 ||
+        typeof encryptedPayload?.ciphertext !== "string" ||
+        !encryptedPayload.ciphertext.length ||
+        Buffer.byteLength(encryptedPayload.ciphertext, "utf8") > 1024 * 1024 ||
+        !["SignalMessage", "PreKeySignalMessage"].includes(
+          encryptedPayload.signalType
+        ) ||
+        typeof encryptedPayload.deviceId !== "string" ||
+        !encryptedPayload.deviceId.trim()
+      ) {
+        return ack?.({
+          success: false,
+          message: "Invalid encrypted message payload",
+        });
+      }
+
+      if (!["text", "media", "post"].includes(messageType)) {
+        return ack?.({
+          success: false,
+          message: "Invalid message type",
+        });
+      }
+
+      if (messageType === "media") {
+        if (
+          typeof mediaUrl !== "string" ||
+          !mediaUrl ||
+          !["image", "video"].includes(mediaType)
+        ) {
+          return ack?.({
+            success: false,
+            message: "Invalid encrypted media details",
+          });
+        }
+      } else if (mediaUrl || mediaType) {
+        return ack?.({
+          success: false,
+          message: "Media details are only allowed for media messages",
+        });
+      }
+
       let chat = null;
       let isNewChat = false;
+      let finalChatId;
 
-      // ----------------------------------------
+      // -------------------------------
       // Find or create chat
-      // ----------------------------------------
-      if (!finalChatId) {
-        const participants = [senderId, receiverId].sort();
+      // -------------------------------
+      if (chatId) {
+        if (!mongoose.isValidObjectId(chatId)) {
+          return ack?.({
+            success: false,
+            message: "Invalid chat ID",
+          });
+        }
+
+        chat = await Chat.findById(chatId)
+          .select("participants status")
+          .lean();
+
+        const isParticipant = chat?.participants?.some(
+          (id) => id.toString() === senderId
+        );
+
+        if (!chat || !isParticipant) {
+          return ack?.({
+            success: false,
+            message: "Chat not found or access denied",
+          });
+        }
+
+      } else {
+        // receiverId is only used when creating/finding a new chat.
+        if (
+          !mongoose.isValidObjectId(requestedReceiverId) ||
+          requestedReceiverId.toString() === senderId
+        ) {
+          return ack?.({
+            success: false,
+            message: "Invalid recipient",
+          });
+        }
+
+        const recipient = await User.findById(requestedReceiverId)
+          .select("_id")
+          .lean();
+
+        if (!recipient) {
+          return ack?.({
+            success: false,
+            message: "Recipient not found",
+          });
+        }
+
+        const participants = [senderId, requestedReceiverId.toString()].sort();
         const chatKey = participants.join("_");
 
-        chat = await Chat.findOne({ chatKey }).lean();
+        chat = await Chat.findOne({ chatKey })
+          .select("participants status")
+          .lean();
 
         if (!chat) {
-          chat = await Chat.create({
-            participants,
-            chatKey,
-            requestedBy: senderId,
-            status: "pending",
-          });
+          try {
+            chat = await Chat.create({
+              participants,
+              chatKey,
+              requestedBy: senderId,
+              status: "pending",
+            });
 
-          isNewChat = true;
+            isNewChat = true;
 
+          } catch (createError) {
+            // Handle a possible concurrent chat creation.
+            if (createError.code !== 11000) {
+              throw createError;
+            }
+
+            chat = await Chat.findOne({ chatKey })
+              .select("participants status")
+              .lean();
+          }
+        }
+      }
+
+      if (!chat) {
+        return ack?.({
+          success: false,
+          message: "Unable to resolve chat",
+        });
+      }
+
+      if (chat.status === "declined") {
+        return ack?.({
+          success: false,
+          message: "This chat has been declined",
+        });
+      }
+
+      if (chat.participants.length !== 2) {
+        return ack?.({
+          success: false,
+          message: "Only one-to-one chats are supported",
+        });
+      }
+
+      finalChatId = chat._id.toString();
+
+      // Derive recipient from the actual chat participants.
+      const receiverId = chat.participants.find(
+        (id) => id.toString() !== senderId
+      )?.toString();
+
+      if (!receiverId) {
+        return ack?.({
+          success: false,
+          message: "Unable to resolve recipient",
+        });
+      }
+
+      // Join the sender to the authorized chat room.
+      socket.join(finalChatId);
+
+      // -------------------------------
+      // Notify about a newly created chat
+      // -------------------------------
+      if (isNewChat) {
+        try {
           await sendEventToQueue({
             type: "CHAT_REQUEST",
             actorId: senderId,
@@ -565,30 +970,10 @@ io.on("connection", (socket) => {
             chatId: chat._id,
             createdAt: new Date(),
           });
+        } catch (queueError) {
+          console.error("Chat request queue error:", queueError);
         }
 
-        finalChatId = chat._id;
-        socket.join(finalChatId.toString());
-        console.log("Joined chat room:", finalChatId);
-      } else {
-        // Existing chat → fetch only what we need
-        chat = await Chat.findById(finalChatId)
-          .select("status")
-          .lean();
-      }
-
-      // ----------------------------------------
-      // Save message
-      // ----------------------------------------
-      const message = await Message.create({
-        chatId: finalChatId,
-        receiverId,
-        senderId,
-        messageType: "post",
-        sharedPostId: postId,
-      });
-
-      if (isNewChat) {
         const sender = await User.findById(senderId)
           .select("_id username avatar")
           .lean();
@@ -607,319 +992,201 @@ io.on("connection", (socket) => {
         }
       }
 
-      // ----------------------------------------
-      // Emit message
-      // ----------------------------------------
-      const messageData = {
-        _id: message._id,
-        chatId: finalChatId,
-        senderId,
-        receiverId,
-        messageType: "post",
-        sharedPostId: postId,
-        createdAt: message.createdAt,
-      };
-      const cacheKey = `chat:messages:${finalChatId}`;
-      try {
-        const pipeline = redisClient.multi();
-
-        // Add newest message
-        pipeline.rPush(cacheKey, JSON.stringify(messageData));
-
-        // Keep only the latest 31 messages
-        pipeline.lTrim(cacheKey, -31, -1);
-
-        // Refresh cache expiry
-        pipeline.expire(cacheKey, 60 * 60 * 6);
-
-        await pipeline.exec();
-      } catch (err) {
-        console.error("Redis chat cache update failed:", err);
-      }
-
-      io.to(finalChatId).emit("receive-message", messageData);
-
-      // ----------------------------------------
-      // Emit unread badge
-      // ----------------------------------------
-      if (chat?.status !== "declined") {
-        const receiverOnline = await redisClient.sIsMember(
-          "online-users",
-          receiverId
-        );
-
-        if (receiverOnline) {
-          io.to(`user-${receiverId}`).emit("new-unread-message", {
-            senderId,
-            chatId: finalChatId,
-          });
-        }
-      }
-    } catch (err) {
-      console.error("send_post error:", err);
-    }
-  });
-
-  // Normal message
-  socket.on("send-message", async (msg, ack) => {
-    try {
-      let {
-        chatId,
-        senderId,
-        receiverId,
-        text,
-        mediaUrl,
-        mediaKey,
-        mediaType,
-        replyTo,
-        tempId,
-      } = msg;
-
-      let finalChatId = chatId;
-      let chat = null;
-      let isNewChat = false;
-
-      // ----------------------------------------
-      // Find or create chat
-      // ----------------------------------------
-      if (!finalChatId) {
-        const participants = [senderId, receiverId].sort();
-        const chatKey = participants.join("_");
-
-        chat = await Chat.findOne({ chatKey }).lean();
-
-        if (!chat) {
-          chat = await Chat.create({
-            participants,
-            chatKey,
-            requestedBy: senderId,
-            status: "pending",
-          });
-
-          isNewChat = true;
-
-          await sendEventToQueue({
-            type: "CHAT_REQUEST",
-            actorId: senderId,
-            recipientId: receiverId,
-            chatId: chat._id,
-            createdAt: new Date(),
-          });
-        }
-
-        finalChatId = chat._id;
-        socket.join(finalChatId.toString());
-        console.log("Joined chat room:", finalChatId);
-      } else {
-        // Existing chat → fetch only the fields we actually need
-        chat = await Chat.findById(finalChatId)
-          .select("status")
-          .lean();
-      }
-
-      // Tell the sender the authoritative chat ID
-      if (typeof ack === "function") {
-        ack({
-          success: true,
-          chatId: finalChatId.toString(),
-        });
-      }
-
-      // ----------------------------------------
-      // Resolve and validate reply
-      // ----------------------------------------
+      // -------------------------------
+      // Resolve reply target
+      // Store IDs only, never plaintext preview.
+      // -------------------------------
       let resolvedReplyTo = null;
 
       if (replyTo?.messageId) {
-        // Validate ObjectId before querying MongoDB
         if (!mongoose.isValidObjectId(replyTo.messageId)) {
-          console.warn("Invalid reply message ID:", replyTo.messageId);
-
-          return;
+          return ack?.({
+            success: false,
+            message: "Invalid reply message ID",
+          });
         }
 
         const repliedMessage = await Message.findOne({
           _id: replyTo.messageId,
           chatId: finalChatId,
         })
-          .select(
-            "_id senderId text messageType mediaType mediaUrl"
-          )
+          .select("_id senderId")
           .lean();
 
-        // The replied message must belong to the same chat.
         if (!repliedMessage) {
-          console.warn(
-            "Reply target not found or does not belong to this chat:",
-            replyTo.messageId
-          );
-
-          return;
+          return ack?.({
+            success: false,
+            message: "Reply message not found",
+          });
         }
 
         resolvedReplyTo = {
           messageId: repliedMessage._id,
           senderId: repliedMessage.senderId,
-          text: repliedMessage.text || null,
-          messageType: repliedMessage.messageType || "text",
-          mediaType: repliedMessage.mediaType || null,
-          mediaUrl: repliedMessage.mediaUrl || null,
         };
       }
 
-      // ----------------------------------------
-      // Save message
-      // ----------------------------------------
+      // -------------------------------
+      // Save encrypted message
+      // -------------------------------
       const message = await Message.create({
         chatId: finalChatId,
         senderId,
         receiverId,
-        text,
+
+        encryptedPayload,
+        encryption,
+
+        messageType,
         mediaUrl,
-        mediaKey,
         mediaType,
-        messageType: mediaUrl ? "media" : "text",
+
         replyTo: resolvedReplyTo,
+        seen: false,
       });
 
-      if (isNewChat) {
-        const sender = await User.findById(senderId)
-          .select("_id username avatar")
-          .lean();
-
-        if (sender) {
-          io.to(`user-${receiverId}`).emit("new-chat-request", {
-            chatId: finalChatId,
-            status: chat.status,
-            requestedBy: senderId,
-            user: {
-              id: sender._id,
-              name: sender.username,
-              avatar: sender.avatar || "",
-            },
-          });
-        }
+      // -------------------------------
+      // Invalidate legacy Redis cache
+      // Do not cache plaintext messages.
+      // -------------------------------
+      try {
+        await redisClient.del(`chat:messages:${finalChatId}`);
+      } catch (cacheError) {
+        console.error("Chat cache invalidation error:", cacheError);
       }
 
-      // ----------------------------------------
-      // Emit message
-      // ----------------------------------------
+      // -------------------------------
+      // Emit encrypted message
+      // -------------------------------
       const messageData = {
         _id: message._id,
         tempId,
         chatId: finalChatId,
         senderId,
         receiverId,
-        text,
+
+        encryptedPayload: message.encryptedPayload,
+        encryption: message.encryption,
+
+        messageType,
         mediaUrl,
-        mediaKey,
         mediaType,
-        messageType: mediaUrl ? "media" : "text",
+
         replyTo: message.replyTo || null,
+        seen: false,
         createdAt: message.createdAt,
       };
-      const cacheKey = `chat:messages:${finalChatId}`;
-
-      try {
-        const pipeline = redisClient.multi();
-
-        // Add newest message
-        pipeline.rPush(cacheKey, JSON.stringify(messageData));
-
-        // Keep only latest 31 messages
-        pipeline.lTrim(cacheKey, -31, -1);
-
-        // Refresh cache expiry
-        pipeline.expire(cacheKey, 60 * 60 * 6);
-
-        await pipeline.exec();
-      } catch (err) {
-        console.error("Redis chat cache update failed:", err);
-      }
 
       io.to(finalChatId).emit("receive-message", messageData);
 
-      // ----------------------------------------
-      // Emit unread badge
-      // ----------------------------------------
-      if (chat?.status !== "declined") {
-        const receiverOnline = await redisClient.sIsMember(
-          "online-users",
-          receiverId
-        );
+      io.to(`user-${receiverId}`).emit("new-unread-message", {
+        senderId,
+        chatId: finalChatId,
+      });
 
-        if (receiverOnline) {
-          io.to(`user-${receiverId}`).emit("new-unread-message", {
-            senderId,
-            chatId: finalChatId,
-          });
-        }
-      }
+      ack?.({
+        success: true,
+        chatId: finalChatId,
+        message: messageData,
+      });
+
     } catch (err) {
-      console.error("send-message error:", err);
+      console.error("Encrypted send-message error:", err);
+
+      ack?.({
+        success: false,
+        message: "Failed to send encrypted message",
+      });
     }
   });
-  // Deletion of message
-  socket.on("delete-message", async ({ messageId }) => {
+
+  // -------------------------------
+  // Legacy post event
+  // -------------------------------
+  // Post IDs must now be inside the encrypted payload.
+  socket.on("send_post", (_data, ack) => {
+    ack?.({
+      success: false,
+      message: "Use send-message with messageType 'post' and an encrypted payload",
+    });
+  });
+
+  // -------------------------------
+  // Delete message
+  // -------------------------------
+  socket.on("delete-message", async ({ messageId }, ack) => {
     try {
+      if (!mongoose.isValidObjectId(messageId)) {
+        return ack?.({
+          success: false,
+          message: "Invalid message ID",
+        });
+      }
+
       const message = await Message.findById(messageId);
 
-      if (!message) return;
-
-      // Security: only sender can delete
-      if (message.senderId.toString() !== socket.userId) {
-        console.log("Unauthorized delete attempt");
-        return;
+      if (!message) {
+        return ack?.({
+          success: false,
+          message: "Message not found",
+        });
       }
 
-      // Delete media from S3
-      if (message.mediaKey) {
-        await s3.send(
-          new DeleteObjectCommand({
-            Bucket: process.env.AWS_BUCKET_NAME,
-            Key: message.mediaKey,
-          })
-        );
+      if (message.senderId.toString() !== senderId) {
+        return ack?.({
+          success: false,
+          message: "You cannot delete this message",
+        });
       }
 
-      const chatId = message.chatId;
+      const chatId = message.chatId.toString();
 
       await Message.findByIdAndDelete(messageId);
 
-      // Invalidate Redis cache for this chat
-      await redisClient.del(`chat:messages:${chatId}`);
+      try {
+        await redisClient.del(`chat:messages:${chatId}`);
+      } catch (cacheError) {
+        console.error("Delete cache invalidation error:", cacheError);
+      }
 
-      io.to(chatId.toString()).emit("message-deleted", {
+      io.to(chatId).emit("message-deleted", {
         messageId,
         chatId,
       });
 
-      console.log("Message deleted:", messageId);
+      ack?.({ success: true });
+
     } catch (err) {
       console.error("Delete message error:", err);
+
+      ack?.({
+        success: false,
+        message: "Failed to delete message",
+      });
     }
   });
-  // Disconnect
-  socket.on("disconnect", async () => {
-    const userId = socket.userId;
-    if (!userId) return;
 
+  // -------------------------------
+  // Disconnect / presence cleanup
+  // -------------------------------
+  socket.on("disconnect", async () => {
     try {
-      // Check if this user has any other sockets connected
-      const sockets = await io.in(`user-${userId}`).fetchSockets();
+      const sockets = await io
+        .in(`user-${senderId}`)
+        .fetchSockets();
 
       if (sockets.length === 0) {
-        // No more sockets for this user, remove from presence
-        await redisClient.sRem(`online-users`, userId);
-        io.emit("user-offline", userId);
+        await redisClient.sRem("online-users", senderId);
+        io.emit("user-offline", senderId);
       }
     } catch (err) {
-      console.error("Error on disconnect:", err);
+      console.error("Disconnect presence error:", err);
     }
 
     console.log("Socket disconnected:", socket.id);
   });
 });
+
 
 // ============================================
 // STARTUP & INITIALIZATION

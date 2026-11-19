@@ -1,16 +1,20 @@
-
 import axios, {
   AxiosError,
   InternalAxiosRequestConfig,
 } from "axios";
 
+const BACKEND_URL = (
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:5000"
+).replace(/\/$/, "");
+
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_BACKEND_URL,
+  baseURL: BACKEND_URL,
   withCredentials: true,
 });
 
 const refreshClient = axios.create({
-  baseURL: import.meta.env.VITE_BACKEND_URL,
+  baseURL: BACKEND_URL,
   withCredentials: true,
 });
 

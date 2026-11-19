@@ -39,6 +39,7 @@ const sessionSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 sessionSchema.index({ userId: 1, deviceId: 1 });
+sessionSchema.index({ tokenHash: 1, deviceId: 1 });
 sessionSchema.index(
   { createdAt: 1 },
   { expireAfterSeconds: 30 * 24 * 60 * 60 } // 30 days

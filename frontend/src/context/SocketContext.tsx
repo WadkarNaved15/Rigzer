@@ -1,32 +1,55 @@
-import { createContext, useContext, useEffect, useState } from "react";
+
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { io, Socket } from "socket.io-client";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL || "http://localhost:5000";
 
 const SocketContext = createContext<Socket | null>(null);
 
-export const SocketProvider = ({ userId, children }: any) => {
+export const SocketProvider = ({
+  userId,
+  children,
+}: {
+  userId?: string;
+  children: React.ReactNode;
+}) => {
   const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      setSocket(null);
+      return;
+    }
 
     const newSocket = io(BACKEND_URL, {
       withCredentials: true,
       transports: ["websocket"],
-    });
-    newSocket.on("reconnect", () => {
-      newSocket.emit("join", userId);
+      reconnection: true,
     });
 
     newSocket.on("connect", () => {
-      newSocket.emit("join", userId);
+      console.log("[Socket] Connected:", newSocket.id);
+    });
+
+    newSocket.on("disconnect", (reason) => {
+      console.log("[Socket] Disconnected:", reason);
+    });
+
+    newSocket.on("connect_error", (error) => {
+      console.error("[Socket] Connection error:", error.message);
     });
 
     setSocket(newSocket);
 
     return () => {
       newSocket.disconnect();
+      setSocket(null);
     };
   }, [userId]);
 
@@ -38,6 +61,5 @@ export const SocketProvider = ({ userId, children }: any) => {
 };
 
 export const useSocket = () => {
-  const socket = useContext(SocketContext);
-  return socket;
+  return useContext(SocketContext);
 };

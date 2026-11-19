@@ -1,46 +1,248 @@
+
 import express from "express";
+import mongoose from "mongoose";
+
 import Message from "../models/Message.js";
 import Chat from "../models/Chat.js";
 import verifyToken from "../middlewares/authMiddleware.js";
-import mongoose from "mongoose";
-import redisClient from "../config/redis.js";
+
 const router = express.Router();
-const CHAT_CACHE_LIMIT = 30;
-// Send a message
+
+const DEFAULT_LIMIT = 30;
+const MAX_LIMIT = 50;
+
+// --------------------------------------------------
+// Helpers
+// --------------------------------------------------
+
+async function getUserChat(chatId, userId) {
+  if (!mongoose.isValidObjectId(chatId)) {
+    return null;
+  }
+
+  return Chat.findOne({
+    _id: chatId,
+    participants: userId,
+  })
+    .select("_id status")
+    .lean();
+}
+
+function validateEncryptedPayload(payload, encryption) {
+  if (!payload || !encryption) return false;
+
+  if (encryption.protocol !== "signal") return false;
+  if (encryption.version !== 1) return false;
+
+  if (
+    typeof payload.ciphertext !== "string" ||
+    !payload.ciphertext.length
+  ) {
+    return false;
+  }
+
+  if (
+    !["SignalMessage", "PreKeySignalMessage"].includes(
+      payload.signalType
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    typeof payload.deviceId !== "string" ||
+    !payload.deviceId.trim()
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+// --------------------------------------------------
+// Send encrypted message
+// POST /api/messages
+// --------------------------------------------------
+
 router.post("/", verifyToken, async (req, res) => {
   try {
     const senderId = req.user.id;
-    const { chatId, text, receiverId } = req.body;
+
+    const {
+      chatId,
+      encryptedPayload,
+      encryption,
+      messageType = "text",
+      mediaUrl = null,
+      mediaType = null,
+      replyTo = null,
+    } = req.body;
+
+    if (!mongoose.isValidObjectId(chatId)) {
+      return res.status(400).json({
+        message: "Invalid chat ID",
+      });
+    }
+
+    // Reject plaintext messages.
+    if (req.body.text || req.body.mediaKey || req.body.sharedPostId) {
+      return res.status(400).json({
+        message: "Plaintext messages are not supported",
+      });
+    }
+
+    if (!validateEncryptedPayload(encryptedPayload, encryption)) {
+      return res.status(400).json({
+        message: "Invalid encrypted message payload",
+      });
+    }
+
+    if (!["text", "media", "post"].includes(messageType)) {
+      return res.status(400).json({
+        message: "Invalid message type",
+      });
+    }
+
+    if (
+      mediaType !== null &&
+      !["image", "video"].includes(mediaType)
+    ) {
+      return res.status(400).json({
+        message: "Invalid media type",
+      });
+    }
+
+    if (messageType === "media" && !mediaUrl) {
+      return res.status(400).json({
+        message: "Media URL is required",
+      });
+    }
+
+    if (messageType !== "media" && mediaUrl) {
+      return res.status(400).json({
+        message: "Media URL is only allowed for media messages",
+      });
+    }
+
+    const chat = await getUserChat(chatId, senderId);
+
+    if (!chat) {
+      return res.status(403).json({
+        message: "Chat not found or access denied",
+      });
+    }
+
+    if (chat.status === "declined") {
+      return res.status(403).json({
+        message: "This chat has been declined",
+      });
+    }
+    const participants = await Chat.findById(chatId)
+      .select("participants")
+      .lean();
+
+    if (!participants || participants.participants.length !== 2) {
+      return res.status(400).json({
+        message: "This endpoint currently supports one-to-one chats only",
+      });
+    }
+
+    // Never trust receiverId supplied by the frontend.
+    const receiverId = participants.participants.find(
+      (id) => id.toString() !== senderId.toString()
+    );
+
+    if (!receiverId) {
+      return res.status(400).json({
+        message: "Unable to resolve chat recipient",
+      });
+    }
+
+    // Validate reply target and store IDs only.
+    let resolvedReplyTo = null;
+
+    if (replyTo?.messageId) {
+      if (!mongoose.isValidObjectId(replyTo.messageId)) {
+        return res.status(400).json({
+          message: "Invalid reply message ID",
+        });
+      }
+
+      const repliedMessage = await Message.findOne({
+        _id: replyTo.messageId,
+        chatId,
+      })
+        .select("_id senderId")
+        .lean();
+
+      if (!repliedMessage) {
+        return res.status(400).json({
+          message: "Reply message not found",
+        });
+      }
+
+      resolvedReplyTo = {
+        messageId: repliedMessage._id,
+        senderId: repliedMessage.senderId,
+      };
+    }
 
     const message = await Message.create({
       chatId,
       senderId,
       receiverId,
-      text,
-      seen: false
+
+      encryptedPayload,
+      encryption,
+
+      messageType,
+      mediaUrl,
+      mediaType,
+
+      replyTo: resolvedReplyTo,
+
+      seen: false,
     });
 
-    res.json(message);
+    // Clear any old cache entry, including legacy plaintext data.
+    // Socket.IO will also need to invalidate this cache.
+    try {
+      await import("../config/redis.js").then(({ default: redis }) =>
+        redis.del(`chat:messages:${chatId}`)
+      );
+    } catch (cacheError) {
+      console.error("Message cache invalidation failed:", cacheError);
+    }
+
+    return res.status(201).json({
+      success: true,
+      message,
+    });
   } catch (err) {
-    console.error("Send message error:", err);
-    res.status(500).json({ message: "Failed to send message" });
+    console.error("Send encrypted message error:", err);
+
+    return res.status(500).json({
+      message: "Failed to send encrypted message",
+    });
   }
 });
+
+// --------------------------------------------------
 // Get unread message counts
+// GET /api/messages/unread-counts
+// --------------------------------------------------
+
 router.get("/unread-counts", verifyToken, async (req, res) => {
   try {
     const userId = new mongoose.Types.ObjectId(req.user.id);
 
     const unread = await Message.aggregate([
-      // Only unread messages for this receiver
       {
         $match: {
           receiverId: userId,
           seen: false,
         },
       },
-
-      // Group by chat + sender first
       {
         $group: {
           _id: {
@@ -50,8 +252,6 @@ router.get("/unread-counts", verifyToken, async (req, res) => {
           count: { $sum: 1 },
         },
       },
-
-      // Lookup chat only once per chat
       {
         $lookup: {
           from: "chats",
@@ -60,132 +260,102 @@ router.get("/unread-counts", verifyToken, async (req, res) => {
           as: "chat",
         },
       },
-
       {
         $unwind: "$chat",
       },
-
-      // Ignore declined chats
       {
         $match: {
           "chat.status": { $ne: "declined" },
+          "chat.participants": userId,
         },
       },
-
-      // Combine counts from different chats with the same sender
       {
         $group: {
           _id: "$_id.senderId",
-          count: {
-            $sum: "$count",
-          },
+          count: { $sum: "$count" },
         },
       },
     ]);
 
-    res.json(unread);
+    return res.json(unread);
   } catch (err) {
     console.error("Unread count error:", err);
-    res.status(500).json({
+
+    return res.status(500).json({
       message: "Failed to fetch unread counts",
     });
   }
 });
 
+// --------------------------------------------------
 // Mark messages as seen
+// PUT /api/messages/seen/:chatId
+// --------------------------------------------------
+
 router.put("/seen/:chatId", verifyToken, async (req, res) => {
-  const userId = req.user.id;
-  const { chatId } = req.params;
-
-  const result = await Message.updateMany(
-    {
-      chatId,
-      senderId: { $ne: userId },
-      seen: false,
-    },
-    {
-      $set: {
-        seen: true,
-        seenAt: new Date(),
-      },
-    }
-  );
-
-  return res.json({
-    success: true,
-    modifiedCount: result.modifiedCount,
-  });
-
-  res.json({ success: true });
-});
-
-// Get all messages for a chat
-router.get("/:chatId", async (req, res) => {
   try {
+    const userId = req.user.id;
     const { chatId } = req.params;
 
+    const chat = await getUserChat(chatId, userId);
+
+    if (!chat) {
+      return res.status(403).json({
+        message: "Chat not found or access denied",
+      });
+    }
+
+    const result = await Message.updateMany(
+      {
+        chatId,
+        receiverId: userId,
+        seen: false,
+      },
+      {
+        $set: {
+          seen: true,
+          seenAt: new Date(),
+        },
+      }
+    );
+
+    return res.json({
+      success: true,
+      modifiedCount: result.modifiedCount,
+    });
+  } catch (err) {
+    console.error("Mark messages seen error:", err);
+
+    return res.status(500).json({
+      message: "Failed to mark messages as seen",
+    });
+  }
+});
+
+// --------------------------------------------------
+// Get messages for a chat
+// GET /api/messages/:chatId
+// --------------------------------------------------
+
+router.get("/:chatId", verifyToken, async (req, res) => {
+  try {
+    const { chatId } = req.params;
+    const userId = req.user.id;
+
+    const chat = await getUserChat(chatId, userId);
+
+    if (!chat) {
+      return res.status(403).json({
+        message: "Chat not found or access denied",
+      });
+    }
+
     const limit = Math.min(
-      parseInt(req.query.limit, 10) || CHAT_CACHE_LIMIT,
-      50
+      Math.max(parseInt(req.query.limit, 10) || DEFAULT_LIMIT, 1),
+      MAX_LIMIT
     );
 
     const before = req.query.before;
-    const cacheKey = `chat:messages:${chatId}`;
-
-    // ====================================================
-    // FIRST PAGE -> Try Redis Cache
-    // ====================================================
-    if (!before && limit === CHAT_CACHE_LIMIT) {
-      console.log("Cache hit for chat:", chatId);
-      // Read one extra message exactly like Mongo does
-      // Read the newest cache window instead of the oldest
-      const totalMessages = await redisClient.lLen(cacheKey);
-
-      const start = Math.max(
-        0,
-        totalMessages - (CHAT_CACHE_LIMIT + 1)
-      );
-
-      const end = totalMessages - 1;
-
-      const cached = await redisClient.lRange(
-        cacheKey,
-        start,
-        end
-      );
-
-      if (cached.length > 0) {
-        const hasMore = cached.length > CHAT_CACHE_LIMIT;
-
-        if (hasMore) {
-          cached.shift();
-        }
-
-        const messages = cached
-          .map((msg) => JSON.parse(msg))
-
-        const oldest = messages[0];
-
-        const nextCursor = oldest
-          ? Buffer.from(
-            JSON.stringify({
-              createdAt: oldest.createdAt,
-              _id: oldest._id,
-            })
-          ).toString("base64")
-          : null;
-
-        return res.json({
-          messages,
-          hasMore,
-          nextCursor,
-        });
-      }
-    }
-
-    // ====================================================
-    // MongoDB Query
-    // ====================================================
 
     const query = { chatId };
 
@@ -197,6 +367,16 @@ router.get("/:chatId", async (req, res) => {
           Buffer.from(before, "base64").toString("utf8")
         );
       } catch {
+        return res.status(400).json({
+          message: "Invalid cursor",
+        });
+      }
+
+      if (
+        !cursor.createdAt ||
+        !mongoose.isValidObjectId(cursor._id) ||
+        Number.isNaN(new Date(cursor.createdAt).getTime())
+      ) {
         return res.status(400).json({
           message: "Invalid cursor",
         });
@@ -215,9 +395,20 @@ router.get("/:chatId", async (req, res) => {
       ];
     }
 
-    const messages = await Message.find(query)
+    const fetchedMessages = await Message.find(query)
       .select(
-        "senderId receiverId text mediaUrl mediaKey mediaType messageType sharedPostId replyTo seen createdAt"
+        [
+          "senderId",
+          "receiverId",
+          "e2eeMessageId",
+          "mediaUrl",
+          "mediaType",
+          "messageType",
+          "replyTo",
+          "seen",
+          "seenAt",
+          "createdAt",
+        ].join(" ")
       )
       .sort({
         createdAt: -1,
@@ -226,77 +417,143 @@ router.get("/:chatId", async (req, res) => {
       .limit(limit + 1)
       .lean();
 
-    // Keep all fetched documents for Redis
-    const cacheMessages = [...messages];
+    const hasMore = fetchedMessages.length > limit;
 
-    const hasMore = messages.length > limit;
-
-    if (hasMore) {
-      messages.pop();
-    }
-
-    messages.reverse();
+    const messages = fetchedMessages.slice(0, limit).reverse();
 
     const oldest = messages[0];
 
-    const nextCursor = oldest
+    const nextCursor = hasMore && oldest
       ? Buffer.from(
-        JSON.stringify({
-          createdAt: oldest.createdAt,
-          _id: oldest._id,
-        })
-      ).toString("base64")
+          JSON.stringify({
+            createdAt: oldest.createdAt,
+            _id: oldest._id,
+          })
+        ).toString("base64")
       : null;
 
-    // ====================================================
-    // Refresh Redis Cache (ONLY first page)
-    // ====================================================
-
-    if (!before && limit === CHAT_CACHE_LIMIT) {
-      const pipeline = redisClient.multi();
-      pipeline.del(cacheKey);
-
-      // Store newest -> oldest
-      for (const message of cacheMessages.reverse()) {
-        pipeline.rPush(
-          cacheKey,
-          JSON.stringify(message)
-        );
-      }
-      pipeline.expire(cacheKey, 60 * 60 * 6);
-
-      await pipeline.exec();
-    }
-
-    res.json({
+    return res.json({
       messages,
       hasMore,
       nextCursor,
     });
   } catch (err) {
     console.error("Fetch messages error:", err);
-    res.status(500).json({
+
+    return res.status(500).json({
       message: "Failed to fetch messages",
     });
   }
 });
-// Share a post in a chat
-router.post("/share-post", async (req, res) => {
+
+
+router.post("/e2ee/metadata", verifyToken, async (req, res) => {
   try {
-    const { chatId, senderId, postId } = req.body;
+    const userId = req.user.id; // Use the same authenticated user field as your other routes.
 
-    const message = await Message.create({
+    const {
       chatId,
+      e2eeMessageId,
       senderId,
-      messageType: "post",
-      sharedPostId: postId
-    });
+      receiverId,
+      messageType = "text",
+      replyTo = null,
+      timestamp,
+    } = req.body;
 
-    res.status(201).json(message);
-  } catch (err) {
-    res.status(500).json({ error: "Failed to share post" });
+    if (
+      !mongoose.Types.ObjectId.isValid(chatId) ||
+      !e2eeMessageId ||
+      typeof e2eeMessageId !== "string"
+    ) {
+      return res.status(400).json({ message: "Invalid message metadata" });
+    }
+
+    if (
+      !mongoose.Types.ObjectId.isValid(senderId) ||
+      !mongoose.Types.ObjectId.isValid(receiverId)
+    ) {
+      return res.status(400).json({ message: "Invalid participants" });
+    }
+
+    if (!["text", "media", "post"].includes(messageType)) {
+      return res.status(400).json({ message: "Invalid message type" });
+    }
+
+    const chat = await Chat.findById(chatId);
+
+    if (!chat) {
+      return res.status(404).json({ message: "Chat not found" });
+    }
+
+    const participants = chat.participants.map(String);
+
+    if (
+      !participants.includes(String(userId)) ||
+      !participants.includes(String(senderId)) ||
+      !participants.includes(String(receiverId))
+    ) {
+      return res.status(403).json({ message: "Not authorized for this chat" });
+    }
+
+    // Sender or recipient may report the same message.
+    // Do not allow a caller to change the original sender/receiver.
+    if (
+      String(userId) !== String(senderId) &&
+      String(userId) !== String(receiverId)
+    ) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    const createdAt = timestamp ? new Date(timestamp) : new Date();
+
+    if (Number.isNaN(createdAt.getTime())) {
+      return res.status(400).json({ message: "Invalid timestamp" });
+    }
+
+    const message = await Message.findOneAndUpdate(
+      { e2eeMessageId },
+      {
+        $setOnInsert: {
+          chatId,
+          senderId,
+          receiverId,
+          e2eeMessageId,
+          messageType,
+          text: "",
+          encryptedPayload: null,
+          encryption: null,
+          replyTo: replyTo?.messageId
+            ? {
+                messageId: replyTo.messageId,
+                senderId: replyTo.senderId ?? null,
+              }
+            : null,
+          createdAt,
+          seen: false,
+        },
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+      }
+    );
+
+    // Invalidate your existing chat-history cache here, if applicable.
+
+    return res.status(200).json({
+      message: "Metadata saved",
+      data: message,
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.status(200).json({ message: "Already saved" });
+    }
+
+    console.error("[E2EE] Metadata save error:", error);
+    return res.status(500).json({ message: "Failed to save message metadata" });
   }
 });
-
 
 export default router;

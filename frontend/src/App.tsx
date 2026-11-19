@@ -18,6 +18,8 @@ import { useUser } from "./context/user";
 import { SearchProvider } from "./components/Home/SearchContext";
 import { RouterProvider } from "react-router-dom";
 import { router } from "./router";
+import { useEffect } from "react";
+import { getE2EEStorage } from "./lib/e2ee/storage";
 
 import ComingSoon from "./Pages/ErrorHandling/ComingSoon";
 import { isMobileOrTablet } from "./utils/device";
@@ -26,6 +28,16 @@ import { isMobileOrTablet } from "./utils/device";
 const queryClient = new QueryClient();
 function App() {
   const { user } = useUser();
+
+  useEffect(() => {
+  getE2EEStorage()
+    .then(() => {
+      console.log("E2EE browser storage is ready.");
+    })
+    .catch((error) => {
+      console.error("E2EE storage initialization failed:", error);
+    });
+}, []);
 
     // Block phones and tablets
   if (isMobileOrTablet()) {

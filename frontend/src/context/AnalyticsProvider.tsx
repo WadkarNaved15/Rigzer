@@ -34,11 +34,20 @@ export function AnalyticsProvider({
 }) {
   const { user } = useUser();
   const endedRef = useRef(false);
+  const initializingRef = useRef(false);
 
   useEffect(() => {
     if (!user) return;
 
-    initializeSession();
+    if (initializingRef.current) return;
+
+    initializingRef.current = true;
+
+    initializeSession()
+      .finally(() => {
+        initializingRef.current = false;
+      });
+
   }, [user]);
 
 useEffect(() => {

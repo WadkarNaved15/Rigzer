@@ -1,3 +1,4 @@
+
 import mongoose from "mongoose";
 
 const chatRequestSchema = new mongoose.Schema(
@@ -14,11 +15,45 @@ const chatRequestSchema = new mongoose.Schema(
       required: true,
     },
 
+    // Legacy field for existing requests only.
     firstMessage: {
       type: String,
-      required: true,
-      trim: true,
+      default: "",
       maxlength: 1000,
+    },
+
+    // New encrypted first message.
+    encryptedFirstMessage: {
+      ciphertext: {
+        type: String,
+        default: null,
+      },
+
+      signalType: {
+        type: String,
+        enum: [
+          "SignalMessage",
+          "PreKeySignalMessage",
+          null,
+        ],
+        default: null,
+      },
+
+      deviceId: {
+        type: String,
+        default: null,
+      },
+
+      protocol: {
+        type: String,
+        enum: ["signal", null],
+        default: null,
+      },
+
+      version: {
+        type: Number,
+        default: null,
+      },
     },
 
     status: {
@@ -37,7 +72,6 @@ const chatRequestSchema = new mongoose.Schema(
   }
 );
 
-// Prevent duplicate pending requests
 chatRequestSchema.index(
   {
     sender: 1,

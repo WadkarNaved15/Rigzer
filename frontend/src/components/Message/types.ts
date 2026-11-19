@@ -28,11 +28,13 @@ export interface Message {
   tempId?: string | number;
 
   chatId: string | null;
+  e2eeMessageId?: string;
 
   senderId: string;
   receiverId: string;
 
   text: string;
+
 
   mediaUrl?: string | null;
   mediaKey?: string | null;

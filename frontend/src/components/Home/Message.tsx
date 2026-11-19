@@ -14,6 +14,8 @@ import ChatMessageList from "../Message/ChatMessageList";
 import ChatInput from "../Message/ChatInput";
 import { Message, ChatId, MediaViewerState } from "../Message/types";
 import { MessageCircle } from "lucide-react";
+import { getE2EEClient } from "../../lib/e2ee/client";
+import { saveDecryptedMessage , getDecryptedMessages} from "../../lib/e2ee/messageStore";
 
 type UploadAsset = {
   file: File;
@@ -58,6 +60,8 @@ const MessagingComponent = () => {
   const pendingJumpMessageRef = useRef<Record<string, string | null>>({});
   const replyJumpInProgressRef = useRef<Record<string, boolean>>({});
   const CHAT_PAGE_SIZE = 30;
+  const [isChatInitializing, setIsChatInitializing] = useState(false);
+  
 
   // Maximum amount of history that an automatic reply-preview jump
   // is allowed to load.
@@ -74,6 +78,31 @@ const MessagingComponent = () => {
       }
     >
   >({});
+
+
+useEffect(() => {
+  if (!currentUser || !socket) return;
+
+  const handleEnvelopeAvailable = (payload: {
+    envelopeId: string;
+    targetDeviceId: number;
+  }) => {
+    console.info("[E2EE] Socket notification received:", payload);
+
+    window.dispatchEvent(
+      new CustomEvent("e2ee:envelope-available", {
+        detail: payload,
+      })
+    );
+  };
+
+  socket.on("e2ee:envelope-available", handleEnvelopeAvailable);
+
+  return () => {
+    socket.off("e2ee:envelope-available", handleEnvelopeAvailable);
+  };
+}, [currentUser, socket]);
+
 
   // NEW: Delays the unmounting of the chat window so the close animation can play
   useEffect(() => {
@@ -110,6 +139,56 @@ const MessagingComponent = () => {
   }, []);
 
   const [conversations, setConversations] = useState<Record<string, Message[]>>({});
+
+  const hydrateMessagesFromLocalStore = async (
+  messages: Message[],
+  ownerUserId: string
+): Promise<Message[]> => {
+  try {
+    const e2eeMessageIds = messages
+      .map((msg) => msg.e2eeMessageId)
+      .filter(
+        (id): id is string =>
+          typeof id === "string" && id.length > 0
+      );
+
+    if (e2eeMessageIds.length === 0) {
+      return messages;
+    }
+
+    const localMessages = await getDecryptedMessages(
+      ownerUserId,
+      e2eeMessageIds
+    );
+
+    return messages.map((msg) => {
+      const e2eeMessageId = msg.e2eeMessageId;
+
+      if (!e2eeMessageId) {
+        return msg;
+      }
+
+      const localMessage = localMessages.get(e2eeMessageId);
+
+      if (!localMessage) {
+        return msg;
+      }
+
+      return {
+        ...msg,
+        text: localMessage.text,
+      };
+    });
+  } catch (error) {
+    console.error(
+      "[E2EE] Failed to restore local message history:",
+      error
+    );
+
+    // Do not prevent MongoDB history from loading if IndexedDB fails.
+    return messages;
+  }
+};
 
   const uploadChatMediaToS3 = async (
     asset: UploadAsset,
@@ -191,7 +270,10 @@ const MessagingComponent = () => {
         }
       );
 
-      const olderMessages: Message[] = data.messages || [];
+      const olderMessages: Message[] = await hydrateMessagesFromLocalStore(
+        data.messages || [],
+        currentUser!
+      );
 
       setConversations((prev) => {
         const existing = prev[userId] || [];
@@ -535,6 +617,104 @@ const MessagingComponent = () => {
     handleUserClick(targetUser.id);
   }, [targetUser, currentUser]);
 
+
+
+useEffect(() => {
+  if (!currentUser) return;
+
+  const handleDecryptedMessage = (event: Event) => {
+    const decrypted = (event as CustomEvent).detail;
+
+    if (!decrypted?.payload || !decrypted?.senderId) return;
+
+    const payload = decrypted.payload;
+
+    if (payload.type !== "text" || !payload.chatId) return;
+
+    const otherUserId = decrypted.senderId;
+    const e2eeMessageId = decrypted.messageId;
+
+    const newMessage: Message = {
+      _id: decrypted.mongoMessageId || e2eeMessageId,
+      chatId: payload.chatId,
+      senderId: decrypted.senderId,
+      receiverId: currentUser,
+      text: payload.text ?? "",
+      messageType: "text",
+      createdAt: new Date(decrypted.timestamp),
+      replyTo: payload.replyTo ?? null,
+      e2eeMessageId,
+    } as Message;
+
+    console.log("[E2EE UI] Updating conversation:", {
+      otherUserId,
+      e2eeMessageId,
+      mongoMessageId: decrypted.mongoMessageId,
+      text: payload.text,
+    });
+
+    setConversations((prev) => {
+      const existing = prev[otherUserId] || [];
+
+      // Find an existing metadata-only message.
+      const existingIndex = existing.findIndex(
+        (message) =>
+          (message as any).e2eeMessageId === e2eeMessageId ||
+          (
+            decrypted.mongoMessageId &&
+            message._id === decrypted.mongoMessageId
+          )
+      );
+
+      // If metadata already exists, UPDATE it with decrypted text.
+      if (existingIndex !== -1) {
+        const updated = [...existing];
+
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          ...newMessage,
+          _id:
+            decrypted.mongoMessageId ||
+            updated[existingIndex]._id,
+          e2eeMessageId,
+          text: payload.text ?? "",
+        } as Message;
+
+        return {
+          ...prev,
+          [otherUserId]: updated,
+        };
+      }
+
+      // Otherwise, insert a new message.
+      return {
+        ...prev,
+        [otherUserId]: [...existing, newMessage],
+      };
+    });
+
+    if (activeChat !== otherUserId) {
+      setUnreadCounts((prev) => ({
+        ...prev,
+        [otherUserId]: (prev[otherUserId] || 0) + 1,
+      }));
+    }
+  };
+
+  window.addEventListener(
+    "e2ee:message-decrypted",
+    handleDecryptedMessage
+  );
+
+  return () => {
+    window.removeEventListener(
+      "e2ee:message-decrypted",
+      handleDecryptedMessage
+    );
+  };
+}, [currentUser, activeChat]);
+
+
   useEffect(() => {
     if (!socket) return;
 
@@ -557,33 +737,33 @@ const MessagingComponent = () => {
     };
   }, [socket]);
 
-  useEffect(() => {
-    if (!socket || !currentUser) return;
+  // useEffect(() => {
+  //   if (!socket || !currentUser) return;
 
-    const unreadHandler = ({ senderId }: any) => {
-      // 1. Check if the message is from the active chat
-      if (senderId === activeChat) {
-        // 2. Tell the backend it was seen immediately
-        if (currentChatId) {
-          markChatAsSeen(currentChatId, senderId);
-        }
-        // 3. Exit early so the unread count DOES NOT increment
-        return;
-      }
+  //   const unreadHandler = ({ senderId }: any) => {
+  //     // 1. Check if the message is from the active chat
+  //     if (senderId === activeChat) {
+  //       // 2. Tell the backend it was seen immediately
+  //       if (currentChatId) {
+  //         markChatAsSeen(currentChatId, senderId);
+  //       }
+  //       // 3. Exit early so the unread count DOES NOT increment
+  //       return;
+  //     }
 
-      setUnreadCounts((prev) => ({
-        ...prev,
-        [senderId]: (prev[senderId] || 0) + 1,
-      }));
-    };
+  //     setUnreadCounts((prev) => ({
+  //       ...prev,
+  //       [senderId]: (prev[senderId] || 0) + 1,
+  //     }));
+  //   };
 
-    socket.on("new-unread-message", unreadHandler);
+  //   socket.on("new-unread-message", unreadHandler);
 
-    return () => {
-      socket.off("new-unread-message", unreadHandler);
-    };
-    // 4. IMPORTANT: Add activeChat and currentChatId here so the function has the latest data
-  }, [socket, currentUser, activeChat, currentChatId]);
+  //   return () => {
+  //     socket.off("new-unread-message", unreadHandler);
+  //   };
+  //   // 4. IMPORTANT: Add activeChat and currentChatId here so the function has the latest data
+  // }, [socket, currentUser, activeChat, currentChatId]);
 
   useEffect(() => {
     if (!socket || !currentUser) return;
@@ -729,83 +909,219 @@ const MessagingComponent = () => {
       e.target.value = "";
     }
   };
+const markChatAsSeen = async (chatId: string, userId: string) => {
+  if (!chatId || !userId) return;
 
-  const markChatAsSeen = (chatId: string, userId: string) => {
-    if (!unreadCounts[userId]) return;
+  try {
+    const { data } = await axios.put(
+      `${BACKEND_URL}/api/messages/seen/${chatId}`,
+      {},
+      { withCredentials: true }
+    );
 
-    axios
-      .put(
-        `${BACKEND_URL}/api/messages/seen/${chatId}`,
-        {},
-        { withCredentials: true }
-      )
-      .catch(console.error);
+    console.log("[CHAT] Messages marked as seen:", {
+      chatId,
+      userId,
+      modifiedCount: data.modifiedCount,
+    });
 
     setUnreadCounts((prev) => ({
       ...prev,
       [userId]: 0,
     }));
+
+    // Update locally loaded messages.
+const seenAt = new Date().toISOString();
+
+setConversations((prev) => ({
+  ...prev,
+  [userId]: (prev[userId] || []).map((msg) =>
+    msg.receiverId === currentUser && !msg.seen
+      ? {
+          ...msg,
+          seen: true,
+          seenAt,
+        }
+      : msg
+  ),
+}));
+  } catch (error) {
+    console.error("[CHAT] Failed to mark messages as seen:", error);
+  }
+};
+
+
+
+const handleUserClick = async (receiverId: string) => {
+  if (receiverId === currentUser) {
+    toast.error("Cannot chat with yourself");
+    return;
+  }
+
+  const requestId = ++chatRequestIdRef.current;
+  const startedAt = performance.now();
+
+  const logTime = (label: string, start: number) => {
+    const duration = (performance.now() - start).toFixed(2);
+    console.log(`[CHAT PERF] ${label}: ${duration}ms`);
   };
 
-  const handleUserClick = async (receiverId: string) => {
-    if (receiverId === currentUser) {
-      toast.error("Cannot chat with yourself");
+  console.group(
+    `[CHAT PERF] Opening chat: ${receiverId} | Request: ${requestId}`
+  );
+
+  console.log("[CHAT] Initialization started", {
+    receiverId,
+    currentUser,
+    requestId,
+    timestamp: new Date().toISOString(),
+  });
+
+  setIsChatInitializing(true);
+  setCurrentChatId(null);
+  setActiveChat(receiverId);
+
+  try {
+    // 1. Leave previous chat
+    const leaveStart = performance.now();
+
+    if (currentChatId && socket) {
+      socket.emit("leave_chat", currentChatId);
+    }
+
+    logTime("Leave previous chat", leaveStart);
+
+    // 2. Start or retrieve conversation
+    const chatStartTime = performance.now();
+
+    console.log("[CHAT] Calling POST /api/chat/start");
+
+    const { data } = await axios.post(
+      `${BACKEND_URL}/api/chat/start`,
+      { receiverId },
+      { withCredentials: true }
+    );
+
+    logTime("POST /api/chat/start", chatStartTime);
+
+    if (chatRequestIdRef.current !== requestId) {
+      console.warn("[CHAT] Stale request after chat start");
       return;
     }
-    const requestId = ++chatRequestIdRef.current;
-    try {
-      if (currentChatId && socket) {
-        socket.emit("leave_chat", currentChatId);
-      }
-      setActiveChat(receiverId);
-      const { data } = await axios.post(`${BACKEND_URL}/api/chat/start`, { receiverId }, { withCredentials: true });
 
-      if (chatRequestIdRef.current !== requestId) return; // a newer click superseded this one
+    const chat = data.chat ?? data;
+    const chatId = chat._id ?? data.chatId;
 
-      if (data?._id && socket) {
-        setCurrentChatId(data._id);
-        setRequestedUser(data);
-        setActiveChatStatus(data.status);
-        socket.emit("join_chat", data._id);
-        const { data: messagesData } = await axios.get(
-          `${BACKEND_URL}/api/messages/${data._id}`,
-          { params: { limit: CHAT_PAGE_SIZE }, withCredentials: true }
-        );
-
-        if (chatRequestIdRef.current !== requestId) return; // check again after the 2nd await
-
-        setConversations((prev) => ({ ...prev, [receiverId]: messagesData.messages }));
-        setChatHasMore((prev) => ({ ...prev, [receiverId]: messagesData.hasMore }));
-        setChatCursors((prev) => ({ ...prev, [receiverId]: messagesData.nextCursor }));
-        paginationRef.current[receiverId] = {
-          cursor: messagesData.nextCursor ?? null,
-          hasMore: Boolean(messagesData.hasMore),
-        };
-
-        lastFetchedCursorRef.current[receiverId] = null;
-        isFetchingOlderRef.current[receiverId] = false;
-
-        markChatAsSeen(data._id, receiverId);
-      } else {
-        setCurrentChatId(null);
-        setRequestedUser(null);
-        setActiveChatStatus(null);
-        paginationRef.current[receiverId] = {
-          cursor: null,
-          hasMore: false,
-        };
-
-        isFetchingOlderRef.current[receiverId] = false;
-        lastFetchedCursorRef.current[receiverId] = null;
-        setConversations((prev) => ({
-          ...prev,
-          [receiverId]: [],
-        }));
-      }
-    } catch (error) {
-      console.error("Error starting chat:", error);
+    if (!chatId) {
+      throw new Error("Chat ID missing from API response");
     }
-  };
+
+    console.log("[CHAT] Chat initialized", {
+      chatId,
+      status: chat.status,
+    });
+
+    setCurrentChatId(chatId);
+    setRequestedUser(chat);
+    setActiveChatStatus(chat.status);
+
+    // 3. Join Socket.IO chat room
+    const socketStart = performance.now();
+
+    if (socket) {
+      socket.emit("join_chat", chatId);
+    }
+
+    logTime("Socket join emit", socketStart);
+
+    // 4. Fetch message history from backend
+    const fetchStart = performance.now();
+
+    console.log("[CHAT] Fetching message history", {
+      chatId,
+      limit: CHAT_PAGE_SIZE,
+    });
+
+    const { data: messagesData } = await axios.get(
+      `${BACKEND_URL}/api/messages/${chatId}`,
+      {
+        params: { limit: CHAT_PAGE_SIZE },
+        withCredentials: true,
+      }
+    );
+
+    logTime("GET /api/messages/:chatId", fetchStart);
+
+    if (chatRequestIdRef.current !== requestId) {
+      console.warn("[CHAT] Stale request after history fetch");
+      return;
+    }
+
+    const backendMessages = messagesData.messages || [];
+
+    console.log("[CHAT] Backend history response", {
+      count: backendMessages.length,
+      e2eeCount: backendMessages.filter(
+        (msg: Message) => Boolean(msg.e2eeMessageId)
+      ).length,
+      nextCursor: messagesData.nextCursor ?? null,
+    });
+
+    // 5. Restore decrypted messages from IndexedDB
+    const hydrationStart = performance.now();
+
+    console.log("[CHAT] IndexedDB hydration started");
+
+    const restoredMessages = await hydrateMessagesFromLocalStore(
+      backendMessages,
+      currentUser!
+    );
+
+    logTime("IndexedDB hydration", hydrationStart);
+
+    if (chatRequestIdRef.current !== requestId) {
+      console.warn("[CHAT] Stale request after hydration");
+      return;
+    }
+
+    const restoredCount = restoredMessages.filter(
+      (msg: Message) => Boolean(msg.text)
+    ).length;
+
+    console.log("[CHAT] Hydration completed", {
+      totalMessages: restoredMessages.length,
+      messagesWithText: restoredCount,
+      messagesWithoutText: restoredMessages.length - restoredCount,
+    });
+
+    // 6. Update React conversation state
+    const stateStart = performance.now();
+
+    setConversations((prev) => ({
+      ...prev,
+      [receiverId]: restoredMessages,
+    }));
+
+    logTime("React state update scheduled", stateStart);
+
+    // Keep your existing pagination and markChatAsSeen logic here.
+
+    logTime("TOTAL chat initialization", startedAt);
+
+    console.log("[CHAT] Initialization completed successfully");
+  } catch (error) {
+    console.error("[CHAT] Initialization failed:", error);
+    logTime("FAILED after", startedAt);
+
+    toast.error("Failed to initialize conversation");
+  } finally {
+    if (chatRequestIdRef.current === requestId) {
+      setIsChatInitializing(false);
+    }
+
+    console.groupEnd();
+  }
+};
 
   const handleUpdateChatStatus = async (status: "accepted" | "declined") => {
     if (!currentChatId) return;
@@ -825,51 +1141,195 @@ const MessagingComponent = () => {
     }
   };
 
-  const handleSendMessage = () => {
-    if (!socket || !currentUser) return;
-    if (!canSendMessages) return;
-    if (!message.trim() || !activeChat) return;
 
-    const tempId = crypto.randomUUID();
 
-    const replyTo = replyingTo?._id
-      ? {
+
+const handleSendMessage = async () => {
+  const content = message.trim();
+
+  if (!currentUser || !activeChat || !content) return;
+  if (!canSendMessages) return;
+
+  if (isChatInitializing) {
+    toast.info("Please wait, conversation is loading...");
+    return;
+  }
+
+  if (!currentChatId) {
+    toast.error("Chat is not initialized yet.");
+    return;
+  }
+
+  // Capture the current conversation before starting async work.
+  const recipientId = activeChat;
+  const chatId = currentChatId;
+  const senderId = currentUser;
+  const tempId = crypto.randomUUID();
+
+  const replyTo = replyingTo?._id
+    ? {
         messageId: replyingTo._id,
         senderId: replyingTo.senderId,
         text: replyingTo.text || null,
         messageType: replyingTo.messageType || "text",
         mediaType: replyingTo.mediaType || null,
       }
-      : null;
-    const newMessage: Message = {
-      tempId,
-      chatId: currentChatId || null,
-      senderId: currentUser,
-      receiverId: activeChat,
-      text: message,
-      messageType: "text",
+    : null;
+
+  const optimisticMessage: Message = {
+    tempId,
+    chatId,
+    senderId,
+    receiverId: recipientId,
+    text: content,
+    messageType: "text",
+    createdAt: new Date(),
+    replyTo,
+    seen: false,
+  };
+
+  // 1. Show the message immediately.
+  setConversations((prev) => ({
+    ...prev,
+    [recipientId]: [
+      ...(prev[recipientId] || []),
+      optimisticMessage,
+    ],
+  }));
+
+  // Clear the input immediately.
+  setMessage("");
+  setReplyingTo(null);
+
+  let stage = "E2EE initialization";
+
+  try {
+    const client = await getE2EEClient(senderId, 1);
+
+    stage = "E2EE send";
+
+    const payload = {
+      type: "text",
+      chatId,
+      text: content,
       replyTo,
-      createdAt: new Date(),
     };
 
-    socket.emit("send-message", newMessage, (response: {
-      success: boolean;
-      chatId?: string;
-    }) => {
-      if (!response?.success || !response.chatId) {
-        return;
+    const result = await client.send(
+      recipientId,
+      JSON.stringify(payload),
+      {
+        clientMessageId: tempId,
+        timestamp: Date.now(),
+        replyTo: replyTo?.messageId,
       }
-      setCurrentChatId(response.chatId);
-    });
+    );
 
+    console.log("[E2EE] Send result:", result);
+
+    // 2. Update the optimistic message with its E2EE ID.
     setConversations((prev) => ({
       ...prev,
-      [activeChat]: [...(prev[activeChat] || []), newMessage],
+      [recipientId]: (prev[recipientId] || []).map((msg) =>
+        msg.tempId === tempId
+          ? {
+              ...msg,
+              e2eeMessageId: result.messageId,
+              createdAt: new Date(
+                Number(result.timestamp) || Date.now()
+              ),
+            }
+          : msg
+      ),
     }));
 
-    setMessage("");
-    setReplyingTo(null);
-  };
+    // 3. Save the sender's local decrypted copy.
+    try {
+      await saveDecryptedMessage({
+        userId: senderId,
+        e2eeMessageId: result.messageId,
+        chatId,
+        senderId,
+        receiverId: recipientId,
+        type: "text",
+        text: content,
+        timestamp: Number(result.timestamp) || Date.now(),
+        replyTo: replyTo ?? null,
+      });
+    } catch (storageError) {
+      console.error(
+        "[E2EE] Failed to save sender's local message:",
+        storageError
+      );
+    }
+
+    // 4. Persist metadata independently.
+    stage = "Save message metadata";
+
+    try {
+      const response = await axios.post(
+        `${BACKEND_URL}/api/messages/e2ee/metadata`,
+        {
+          chatId,
+          e2eeMessageId: result.messageId,
+          senderId,
+          receiverId: recipientId,
+          messageType: "text",
+          replyTo,
+          timestamp: result.timestamp,
+        },
+        { withCredentials: true }
+      );
+
+      const mongoMessageId = response.data?.data?._id;
+
+      if (mongoMessageId) {
+        setConversations((prev) => ({
+          ...prev,
+          [recipientId]: (prev[recipientId] || []).map((msg) =>
+            msg.tempId === tempId
+              ? {
+                  ...msg,
+                  _id: mongoMessageId,
+                  e2eeMessageId: result.messageId,
+                }
+              : msg
+          ),
+        }));
+      }
+
+      console.log("[E2EE] Metadata saved:", response.data);
+    } catch (metadataError) {
+      // The encrypted message was already sent.
+      // Do not remove it just because metadata persistence failed.
+      console.error(
+        "[E2EE] Metadata persistence failed:",
+        metadataError
+      );
+
+      toast.warning(
+        "Message sent, but message history is still syncing."
+      );
+    }
+  } catch (error) {
+    console.error(`[E2EE] Failed at stage: ${stage}`, error);
+
+    // Remove the optimistic message if the send itself failed.
+    setConversations((prev) => ({
+      ...prev,
+      [recipientId]: (prev[recipientId] || []).filter(
+        (msg) => msg.tempId !== tempId
+      ),
+    }));
+
+    // Restore the text if the user hasn't typed another message.
+    setMessage((prev) => prev || content);
+
+    toast.error(`Message failed during: ${stage}`);
+  }
+};
+
+
 
   const handleReply = (message: Message) => {
     if (!message?._id && !message?.tempId) return;
@@ -1069,6 +1529,8 @@ const MessagingComponent = () => {
 
                     <ChatInput
                       isMaximized={isMaximized}
+                      isChatInitializing={isChatInitializing}
+                      currentChatId={currentChatId}
                       message={message}
                       onMessageChange={setMessage}
                       onSend={handleSendMessage}
